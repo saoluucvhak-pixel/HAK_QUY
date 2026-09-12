@@ -293,6 +293,132 @@ function addPhieuChi(payload, currentUser) {
 }
 
 /*************************************************
+ * API: HỦY PHIẾU THU / PHIẾU CHI
+ * Theo đúng nguyên tắc kế toán: KHÔNG sửa/xóa phiếu đã lập — chỉ
+ * đổi trạng thái sang "Đã hủy" kèm lý do, giữ nguyên lịch sử để
+ * truy vết (Audit Log + số phiếu cũ vẫn còn trên Sổ Quỹ, chỉ không
+ * còn được tính vào tồn quỹ). Muốn ghi nhận đúng thì lập phiếu mới.
+ * Quyền: ADMIN hoặc THU_QUY (giống quyền lập phiếu).
+ *************************************************/
+function huyPhieuThu(soPhieuThu, lyDoHuy, currentUser) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(20000);
+
+    if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN, ROLE_THU_QUY]);
+
+    if (!soPhieuThu) throw new Error('Thiếu số phiếu thu cần hủy.');
+    if (!lyDoHuy) throw new Error('Vui lòng nhập lý do hủy.');
+
+    const sh = _sheet(SHEET_PHIEU_THU);
+    const data = sh.getDataRange().getValues();
+    const headers = data[0].map(h => String(h).trim());
+    const idxSoPhieu = headers.indexOf('so_phieu_thu');
+    const idxNgay = headers.indexOf('ngay_thu');
+    const idxLoaiGD = headers.indexOf('loai_giao_dich');
+    const idxTrangThai = headers.indexOf('trang_thai');
+    const idxLyDoHuy = headers.indexOf('ly_do_huy');
+    const idxNguoiSua = headers.indexOf('nguoi_sua_cuoi');
+    const idxThoiGianSua = headers.indexOf('thoi_gian_sua_cuoi');
+
+    let rowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][idxSoPhieu]) === String(soPhieuThu)) { rowIndex = i; break; }
+    }
+    if (rowIndex === -1) throw new Error('Không tìm thấy phiếu thu: ' + soPhieuThu);
+    if (data[rowIndex][idxTrangThai] === TRANG_THAI_DA_HUY) throw new Error('Phiếu này đã bị hủy trước đó.');
+
+    const ngayKey = _fmtDate(data[rowIndex][idxNgay]);
+    if (_isDateLocked(ngayKey)) throw new Error('Ngày ' + ngayKey + ' đã bị khóa sổ, không thể hủy phiếu.');
+
+    const loaiGD = data[rowIndex][idxLoaiGD];
+    const nguoiLap = currentUser.full_name || 'N/A';
+    const now = new Date();
+
+    sh.getRange(rowIndex + 1, idxTrangThai + 1).setValue(TRANG_THAI_DA_HUY);
+    sh.getRange(rowIndex + 1, idxLyDoHuy + 1).setValue(lyDoHuy);
+    sh.getRange(rowIndex + 1, idxNguoiSua + 1).setValue(nguoiLap);
+    sh.getRange(rowIndex + 1, idxThoiGianSua + 1).setValue(now);
+
+    if (loaiGD === 'Thu công nợ') {
+      const maCongNoDaHoanTac = _huyThanhToanCongNoTheoPhieu(soPhieuThu, nguoiLap);
+      maCongNoDaHoanTac.forEach(ma => {
+        _writeAuditLog(nguoiLap, 'Công Nợ', 'Sửa', ma, '', 'Hoàn tác thu nợ do hủy phiếu ' + soPhieuThu);
+      });
+    }
+
+    _writeAuditLog(nguoiLap, 'Phiếu Thu', 'Hủy', soPhieuThu, TRANG_THAI_HOP_LE, 'Lý do: ' + lyDoHuy);
+
+    return _jsonOk({ so_phieu_thu: soPhieuThu });
+
+  } catch (err) {
+    return _jsonErr(err);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function huyPhieuChi(soPhieuChi, lyDoHuy, currentUser) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(20000);
+
+    if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN, ROLE_THU_QUY]);
+
+    if (!soPhieuChi) throw new Error('Thiếu số phiếu chi cần hủy.');
+    if (!lyDoHuy) throw new Error('Vui lòng nhập lý do hủy.');
+
+    const sh = _sheet(SHEET_PHIEU_CHI);
+    const data = sh.getDataRange().getValues();
+    const headers = data[0].map(h => String(h).trim());
+    const idxSoPhieu = headers.indexOf('so_phieu_chi');
+    const idxNgay = headers.indexOf('ngay_chi');
+    const idxLoaiGD = headers.indexOf('loai_giao_dich');
+    const idxTrangThai = headers.indexOf('trang_thai');
+    const idxLyDoHuy = headers.indexOf('ly_do_huy');
+    const idxNguoiSua = headers.indexOf('nguoi_sua_cuoi');
+    const idxThoiGianSua = headers.indexOf('thoi_gian_sua_cuoi');
+
+    let rowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][idxSoPhieu]) === String(soPhieuChi)) { rowIndex = i; break; }
+    }
+    if (rowIndex === -1) throw new Error('Không tìm thấy phiếu chi: ' + soPhieuChi);
+    if (data[rowIndex][idxTrangThai] === TRANG_THAI_DA_HUY) throw new Error('Phiếu này đã bị hủy trước đó.');
+
+    const ngayKey = _fmtDate(data[rowIndex][idxNgay]);
+    if (_isDateLocked(ngayKey)) throw new Error('Ngày ' + ngayKey + ' đã bị khóa sổ, không thể hủy phiếu.');
+
+    const loaiGD = data[rowIndex][idxLoaiGD];
+    const nguoiLap = currentUser.full_name || 'N/A';
+    const now = new Date();
+
+    sh.getRange(rowIndex + 1, idxTrangThai + 1).setValue(TRANG_THAI_DA_HUY);
+    sh.getRange(rowIndex + 1, idxLyDoHuy + 1).setValue(lyDoHuy);
+    sh.getRange(rowIndex + 1, idxNguoiSua + 1).setValue(nguoiLap);
+    sh.getRange(rowIndex + 1, idxThoiGianSua + 1).setValue(now);
+
+    if (loaiGD === 'Trả công nợ') {
+      const maCongNoDaHoanTac = _huyThanhToanCongNoTheoPhieu(soPhieuChi, nguoiLap);
+      maCongNoDaHoanTac.forEach(ma => {
+        _writeAuditLog(nguoiLap, 'Công Nợ', 'Sửa', ma, '', 'Hoàn tác trả nợ do hủy phiếu ' + soPhieuChi);
+      });
+    }
+
+    _writeAuditLog(nguoiLap, 'Phiếu Chi', 'Hủy', soPhieuChi, TRANG_THAI_HOP_LE, 'Lý do: ' + lyDoHuy);
+
+    return _jsonOk({ so_phieu_chi: soPhieuChi });
+
+  } catch (err) {
+    return _jsonErr(err);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/*************************************************
  * API: SỔ QUỸ (tính động, có lọc) — không giới hạn quyền xem
  *
  * filters.loaiQuy chọn quỹ cần xem: 'Quỹ tiền mặt' (mặc định) hoặc

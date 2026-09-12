@@ -773,9 +773,12 @@
             <label class="block text-xs text-gray-500 mb-1">Người lập</label>
             <input type="text" id="sq_nguoiLap" placeholder="Tên người lập" class="w-full border rounded-lg px-2 py-1.5 text-sm">
           </div>
-          <div class="flex items-end">
+          <div class="flex items-end gap-2">
             <button onclick="loadSoQuy()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Lọc</button>
           </div>
+        </div>
+        <div class="flex justify-end mt-3">
+          <button id="btnXuatSoQuy" onclick="exportSoQuyExcel(this)" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
         </div>
       </div>
 
@@ -811,14 +814,22 @@
     loadSoQuy();
   }
 
-  function loadSoQuy() {
-    const filters = {
+  function _soQuyFiltersHienTai() {
+    return {
       loaiQuy: document.getElementById('sq_loaiQuy').value,
       tuNgay: document.getElementById('sq_tuNgay').value,
       denNgay: document.getElementById('sq_denNgay').value,
       loaiGiaoDich: document.getElementById('sq_loai').value,
       nguoiLap: document.getElementById('sq_nguoiLap').value.trim()
     };
+  }
+
+  function exportSoQuyExcel(btn) {
+    xuatExcelTuServer(btn, 'xuatSoQuyExcel', [_soQuyFiltersHienTai()]);
+  }
+
+  function loadSoQuy() {
+    const filters = _soQuyFiltersHienTai();
 
     document.getElementById('soQuyBody').innerHTML = '<tr><td colspan="11" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
 
@@ -1324,7 +1335,7 @@
       </div>
 
       <div class="flex justify-end gap-2 mb-3 no-print">
-        <button onclick="exportBaoCaoThuChiCSV()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel (CSV)</button>
+        <button id="btnXuatBaoCaoThuChi" onclick="exportBaoCaoThuChiExcel(this)" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
         <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
       </div>
 
@@ -1397,13 +1408,15 @@
       .getBaoCaoThuChi(filters);
   }
 
-  function exportBaoCaoThuChiCSV() {
+  function exportBaoCaoThuChiExcel(btn) {
     if (!BAOCAO_THUCHI_DATA || !BAOCAO_THUCHI_DATA.chi_tiet) { alert('Chưa có dữ liệu để xuất.'); return; }
-    const headers = ['Ngày', 'Số phiếu', 'Loại', 'Nội dung', 'Đối tượng', 'Người lập', 'Thu', 'Chi'];
-    const rows = BAOCAO_THUCHI_DATA.chi_tiet.map(function (t) {
-      return [t.ngay, t.so_phieu, t.loai, t.noi_dung || '', t.doi_tuong || '', t.nguoi_lap || '', t.thu || 0, t.chi || 0];
-    });
-    downloadCSV('BaoCaoThuChi_' + BAOCAO_THUCHI_DATA.tu_ngay + '_' + BAOCAO_THUCHI_DATA.den_ngay + '.csv', headers, rows);
+    const filters = {
+      tuNgay: document.getElementById('bc_tuNgay').value,
+      denNgay: document.getElementById('bc_denNgay').value,
+      loaiGiaoDich: document.getElementById('bc_loai').value,
+      nguoiLap: document.getElementById('bc_nguoiLap').value.trim()
+    };
+    xuatExcelTuServer(btn, 'xuatBaoCaoThuChiExcel', [filters]);
   }
 
   function renderBaoCaoCongNoTongHop() {
@@ -1432,7 +1445,7 @@
       </div>
 
       <div class="flex justify-end gap-2 mb-3 no-print">
-        <button onclick="exportBaoCaoCongNoCSV()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel (CSV)</button>
+        <button id="btnXuatBaoCaoCongNo" onclick="exportBaoCaoCongNoExcel(this)" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
         <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
       </div>
 
@@ -1544,19 +1557,15 @@
       .getBaoCaoCongNoChiTiet(maDoiTuong, BAOCAO_CONGNO_DATA.loai, BAOCAO_CONGNO_DATA.tuNgay, BAOCAO_CONGNO_DATA.denNgay);
   }
 
-  function exportBaoCaoCongNoCSV() {
+  function exportBaoCaoCongNoExcel(btn) {
     if (!BAOCAO_CONGNO_DATA || !BAOCAO_CONGNO_DATA.list) { alert('Chưa có dữ liệu để xuất.'); return; }
-    const headers = ['Đối tượng', 'Đầu kỳ', 'Phát sinh', 'Đã thu/trả', 'Cuối kỳ'];
-    const rows = BAOCAO_CONGNO_DATA.list.map(function (r) {
-      return [r.doi_tuong, r.dau_ky, r.phat_sinh, r.da_thu_tra, r.cuoi_ky];
-    });
-    downloadCSV('BaoCaoCongNo_' + BAOCAO_CONGNO_DATA.loai + '_' + BAOCAO_CONGNO_DATA.tuNgay + '.csv', headers, rows);
+    xuatExcelTuServer(btn, 'xuatBaoCaoCongNoExcel', [BAOCAO_CONGNO_DATA.loai, BAOCAO_CONGNO_DATA.tuNgay, BAOCAO_CONGNO_DATA.denNgay]);
   }
 
   function renderBaoCaoQuaHan() {
     document.getElementById('baoCaoBody').innerHTML = `
       <div class="flex justify-end gap-2 mb-3 no-print">
-        <button onclick="exportBaoCaoQuaHanCSV()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel (CSV)</button>
+        <button id="btnXuatBaoCaoQuaHan" onclick="exportBaoCaoQuaHanExcel(this)" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
         <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
       </div>
       <div class="card overflow-x-auto">
@@ -1604,13 +1613,9 @@
       .getBaoCaoCongNoQuaHan();
   }
 
-  function exportBaoCaoQuaHanCSV() {
+  function exportBaoCaoQuaHanExcel(btn) {
     if (!BAOCAO_QUAHAN_DATA) { alert('Chưa có dữ liệu để xuất.'); return; }
-    const headers = ['Mã CN', 'Đối tượng', 'Loại', 'Ngày phát sinh', 'Hạn thanh toán', 'Số ngày quá hạn', 'Còn nợ'];
-    const rows = BAOCAO_QUAHAN_DATA.map(function (r) {
-      return [r.ma_cong_no, r.doi_tuong, r.loai_cong_no, r.ngay_phat_sinh, r.han_thanh_toan, r.so_ngay_qua_han, r.con_lai];
-    });
-    downloadCSV('BaoCaoCongNoQuaHan.csv', headers, rows);
+    xuatExcelTuServer(btn, 'xuatBaoCaoQuaHanExcel', []);
   }
 
   /* ================= QUẢN TRỊ ================= */
@@ -2444,6 +2449,12 @@
         if (p.ly_do_huy) html += '<div class="md:col-span-2"><span class="text-gray-400">Lý do hủy:</span> ' + p.ly_do_huy + '</div>';
         html += '</div>';
 
+        const coQuyenHuy = ['ADMIN', 'THU_QUY'].indexOf(CURRENT_USER.role) !== -1;
+        if (p.trang_thai === 'Hợp lệ' && coQuyenHuy) {
+          html += '<div class="mb-4"><button onclick="huyPhieuTraCuu(\'' + p.so_phieu + '\',\'' + p.loai + '\')" ' +
+            'class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700">🗑️ Hủy phiếu này</button></div>';
+        }
+
         html += '<div class="font-medium text-gray-600 text-sm mb-2">Lịch sử thao tác</div>';
         if (!lichSu || lichSu.length === 0) {
           html += '<div class="text-xs text-gray-400">Chưa có lịch sử ghi nhận.</div>';
@@ -2457,6 +2468,29 @@
       })
       .withFailureHandler(function (err) { body.textContent = 'Lỗi hệ thống: ' + err.message; })
       .getChiTietGiaoDich(soPhieu, loai);
+  }
+
+  /**
+   * Hủy 1 phiếu Thu/Chi ngay từ màn Tra Cứu. Theo đúng nguyên tắc kế
+   * toán: không sửa/xóa phiếu cũ, chỉ đổi trạng thái + ghi lý do, giữ
+   * nguyên lịch sử. Nếu phiếu là Thu/Trả công nợ, backend tự hoàn tác
+   * lại khoản công nợ liên quan.
+   */
+  function huyPhieuTraCuu(soPhieu, loai) {
+    const lyDo = prompt('Nhập lý do hủy phiếu ' + soPhieu + ':');
+    if (lyDo === null) return; // bấm Hủy (Cancel) hộp thoại
+    if (!lyDo.trim()) { alert('Vui lòng nhập lý do hủy.'); return; }
+
+    const hamGoi = loai === 'Thu' ? 'huyPhieuThu' : 'huyPhieuChi';
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        alert('Đã hủy phiếu ' + soPhieu + '.');
+        xemChiTietGiaoDich(soPhieu, loai);
+        loadTraCuu();
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      [hamGoi](soPhieu, lyDo.trim(), currentUserInfo());
   }
 
   /* ================= TIỆN ÍCH ================= */
@@ -2474,20 +2508,47 @@
     box.classList.remove('hidden');
   }
 
-  function downloadCSV(filename, headers, rows) {
-    let csv = '\uFEFF' + headers.join(',') + '\n';
-    rows.forEach(function (row) {
-      csv += row.map(function (cell) {
-        const s = String(cell === null || cell === undefined ? '' : cell).replace(/"/g, '""');
-        return '"' + s + '"';
-      }).join(',') + '\n';
-    });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  /**
+   * Nhận file .xlsx dạng base64 từ server (xem XuatExcel.gs) và cho
+   * trình duyệt tải xuống trực tiếp — file Excel THẬT (có định dạng,
+   * màu sắc, số tiền căn phải...), không phải CSV thô.
+   */
+  function taiFileExcel(base64, filename) {
+    const byteChars = atob(base64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  }
+
+  /**
+   * Gọi 1 hàm server sinh file Excel, disable nút bấm trong lúc chờ
+   * (việc tạo + xuất Google Sheet mất vài giây), rồi tự tải file về.
+   */
+  function xuatExcelTuServer(btn, tenHamServer, thamSo) {
+    const textCu = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang tạo file...';
+
+    const xongRoi = function () { btn.disabled = false; btn.textContent = textCu; };
+
+    let call = google.script.run
+      .withSuccessHandler(function (res) {
+        xongRoi();
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        taiFileExcel(res.data.base64, res.data.filename);
+      })
+      .withFailureHandler(function (err) {
+        xongRoi();
+        alert('Lỗi hệ thống: ' + err.message);
+      });
+    call[tenHamServer].apply(call, thamSo || []);
   }
 </script>
