@@ -1,6 +1,20 @@
 <script>
   let CURRENT_USER = null;
 
+  /**
+   * Định dạng 1 Date thành 'yyyy-MM-dd' theo GIỜ ĐỊA PHƯƠNG của trình duyệt.
+   * KHÔNG dùng toISOString() cho việc này vì nó quy đổi sang giờ UTC —
+   * ở múi giờ Việt Nam (UTC+7), điều đó khiến ngày bị lùi 1 hôm mỗi khi
+   * thời điểm tạo Date rơi vào khoảng 00:00-06:59 giờ địa phương (ví dụ
+   * new Date(năm, tháng, 1) luôn là 00:00 địa phương nên luôn bị lùi).
+   */
+  function _localDateStr(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
   const ROLE_MENUS = {
     ADMIN: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'congno', 'doituong', 'danhmuc', 'baocao', 'tracuu', 'quantri'],
     THU_QUY: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'tracuu'],
@@ -289,7 +303,7 @@
   }
 
   function renderThuFormBody(opts) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = _localDateStr(new Date());
     const doiTuongOpts = opts.doiTuong.map(d => `<option value="${d.ma}">${d.ten}</option>`).join('');
     const loaiThuOpts = opts.loaiThu.map(l => `<option value="${l.ma}">${l.ten}</option>`).join('');
 
@@ -515,7 +529,7 @@
   }
 
   function renderChiFormBody(opts) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = _localDateStr(new Date());
     const doiTuongOpts = opts.doiTuong.map(d => `<option value="${d.ma}">${d.ten}</option>`).join('');
     const loaiChiOpts = opts.loaiChi.map(l => `<option value="${l.ma}">${l.ten}</option>`).join('');
 
@@ -791,8 +805,8 @@
 
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    document.getElementById('sq_tuNgay').value = firstDay.toISOString().slice(0, 10);
-    document.getElementById('sq_denNgay').value = now.toISOString().slice(0, 10);
+    document.getElementById('sq_tuNgay').value = _localDateStr(firstDay);
+    document.getElementById('sq_denNgay').value = _localDateStr(now);
 
     loadSoQuy();
   }
@@ -938,7 +952,7 @@
     }
     thangSelect.value = now.getMonth() + 1;
     document.getElementById('com_namXem').value = now.getFullYear();
-    document.getElementById('com_ngay').value = now.toISOString().slice(0, 10);
+    document.getElementById('com_ngay').value = _localDateStr(now);
 
     google.script.run
       .withSuccessHandler(function (res) {
@@ -950,7 +964,7 @@
   }
 
   function resetSoComForm() {
-    document.getElementById('com_ngay').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('com_ngay').value = _localDateStr(new Date());
     document.getElementById('com_trua').value = '';
     document.getElementById('com_toi').value = '';
     document.getElementById('com_ngayTamUng').value = '';
@@ -1125,7 +1139,7 @@
   }
 
   function renderCongNoFormBody(opts) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = _localDateStr(new Date());
     const doiTuongOpts = opts.doiTuong.map(d => `<option value="${d.ma}">${d.ten}</option>`).join('');
 
     document.getElementById('congNoFormBody').innerHTML = `
@@ -1337,8 +1351,8 @@
 
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    document.getElementById('bc_tuNgay').value = firstDay.toISOString().slice(0, 10);
-    document.getElementById('bc_denNgay').value = now.toISOString().slice(0, 10);
+    document.getElementById('bc_tuNgay').value = _localDateStr(firstDay);
+    document.getElementById('bc_denNgay').value = _localDateStr(now);
 
     loadBaoCaoThuChi();
   }
@@ -1451,8 +1465,8 @@
 
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    document.getElementById('bccn_tuNgay').value = firstDay.toISOString().slice(0, 10);
-    document.getElementById('bccn_denNgay').value = now.toISOString().slice(0, 10);
+    document.getElementById('bccn_tuNgay').value = _localDateStr(firstDay);
+    document.getElementById('bccn_denNgay').value = _localDateStr(now);
 
     loadBaoCaoCongNoTongHop();
   }
@@ -1781,7 +1795,7 @@
       </div>
     `;
 
-    document.getElementById('ksNgay').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('ksNgay').value = _localDateStr(new Date());
     loadKhoaSoList();
   }
 
