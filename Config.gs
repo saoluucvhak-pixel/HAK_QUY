@@ -27,6 +27,10 @@ const SHEET_SO_COM                = 'SO_COM';
 const QUY_TIEN_MAT  = 'Quỹ tiền mặt';
 const QUY_CONG_DOAN = 'Quỹ công đoàn';
 
+// ----- Đối soát Phiếu Thu/Chi (theo dõi tạm ứng chờ hoàn chứng từ) -----
+const DOI_SOAT_HOAN_UNG = 'Hoàn ứng';
+const DOI_SOAT_CHO_HOAN = 'Chờ hoàn';
+
 // ----- Vai trò người dùng -----
 const ROLE_ADMIN   = 'ADMIN';
 const ROLE_THU_QUY = 'THU_QUY';

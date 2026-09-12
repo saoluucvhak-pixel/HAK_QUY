@@ -220,3 +220,73 @@ function xuatSoQuyExcel(filters) {
     return _jsonErr(err);
   }
 }
+
+/*************************************************
+ * API: XUẤT SỔ ĐỐI SOÁT RA EXCEL
+ *************************************************/
+function xuatSoDoiSoatExcel(filters) {
+  try {
+    const res = getSoDoiSoat(filters);
+    if (!res.success) throw new Error(res.message);
+    const d = res.data;
+
+    const headers = ['Ngày HT', 'Ngày CT', 'Số PT', 'Số PC', 'Diễn giải', 'Quỹ', 'Thu', 'Chi', 'Đối soát', 'Người nhận/nộp'];
+    const rows = d.danh_sach.map(function (t) {
+      return [t.ngay_hach_toan, t.ngay, t.so_phieu_thu, t.so_phieu_chi, t.noi_dung || '',
+        t.loai_quy, t.thu || '', t.chi || '', t.doi_soat, t.nguoi_nhan_nop || ''];
+    });
+
+    let phuDe = 'Số chứng từ đang Chờ hoàn: ' + d.so_luong_cho_hoan + '  |  Tổng tiền Chờ hoàn: ' +
+      Math.round(d.tong_tien_cho_hoan).toLocaleString('vi-VN') + ' đ';
+    if (filters && filters.tuNgay) phuDe += '  |  Từ ngày ' + filters.tuNgay;
+    if (filters && filters.denNgay) phuDe += ' đến ' + filters.denNgay;
+
+    const file = _taoFileExcel('SoDoiSoat', [{
+      tenSheet: 'Sổ đối soát',
+      tieuDe: 'SỔ ĐỐI SOÁT — HOÀN ỨNG / CHỜ HOÀN',
+      phuDe: phuDe,
+      headers: headers,
+      rows: rows,
+      condoTien: [6, 7]
+    }]);
+
+    return _jsonOk(file);
+  } catch (err) {
+    return _jsonErr(err);
+  }
+}
+
+/*************************************************
+ * API: XUẤT SỔ CƠM (THEO THÁNG) RA EXCEL
+ *************************************************/
+function xuatSoComExcel(nam, thang) {
+  try {
+    const res = getSoComThang(nam, thang);
+    if (!res.success) throw new Error(res.message);
+    const d = res.data;
+
+    const headers = ['Ngày', 'Trưa', 'Tối', 'Tổng suất', 'Đơn giá', 'Thành tiền', 'Ngày tạm ứng', 'Số tiền tạm ứng', 'Tồn'];
+    const rows = d.rows.map(function (r) {
+      return [r.ngay, r.buoi_trua || '', r.buoi_toi || '', r.tong_suat || '', r.don_gia || '',
+        r.thanh_tien || '', r.ngay_tam_ung || '', r.so_tien_tam_ung || '', r.ton];
+    });
+    rows.push(['TỔNG CỘNG', '', '', d.tong_suat, '', d.tong_thanh_tien, '', d.tong_tam_ung, d.ton_hien_tai]);
+
+    const phuDe = 'Tháng ' + thang + '/' + nam + '  |  Đơn giá mặc định: ' +
+      Math.round(d.don_gia_mac_dinh).toLocaleString('vi-VN') + ' đ/suất  |  Tồn quỹ cơm hiện tại: ' +
+      Math.round(d.ton_hien_tai).toLocaleString('vi-VN') + ' đ';
+
+    const file = _taoFileExcel('SoCom_' + nam + '_' + String(thang).padStart(2, '0'), [{
+      tenSheet: 'Sổ Cơm',
+      tieuDe: 'SỔ CƠM THÁNG ' + String(thang).padStart(2, '0') + '/' + nam,
+      phuDe: phuDe,
+      headers: headers,
+      rows: rows,
+      condoTien: [4, 5, 7, 8]
+    }]);
+
+    return _jsonOk(file);
+  } catch (err) {
+    return _jsonErr(err);
+  }
+}

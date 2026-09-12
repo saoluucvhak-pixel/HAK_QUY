@@ -16,9 +16,9 @@
   }
 
   const ROLE_MENUS = {
-    ADMIN: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'congno', 'doituong', 'danhmuc', 'baocao', 'tracuu', 'quantri', 'huongdan'],
-    THU_QUY: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'tracuu', 'huongdan'],
-    XEM: ['dashboard', 'soquy', 'soquycongdoan', 'socom', 'congno', 'baocao', 'tracuu', 'huongdan']
+    ADMIN: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'doisoat', 'congno', 'doituong', 'danhmuc', 'baocao', 'tracuu', 'quantri', 'huongdan'],
+    THU_QUY: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'doisoat', 'tracuu', 'huongdan'],
+    XEM: ['dashboard', 'soquy', 'soquycongdoan', 'socom', 'doisoat', 'congno', 'baocao', 'tracuu', 'huongdan']
   };
 
   function currentUserInfo() {
@@ -133,6 +133,7 @@
     soquy: 'Sổ Quỹ',
     soquycongdoan: 'Sổ Quỹ Công Đoàn',
     socom: 'Sổ Cơm',
+    doisoat: 'Sổ Đối Soát',
     congno: 'Công Nợ',
     doituong: 'Đối Tượng',
     danhmuc: 'Danh Mục',
@@ -165,6 +166,8 @@
       renderSoQuyCongDoan();
     } else if (key === 'socom') {
       renderSoCom();
+    } else if (key === 'doisoat') {
+      renderSoDoiSoat();
     } else if (key === 'congno') {
       renderCongNo();
     } else if (key === 'baocao') {
@@ -386,9 +389,16 @@
           <label class="block text-sm font-medium text-gray-600 mb-1">Mã nhân viên</label>
           <input type="text" id="thuMaNhanVien" placeholder="vd: 01.006.001" class="w-full border rounded-lg px-3 py-2">
         </div>
-        <div class="md:col-span-2">
+        <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">Chi nhánh</label>
           <input type="text" id="thuChiNhanh" placeholder="Chi nhánh (nếu có)" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Đối soát</label>
+          <select id="thuDoiSoat" class="w-full border rounded-lg px-3 py-2">
+            <option value="Hoàn ứng" selected>Hoàn ứng</option>
+            <option value="Chờ hoàn">Chờ hoàn</option>
+          </select>
         </div>
 
         <div class="md:col-span-2">
@@ -486,7 +496,8 @@
       tai_khoan: document.getElementById('thuTaiKhoan').value.trim(),
       tk_doi_ung: document.getElementById('thuTkDoiUng').value.trim(),
       ma_nhan_vien: document.getElementById('thuMaNhanVien').value.trim(),
-      chi_nhanh: document.getElementById('thuChiNhanh').value.trim()
+      chi_nhanh: document.getElementById('thuChiNhanh').value.trim(),
+      doi_soat: document.getElementById('thuDoiSoat').value
     };
 
     if (!payload.nguoi_nop_tien) return showFormMsg('thuMsg', 'Vui lòng nhập Người nộp tiền.', true);
@@ -612,9 +623,16 @@
           <label class="block text-sm font-medium text-gray-600 mb-1">Mã nhân viên</label>
           <input type="text" id="chiMaNhanVien" placeholder="vd: 01.009.001" class="w-full border rounded-lg px-3 py-2">
         </div>
-        <div class="md:col-span-2">
+        <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">Chi nhánh</label>
           <input type="text" id="chiChiNhanh" placeholder="Chi nhánh (nếu có)" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Đối soát</label>
+          <select id="chiDoiSoat" class="w-full border rounded-lg px-3 py-2">
+            <option value="Hoàn ứng" selected>Hoàn ứng</option>
+            <option value="Chờ hoàn">Chờ hoàn</option>
+          </select>
         </div>
 
         <div class="md:col-span-2">
@@ -712,7 +730,8 @@
       tai_khoan: document.getElementById('chiTaiKhoan').value.trim(),
       tk_doi_ung: document.getElementById('chiTkDoiUng').value.trim(),
       ma_nhan_vien: document.getElementById('chiMaNhanVien').value.trim(),
-      chi_nhanh: document.getElementById('chiChiNhanh').value.trim()
+      chi_nhanh: document.getElementById('chiChiNhanh').value.trim(),
+      doi_soat: document.getElementById('chiDoiSoat').value
     };
 
     if (!payload.nguoi_nhan_tien) return showFormMsg('chiMsg', 'Vui lòng nhập Người nhận tiền.', true);
@@ -780,8 +799,9 @@
             <button onclick="loadSoQuy()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Lọc</button>
           </div>
         </div>
-        <div class="flex justify-end mt-3">
+        <div class="flex justify-end gap-2 mt-3 no-print">
           <button id="btnXuatSoQuy" onclick="exportSoQuyExcel(this)" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
+          <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
         </div>
       </div>
 
@@ -800,10 +820,11 @@
               <th class="py-2 pr-3 text-right">Chi</th>
               <th class="py-2 pr-3 text-right">Tồn</th>
               <th class="py-2 pr-3">Người nhận/nộp</th>
+              <th class="py-2 pr-3">Đối soát</th>
             </tr>
           </thead>
           <tbody id="soQuyBody">
-            <tr><td colspan="11" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
+            <tr><td colspan="12" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
           </tbody>
         </table>
       </div>
@@ -834,7 +855,7 @@
   function loadSoQuy() {
     const filters = _soQuyFiltersHienTai();
 
-    document.getElementById('soQuyBody').innerHTML = '<tr><td colspan="11" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
+    document.getElementById('soQuyBody').innerHTML = '<tr><td colspan="12" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
 
     google.script.run
       .withSuccessHandler(function (res) {
@@ -848,7 +869,7 @@
   function renderSoQuyTable(list) {
     const body = document.getElementById('soQuyBody');
     if (!list || list.length === 0) {
-      body.innerHTML = '<tr><td colspan="11" class="py-6 text-center text-gray-400">Không có giao dịch trong khoảng lọc.</td></tr>';
+      body.innerHTML = '<tr><td colspan="12" class="py-6 text-center text-gray-400">Không có giao dịch trong khoảng lọc.</td></tr>';
       return;
     }
     body.innerHTML = list.map(t => `
@@ -864,8 +885,157 @@
         <td class="py-2 pr-3 text-right text-red-700">${t.chi ? formatMoney(t.chi) : ''}</td>
         <td class="py-2 pr-3 text-right font-semibold">${formatMoney(t.ton)}</td>
         <td class="py-2 pr-3">${t.nguoi_nhan_nop || ''}</td>
+        <td class="py-2 pr-3">${_doiSoatBadge(t.doi_soat)}</td>
       </tr>
     `).join('');
+  }
+
+  function _doiSoatBadge(doiSoat) {
+    if (doiSoat === 'Chờ hoàn') {
+      return '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Chờ hoàn</span>';
+    }
+    return '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Hoàn ứng</span>';
+  }
+
+  /* ================= SỔ ĐỐI SOÁT ================= */
+  function renderSoDoiSoat() {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="text-sm text-gray-500 mb-3">Theo dõi chứng từ Thu/Chi đang tạm ứng "Chờ hoàn" (chưa hoàn tất chứng từ) trên cả Quỹ tiền mặt và Quỹ công đoàn.</div>
+      <div class="card mb-4 no-print">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Từ ngày</label>
+            <input type="date" id="ds_tuNgay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Đến ngày</label>
+            <input type="date" id="ds_denNgay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Trạng thái đối soát</label>
+            <select id="ds_trangThai" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Tất cả</option>
+              <option value="Chờ hoàn" selected>Chờ hoàn</option>
+              <option value="Hoàn ứng">Hoàn ứng</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Quỹ</label>
+            <select id="ds_loaiQuy" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Tất cả</option>
+              <option value="Quỹ tiền mặt">Quỹ tiền mặt</option>
+              <option value="Quỹ công đoàn">Quỹ công đoàn</option>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <button onclick="loadSoDoiSoat()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Lọc</button>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-3">
+          <button id="btnXuatDoiSoat" onclick="exportSoDoiSoatExcel(this)" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
+          <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="card stat-card"><div class="stat-label">Số chứng từ Chờ hoàn</div><div class="stat-value text-amber-600" id="ds_soLuong">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tổng tiền Chờ hoàn</div><div class="stat-value text-amber-600" id="ds_tongTien">--</div></div>
+      </div>
+
+      <div class="card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Ngày</th>
+              <th class="py-2 pr-3">Số phiếu</th>
+              <th class="py-2 pr-3">Loại</th>
+              <th class="py-2 pr-3">Quỹ</th>
+              <th class="py-2 pr-3">Diễn giải</th>
+              <th class="py-2 pr-3 text-right">Số tiền</th>
+              <th class="py-2 pr-3">Người nhận/nộp</th>
+              <th class="py-2 pr-3">Đối soát</th>
+              <th class="py-2 pr-3 no-print">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="doiSoatBody">
+            <tr><td colspan="9" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    document.getElementById('ds_tuNgay').value = _localDateStr(firstDay);
+    document.getElementById('ds_denNgay').value = _localDateStr(now);
+
+    loadSoDoiSoat();
+  }
+
+  function _doiSoatFiltersHienTai() {
+    return {
+      tuNgay: document.getElementById('ds_tuNgay').value,
+      denNgay: document.getElementById('ds_denNgay').value,
+      trangThaiDoiSoat: document.getElementById('ds_trangThai').value,
+      loaiQuy: document.getElementById('ds_loaiQuy').value
+    };
+  }
+
+  function exportSoDoiSoatExcel(btn) {
+    xuatExcelTuServer(btn, 'xuatSoDoiSoatExcel', [_doiSoatFiltersHienTai()]);
+  }
+
+  function loadSoDoiSoat() {
+    const filters = _doiSoatFiltersHienTai();
+    const coQuyenDoi = ['ADMIN', 'THU_QUY'].indexOf(CURRENT_USER.role) !== -1;
+
+    document.getElementById('doiSoatBody').innerHTML = '<tr><td colspan="9" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        const d = res.data;
+        document.getElementById('ds_soLuong').textContent = d.so_luong_cho_hoan.toLocaleString('vi-VN');
+        document.getElementById('ds_tongTien').textContent = formatMoney(d.tong_tien_cho_hoan);
+
+        const body = document.getElementById('doiSoatBody');
+        if (!d.danh_sach || d.danh_sach.length === 0) {
+          body.innerHTML = '<tr><td colspan="9" class="py-6 text-center text-gray-400">Không có chứng từ nào khớp bộ lọc.</td></tr>';
+          return;
+        }
+        body.innerHTML = d.danh_sach.map(function (t) {
+          const soTien = t.thu || t.chi;
+          const trangThaiKhac = t.doi_soat === 'Chờ hoàn' ? 'Hoàn ứng' : 'Chờ hoàn';
+          const nutDoi = coQuyenDoi
+            ? '<button onclick="doiTrangThaiDoiSoat(\'' + t.so_phieu + '\',\'' + t.loai + '\',\'' + trangThaiKhac + '\')" class="text-blue-600 text-xs hover:underline">Đổi thành "' + trangThaiKhac + '"</button>'
+            : '';
+          return '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="py-2 pr-3 whitespace-nowrap">' + t.ngay + '</td>' +
+            '<td class="py-2 pr-3 font-medium">' + t.so_phieu + '</td>' +
+            '<td class="py-2 pr-3">' + t.loai + '</td>' +
+            '<td class="py-2 pr-3">' + t.loai_quy + '</td>' +
+            '<td class="py-2 pr-3">' + (t.noi_dung || '') + '</td>' +
+            '<td class="py-2 pr-3 text-right">' + formatMoney(soTien) + '</td>' +
+            '<td class="py-2 pr-3">' + (t.nguoi_nhan_nop || '') + '</td>' +
+            '<td class="py-2 pr-3">' + _doiSoatBadge(t.doi_soat) + '</td>' +
+            '<td class="py-2 pr-3 no-print">' + nutDoi + '</td>' +
+          '</tr>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getSoDoiSoat(filters);
+  }
+
+  function doiTrangThaiDoiSoat(soPhieu, loai, trangThaiMoi) {
+    if (!confirm('Đổi trạng thái đối soát phiếu ' + soPhieu + ' thành "' + trangThaiMoi + '"?')) return;
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        loadSoDoiSoat();
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .capNhatDoiSoat(soPhieu, loai, trangThaiMoi, currentUserInfo());
   }
 
   /* ================= SỔ CƠM ================= */
@@ -924,6 +1094,10 @@
             <input type="number" id="com_namXem" class="w-full border rounded-lg px-2 py-1.5 text-sm">
           </div>
           <button onclick="loadSoCom()" class="px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Xem</button>
+        </div>
+        <div class="flex justify-end gap-2 mt-3 no-print">
+          <button id="btnXuatSoCom" onclick="exportSoComExcel(this)" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
+          <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
         </div>
       </div>
 
@@ -985,6 +1159,12 @@
     document.getElementById('com_soTienTamUng').value = '';
     document.getElementById('com_ghiChu').value = '';
     document.getElementById('comMsg').classList.add('hidden');
+  }
+
+  function exportSoComExcel(btn) {
+    const thang = document.getElementById('com_thangXem').value;
+    const nam = document.getElementById('com_namXem').value;
+    xuatExcelTuServer(btn, 'xuatSoComExcel', [nam, thang]);
   }
 
   function loadSoCom() {
@@ -1310,7 +1490,7 @@
     const now = new Date();
     document.getElementById('baoCaoBody').innerHTML = `
       <div class="card mb-4 no-print">
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
           <div>
             <label class="block text-xs text-gray-500 mb-1">Tháng</label>
             <select id="bcth_thang" class="w-full border rounded-lg px-2 py-1.5 text-sm"></select>
@@ -1327,6 +1507,9 @@
           </div>
           <div class="flex items-end">
             <button id="btnGuiEmailBaoCaoThang" onclick="guiEmailBaoCaoThang(this)" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">✉️ Gửi Email</button>
+          </div>
+          <div class="flex items-end">
+            <button onclick="window.print()" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
           </div>
         </div>
       </div>
@@ -1548,7 +1731,7 @@
   function renderBaoCaoNgayKeo() {
     document.getElementById('baoCaoBody').innerHTML = `
       <div class="card mb-4 no-print">
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
           <div>
             <label class="block text-xs text-gray-500 mb-1">Ngày báo cáo</label>
             <input type="date" id="bcnk_ngay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
@@ -1561,6 +1744,9 @@
           </div>
           <div class="flex items-end">
             <button id="btnGuiEmailBaoCaoNgayKeo" onclick="guiEmailBaoCaoNgayKeo(this)" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">✉️ Gửi Email</button>
+          </div>
+          <div class="flex items-end">
+            <button onclick="window.print()" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
           </div>
         </div>
       </div>
@@ -2760,6 +2946,8 @@
       .traCuuGiaoDich(filters);
   }
 
+  let TC_CHITIET_CACHE = null;
+
   function xemChiTietGiaoDich(soPhieu, loai) {
     const wrap = document.getElementById('tcChiTietWrap');
     const body = document.getElementById('tcChiTietBody');
@@ -2772,6 +2960,7 @@
         if (!res.success) { body.textContent = 'Lỗi: ' + res.message; return; }
         const p = res.data.phieu;
         const lichSu = res.data.lich_su;
+        TC_CHITIET_CACHE = p;
 
         let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 text-sm">';
         html += '<div><span class="text-gray-400">Số phiếu:</span> <b>' + p.so_phieu + '</b></div>';
@@ -2791,11 +2980,15 @@
         if (p.ly_do_huy) html += '<div class="md:col-span-2"><span class="text-gray-400">Lý do hủy:</span> ' + p.ly_do_huy + '</div>';
         html += '</div>';
 
+        html += '<div class="mb-4 flex gap-2"><button onclick="inPhieuTraCuu()" ' +
+          'class="px-4 py-2 rounded-lg border text-gray-700 text-sm font-medium hover:bg-gray-50">🖨️ In phiếu</button>';
+
         const coQuyenHuy = ['ADMIN', 'THU_QUY'].indexOf(CURRENT_USER.role) !== -1;
         if (p.trang_thai === 'Hợp lệ' && coQuyenHuy) {
-          html += '<div class="mb-4"><button onclick="huyPhieuTraCuu(\'' + p.so_phieu + '\',\'' + p.loai + '\')" ' +
-            'class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700">🗑️ Hủy phiếu này</button></div>';
+          html += '<button onclick="huyPhieuTraCuu(\'' + p.so_phieu + '\',\'' + p.loai + '\')" ' +
+            'class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700">🗑️ Hủy phiếu này</button>';
         }
+        html += '</div>';
 
         html += '<div class="font-medium text-gray-600 text-sm mb-2">Lịch sử thao tác</div>';
         if (!lichSu || lichSu.length === 0) {
@@ -2835,6 +3028,93 @@
       [hamGoi](soPhieu, lyDo.trim(), currentUserInfo());
   }
 
+  /**
+   * In 1 Phiếu Thu/Phiếu Chi theo đúng mẫu chứng từ kế toán chuẩn
+   * (Mẫu 01-TT / 02-TT, Thông tư 200/2014/TT-BTC) — thay thế toàn bộ
+   * nội dung màn hình bằng bản in, sau đó dùng window.print() (đã có
+   * CSS @media print ẩn sidebar/menu, chỉ in đúng phần này).
+   */
+  function inPhieuTraCuu() {
+    if (!TC_CHITIET_CACHE) { alert('Không có dữ liệu phiếu để in.'); return; }
+    _renderMauInPhieu(TC_CHITIET_CACHE);
+  }
+
+  function _renderMauInPhieu(p) {
+    const isThu = p.loai === 'Thu';
+    const tieuDe = isThu ? 'PHIẾU THU' : 'PHIẾU CHI';
+    const mauSo = isThu ? 'Mẫu số 01 - TT' : 'Mẫu số 02 - TT';
+    const nguoiLabel = isThu ? 'Người nộp tiền' : 'Người nhận tiền';
+    const ngayParts = String(p.ngay || '').split('-'); // yyyy-MM-dd
+    const ngay = ngayParts.length === 3 ? ngayParts[2] : '..';
+    const thang = ngayParts.length === 3 ? ngayParts[1] : '..';
+    const nam = ngayParts.length === 3 ? ngayParts[0] : '....';
+
+    const daHuyBox = p.trang_thai === 'Đã hủy'
+      ? '<div class="text-center text-red-600 font-bold mt-4" style="border:2px solid #dc2626;padding:8px;border-radius:4px;">CHỨNG TỪ ĐÃ HỦY — Lý do: ' + (p.ly_do_huy || '') + '</div>'
+      : '';
+
+    document.getElementById('mainContent').innerHTML = `
+      <div class="no-print mb-4 flex gap-2">
+        <button onclick="renderTraCuu()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">← Quay lại Tra Cứu</button>
+        <button onclick="window.print()" class="px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🖨 In phiếu</button>
+      </div>
+      <div class="card" style="max-width:820px;margin:0 auto;font-family:'Times New Roman',Times,serif;">
+        <div class="flex justify-between items-start text-sm mb-2">
+          <div>
+            <div class="font-semibold">Đơn vị: HAK_QUY</div>
+            <div>Bộ phận: ..........................................</div>
+          </div>
+          <div class="text-right">
+            <div>${mauSo}</div>
+            <div class="italic text-xs text-gray-500">(Ban hành theo Thông tư số 200/2014/TT-BTC<br>ngày 22/12/2014 của Bộ Tài chính)</div>
+          </div>
+        </div>
+
+        <div class="text-center my-4">
+          <div class="text-xl font-bold tracking-wide">${tieuDe}</div>
+          <div class="text-sm">Ngày ${ngay} tháng ${thang} năm ${nam}</div>
+        </div>
+
+        <div class="flex justify-end text-sm mb-3">
+          <div class="text-right">
+            <div>Số: <b>${p.so_phieu}</b></div>
+            <div>Nợ: ${p.tai_khoan || '1111'}</div>
+            <div>Có: ${p.tk_doi_ung || '...........'}</div>
+          </div>
+        </div>
+
+        <table class="w-full text-sm" style="border-collapse:collapse;">
+          <tr><td class="py-1" style="width:220px;">Họ và tên ${nguoiLabel.toLowerCase()}:</td><td class="py-1"><b>${p.nguoi_nop_nhan || ''}</b></td></tr>
+          <tr><td class="py-1">Địa chỉ / Đơn vị:</td><td class="py-1">${p.doi_tuong || ''}</td></tr>
+          <tr><td class="py-1">Lý do ${isThu ? 'nộp' : 'chi'}:</td><td class="py-1">${p.noi_dung || ''}</td></tr>
+          <tr><td class="py-1">Số tiền:</td><td class="py-1"><b>${formatMoney(p.so_tien)}</b></td></tr>
+          <tr><td class="py-1" colspan="2">Viết bằng chữ: <i>${soTienBangChu(p.so_tien)}</i></td></tr>
+          <tr><td class="py-1">Kèm theo:</td><td class="py-1">${p.chung_tu || '...'} chứng từ gốc</td></tr>
+        </table>
+
+        <div class="text-right text-sm mt-5 mb-2 italic">Ngày ${ngay} tháng ${thang} năm ${nam}</div>
+
+        <table class="w-full text-center text-sm" style="table-layout:fixed;">
+          <tr>
+            <td>Giám đốc<br><span class="text-xs italic">(Ký, họ tên)</span></td>
+            <td>Kế toán trưởng<br><span class="text-xs italic">(Ký, họ tên)</span></td>
+            <td>${nguoiLabel}<br><span class="text-xs italic">(Ký, họ tên)</span></td>
+            <td>Người lập phiếu<br><span class="text-xs italic">(Ký, họ tên)</span></td>
+            <td>Thủ quỹ<br><span class="text-xs italic">(Ký, họ tên)</span></td>
+          </tr>
+          <tr>
+            <td style="height:80px;"></td><td></td><td></td>
+            <td class="align-bottom">${p.nguoi_lap || ''}</td>
+            <td></td>
+          </tr>
+        </table>
+
+        ${daHuyBox}
+      </div>
+    `;
+    window.scrollTo(0, 0);
+  }
+
   /* ================= TIỆN ÍCH ================= */
   function formatMoney(n) {
     n = Number(n) || 0;
@@ -2844,6 +3124,62 @@
   function formatTan(n) {
     n = Number(n) || 0;
     return n.toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  /**
+   * Đổi 1 số tiền (VNĐ, số nguyên) thành chữ tiếng Việt, dùng để in
+   * lên mẫu Phiếu Thu/Phiếu Chi ("Viết bằng chữ: ..."). Không xử lý
+   * phần thập phân (tiền VNĐ trong hệ thống luôn là số nguyên).
+   */
+  function soTienBangChu(soTien) {
+    soTien = Math.round(Number(soTien) || 0);
+    if (soTien === 0) return 'Không đồng.';
+    const amNhat = soTien < 0;
+    soTien = Math.abs(soTien);
+
+    const chuSo = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+    const donViNhom = ['', 'nghìn', 'triệu', 'tỷ'];
+
+    function docBaSo(so, canKhongTram) {
+      const tram = Math.floor(so / 100);
+      const chuc = Math.floor((so % 100) / 10);
+      const donvi = so % 10;
+      let s = '';
+      if (tram > 0) s += chuSo[tram] + ' trăm ';
+      else if (canKhongTram) s += 'không trăm ';
+
+      if (chuc === 0) {
+        if (donvi > 0) s += (tram > 0 || canKhongTram ? 'lẻ ' : '') + chuSo[donvi] + ' ';
+      } else if (chuc === 1) {
+        s += 'mười ';
+        if (donvi === 5) s += 'lăm ';
+        else if (donvi > 0) s += chuSo[donvi] + ' ';
+      } else {
+        s += chuSo[chuc] + ' mươi ';
+        if (donvi === 1) s += 'mốt ';
+        else if (donvi === 5) s += 'lăm ';
+        else if (donvi > 0) s += chuSo[donvi] + ' ';
+      }
+      return s.trim();
+    }
+
+    const nhom = [];
+    let n = soTien;
+    while (n > 0) { nhom.push(n % 1000); n = Math.floor(n / 1000); }
+
+    const parts = [];
+    for (let i = nhom.length - 1; i >= 0; i--) {
+      const g = nhom[i];
+      if (g === 0) continue;
+      const canKhongTram = i !== nhom.length - 1 && Math.floor(g / 100) === 0;
+      let groupText = docBaSo(g, canKhongTram);
+      if (donViNhom[i]) groupText += ' ' + donViNhom[i];
+      parts.push(groupText.trim());
+    }
+
+    let result = parts.join(' ').replace(/\s+/g, ' ').trim();
+    result = result.charAt(0).toUpperCase() + result.slice(1);
+    return (amNhat ? 'Âm ' + result.toLowerCase() : result) + ' đồng chẵn.';
   }
 
   function showFormMsg(boxId, text, isError) {
