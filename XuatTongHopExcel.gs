@@ -76,14 +76,53 @@ function xuatTongHopExcel(nam, thang) {
 }
 
 /**
+ * Chèn 1 dòng "Cộng phát sinh trong ngày" sau mỗi ngày (nhóm theo
+ * cfg.dayKeys, cùng thứ tự với cfg.dataRows — vốn đã được sắp xếp
+ * theo ngày từ getSoQuy) — cộng tổng Nợ/Có phát sinh trong ngày đó
+ * và chốt lại Tồn quỹ cuối ngày, đúng thông lệ sổ quỹ kế toán.
+ * Trả về { rows, dongDamDaiIdx } — dongDamDaiIdx là các vị trí
+ * (0-based, tính trong mảng rows trả về) cần in đậm/tô nền.
+ */
+function _chenDongCongPhatSinhNgay(cfg) {
+  const soCot = cfg.headers.length;
+  const rows = [];
+  const dongDamIdx = [];
+  let i = 0;
+  while (i < cfg.dataRows.length) {
+    const ngay = cfg.dayKeys[i];
+    let tongNo = 0, tongCo = 0, tonCuoiNgay = '';
+    while (i < cfg.dataRows.length && cfg.dayKeys[i] === ngay) {
+      const hang = cfg.dataRows[i];
+      tongNo += Number(hang[cfg.idxNo - 1]) || 0;
+      tongCo += Number(hang[cfg.idxNo]) || 0;
+      tonCuoiNgay = hang[cfg.idxTon - 1];
+      rows.push(hang);
+      i++;
+    }
+    const congNgay = new Array(soCot).fill('');
+    congNgay[cfg.idxDienGiai - 1] = 'Cộng phát sinh ngày ' + _ddmmyyyy(ngay);
+    congNgay[cfg.idxNo - 1] = tongNo;
+    congNgay[cfg.idxNo] = tongCo;
+    congNgay[cfg.idxTon - 1] = tonCuoiNgay;
+    dongDamIdx.push(rows.length);
+    rows.push(congNgay);
+  }
+  return { rows: rows, dongDamIdx: dongDamIdx };
+}
+
+/**
  * Dựng khung "Sổ kế toán chi tiết" 2 dòng tiêu đề cột (dòng "Số phát
  * sinh" gộp ngang, tách "Nợ"/"Có" ở dòng dưới) — dùng chung cho sheet
- * "Quỹ tổng" và "Công đoàn", chỉ khác bộ cột.
+ * "Quỹ tổng" và "Công đoàn", chỉ khác bộ cột. Sau mỗi ngày có 1 dòng
+ * "Cộng phát sinh ngày..." chốt tổng Nợ/Có và Tồn quỹ cuối ngày.
  */
 function _veSheetSoKeToan(ss, idx, cfg) {
   const soCot = cfg.headers.length;
   const sh = idx === 0 ? ss.getSheets()[0].setName(cfg.tenSheet) : ss.insertSheet(cfg.tenSheet);
-  const tongSoDong = 4 + 1 + cfg.dataRows.length; // 2 dòng tiêu đề + 2 dòng header + 1 dòng tồn đầu kỳ + dữ liệu
+
+  const ketQuaCong = _chenDongCongPhatSinhNgay(cfg);
+  const dataRowsCoCong = ketQuaCong.rows;
+  const tongSoDong = 4 + 1 + dataRowsCoCong.length; // 2 dòng tiêu đề + 2 dòng header + 1 dòng tồn đầu kỳ + dữ liệu
 
   sh.getRange(1, 1, 1, soCot).merge().setValue(cfg.tieuDe)
     .setFontWeight('bold').setFontSize(13).setHorizontalAlignment('center');
@@ -105,7 +144,7 @@ function _veSheetSoKeToan(ss, idx, cfg) {
   sh.setRowHeight(4, 22);
 
   const dong = 5;
-  const toanBoDuLieu = [cfg.tonDauKyRow].concat(cfg.dataRows);
+  const toanBoDuLieu = [cfg.tonDauKyRow].concat(dataRowsCoCong);
   sh.getRange(dong, 1, toanBoDuLieu.length, soCot).setValues(toanBoDuLieu);
   sh.getRange(dong, 1, 1, soCot).setFontWeight('bold').setBackground('#eef2ff');
   sh.getRange(dong, 1, toanBoDuLieu.length, soCot).setVerticalAlignment('middle');
@@ -113,6 +152,11 @@ function _veSheetSoKeToan(ss, idx, cfg) {
     sh.getRange(dong, c, toanBoDuLieu.length, 1).setNumberFormat('#,##0').setHorizontalAlignment('right');
   });
   cfg.ngayCols.forEach(c => sh.getRange(dong, c, toanBoDuLieu.length, 1).setHorizontalAlignment('center').setNumberFormat('dd/MM/yyyy'));
+
+  // Dòng "Cộng phát sinh ngày..." in đậm, tô nền nhạt để dễ nhận biết
+  ketQuaCong.dongDamIdx.forEach(i0 => {
+    sh.getRange(dong + 1 + i0, 1, 1, soCot).setFontWeight('bold').setFontStyle('italic').setBackground('#f3f4f6');
+  });
 
   sh.getRange(3, 1, tongSoDong - 2, soCot)
     .setBorder(true, true, true, true, true, true, '#999999', SpreadsheetApp.BorderStyle.SOLID);
@@ -144,9 +188,12 @@ function _veSheetQuyTong(ss, idx, nam, thang) {
     phuDe: 'Loại tiền: Tổng hợp; Tài khoản: 1111; Từ ngày ' + _ddmmyyyy(tuNgay) + ' đến ngày ' + _ddmmyyyy(denNgay),
     headers: headers,
     idxNo: 8,
+    idxDienGiai: 5,
+    idxTon: 10,
     ngayCols: [1, 2],
     tonDauKyRow: tonDauKyRow,
     dataRows: dataRows,
+    dayKeys: list.map(t => t.ngay),
     condoTienCols: [8, 9, 10]
   });
 }
@@ -172,9 +219,12 @@ function _veSheetCongDoanNam(ss, idx, nam) {
     phuDe: 'Loại tiền: VND; Từ ngày ' + _ddmmyyyy(tuNgay) + ' đến ngày ' + _ddmmyyyy(denNgay),
     headers: headers,
     idxNo: 6,
+    idxDienGiai: 5,
+    idxTon: 8,
     ngayCols: [1, 2],
     tonDauKyRow: tonDauKyRow,
     dataRows: dataRows,
+    dayKeys: list.map(t => t.ngay),
     condoTienCols: [6, 7, 8]
   });
 }
@@ -252,8 +302,8 @@ function _veSheetKeoCalendar(ss, idx, tenSheet, loai, nam, thang, rowsPhanTich, 
   const nguonGocList = Object.keys(nguonGocSet).sort();
 
   const nhanLabel = loai === 'NHAP' ? 'nhập' : 'thanh toán';
-  const leftHeaders = ['Ngày', 'Tổng ' + nhanLabel + ' (kg)', 'Thành tiền'].concat(dealerList);
-  const rightHeaders = ['Ngày', 'Tổng ' + nhanLabel + ' (kg)', 'Thành tiền'].concat(nguonGocList);
+  const leftHeaders = ['Ngày', 'Tổng ' + nhanLabel + ' (tấn)', 'Thành tiền'].concat(dealerList);
+  const rightHeaders = ['Ngày', 'Tổng ' + nhanLabel + ' (tấn)', 'Thành tiền'].concat(nguonGocList);
   const soCotTrai = leftHeaders.length;
   const soCotPhai = rightHeaders.length;
   const soCot = soCotTrai + 1 + soCotPhai;
@@ -262,7 +312,7 @@ function _veSheetKeoCalendar(ss, idx, tenSheet, loai, nam, thang, rowsPhanTich, 
   rows.forEach(r => {
     const d = _ngayKeyLinhHoat(r['Ngày']);
     if (!byDay[d]) byDay[d] = {};
-    byDay[d][r['PhanLoai'] + '|' + _safeText(r['Ten'])] = { kl: Number(r['KhoiLuongKg']) || 0, gt: Number(r['GiaTri']) || 0 };
+    byDay[d][r['PhanLoai'] + '|' + _safeText(r['Ten'])] = { kl: _kgSangTan(r['KhoiLuongKg']), gt: Number(r['GiaTri']) || 0 };
   });
 
   sh.getRange(1, 1, 1, soCot).merge().setValue(

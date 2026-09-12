@@ -100,6 +100,15 @@ function _tonDauCuoiNgay(loaiQuy, ngay) {
   return { dau: dau, cuoi: cuoi };
 }
 
+/**
+ * Quy đổi khối lượng từ KG (đơn vị lưu trong sheet nguồn) sang TẤN,
+ * làm tròn 2 chữ số thập phân — mọi báo cáo Keo hiển thị khối lượng
+ * theo TẤN, không phải KG.
+ */
+function _kgSangTan(kg) {
+  return Math.round((Number(kg) || 0) / 10) / 100;
+}
+
 /*************************************************
  * API: LẤY DỮ LIỆU BÁO CÁO NGÀY (KEO)
  *************************************************/
@@ -115,12 +124,12 @@ function getBaoCaoNgayKeo(ngay) {
     function gomNhom(loai, phanLoai) {
       return rowsPhanTich
         .filter(r => r['Loại'] === loai && r['PhanLoai'] === phanLoai)
-        .map(r => ({ ten: _safeText(r['Ten']), kl: Number(r['KhoiLuongKg']) || 0, gt: Number(r['GiaTri']) || 0 }))
+        .map(r => ({ ten: _safeText(r['Ten']), kl: _kgSangTan(r['KhoiLuongKg']), gt: Number(r['GiaTri']) || 0 }))
         .sort((a, b) => b.gt - a.gt);
     }
     function tongCua(loai) {
       const t = rowsPhanTich.find(r => r['Loại'] === loai && r['PhanLoai'] === 'TONG');
-      return { kl: t ? Number(t['KhoiLuongKg']) || 0 : 0, gt: t ? Number(t['GiaTri']) || 0 : 0 };
+      return { kl: t ? _kgSangTan(t['KhoiLuongKg']) : 0, gt: t ? Number(t['GiaTri']) || 0 : 0 };
     }
 
     const nhap = { theo_nguon_goc: gomNhom('NHAP', 'NG'), theo_dai_ly: gomNhom('NHAP', 'DL'), tong: tongCua('NHAP') };
@@ -136,7 +145,7 @@ function getBaoCaoNgayKeo(ngay) {
         khach_hang: _safeText(r['Khách hàng']),
         dai_ly: _safeText(r['ĐL']),
         nguon_goc: _safeText(r['NG']),
-        kl: Number(r['KL hàng (KG)']) || 0,
+        kl: _kgSangTan(r['KL hàng (KG)']),
         don_gia: Number(r['Đơn giá_TC']) || 0,
         thanh_tien: Number(r['Thành tiền']) || 0,
         trang_thai: _safeText(r['Trạng thái'])
@@ -170,21 +179,22 @@ function xuatBaoCaoNgayKeoExcel(ngay) {
 
     function bangTong(nhom, tieuCot) {
       const rows = nhom.map(x => [x.ten, x.kl, x.gt]);
-      return { headers: [tieuCot, 'Khối lượng (kg)', 'Thành tiền'], rows: rows, condoTien: [1, 2] };
+      return { headers: [tieuCot, 'Khối lượng (tấn)', 'Thành tiền'], rows: rows, condoTien: [2], soThapPhan: [1] };
     }
 
     const tongQuan = {
       tenSheet: 'Tổng quan',
       tieuDe: 'BÁO CÁO NGÀY - THU MUA KEO',
       phuDe: 'Ngày ' + ngay,
-      headers: ['Chỉ tiêu', 'Khối lượng (kg)', 'Giá trị (đ)'],
+      headers: ['Chỉ tiêu', 'Khối lượng (tấn)', 'Giá trị (đ)'],
       rows: [
         ['Tổng NHẬP trong ngày', d.nhap.tong.kl, d.nhap.tong.gt],
         ['Tổng THANH TOÁN trong ngày', d.thanh_toan.tong.kl, d.thanh_toan.tong.gt],
         ['Tồn quỹ tiền mặt đầu ngày', '', d.ton_quy_dau_ngay],
         ['Tồn quỹ tiền mặt cuối ngày', '', d.ton_quy_cuoi_ngay]
       ],
-      condoTien: [1, 2]
+      condoTien: [2],
+      soThapPhan: [1]
     };
 
     const nhapNguonGoc = Object.assign({ tenSheet: 'Nhập - Nguồn gốc' }, bangTong(d.nhap.theo_nguon_goc, 'Nguồn gốc'));
@@ -195,9 +205,10 @@ function xuatBaoCaoNgayKeoExcel(ngay) {
     const chiTiet = {
       tenSheet: 'Chi tiết phiếu cân',
       tieuDe: 'CHI TIẾT PHIẾU CÂN NGÀY ' + ngay,
-      headers: ['Số phiếu', 'Biển số', 'Khách hàng', 'Đại lý', 'Nguồn gốc', 'KL (kg)', 'Đơn giá', 'Thành tiền', 'Trạng thái'],
+      headers: ['Số phiếu', 'Biển số', 'Khách hàng', 'Đại lý', 'Nguồn gốc', 'KL (tấn)', 'Đơn giá', 'Thành tiền', 'Trạng thái'],
       rows: d.chi_tiet_phieu_can.map(r => [r.so_phieu, r.bien_so, r.khach_hang, r.dai_ly, r.nguon_goc, r.kl, r.don_gia, r.thanh_tien, r.trang_thai]),
-      condoTien: [5, 6, 7]
+      condoTien: [6, 7],
+      soThapPhan: [5]
     };
 
     const file = _taoFileExcel('BaoCaoNgayKeo_' + ngay, [tongQuan, nhapNguonGoc, nhapDaiLy, ttNguonGoc, ttDaiLy, chiTiet]);

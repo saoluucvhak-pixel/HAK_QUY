@@ -1477,7 +1477,7 @@
       </div>
 
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <div class="card stat-card"><div class="stat-label">Tổng nhập (kg)</div><div class="stat-value text-gray-800" id="bcnk_nhapKl">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tổng nhập (tấn)</div><div class="stat-value text-gray-800" id="bcnk_nhapKl">--</div></div>
         <div class="card stat-card"><div class="stat-label">Giá trị nhập</div><div class="stat-value text-green-600" id="bcnk_nhapGt">--</div></div>
         <div class="card stat-card"><div class="stat-label">Giá trị thanh toán</div><div class="stat-value text-red-600" id="bcnk_ttGt">--</div></div>
         <div class="card stat-card"><div class="stat-label">Tồn quỹ cuối ngày</div><div class="stat-value text-blue-700" id="bcnk_tonCuoi">--</div></div>
@@ -1495,7 +1495,7 @@
               <th class="py-2 pr-3">Khách hàng</th>
               <th class="py-2 pr-3">Đại lý</th>
               <th class="py-2 pr-3">Nguồn gốc</th>
-              <th class="py-2 pr-3 text-right">KL (kg)</th>
+              <th class="py-2 pr-3 text-right">KL (tấn)</th>
               <th class="py-2 pr-3 text-right">Thành tiền</th>
             </tr>
           </thead>
@@ -1516,13 +1516,13 @@
       : list.map(function (x) {
         return '<tr class="border-b">' +
           '<td class="py-1.5 pr-2">' + x.ten + '</td>' +
-          '<td class="py-1.5 pr-2 text-right">' + x.kl.toLocaleString('vi-VN') + '</td>' +
+          '<td class="py-1.5 pr-2 text-right">' + formatTan(x.kl) + '</td>' +
           '<td class="py-1.5 pr-2 text-right">' + formatMoney(x.gt) + '</td>' +
           '</tr>';
       }).join('');
     return '<div class="card"><div class="font-semibold text-gray-700 mb-2">' + tieuDe + '</div>' +
       '<table class="w-full text-sm"><thead><tr class="text-left text-gray-500 border-b">' +
-      '<th class="py-1.5 pr-2">' + tieuCot + '</th><th class="py-1.5 pr-2 text-right">KL (kg)</th><th class="py-1.5 pr-2 text-right">Thành tiền</th>' +
+      '<th class="py-1.5 pr-2">' + tieuCot + '</th><th class="py-1.5 pr-2 text-right">KL (tấn)</th><th class="py-1.5 pr-2 text-right">Thành tiền</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
 
@@ -1544,7 +1544,7 @@
         BAOCAO_NGAYKEO_DATA = res.data;
         const d = res.data;
 
-        document.getElementById('bcnk_nhapKl').textContent = d.nhap.tong.kl.toLocaleString('vi-VN');
+        document.getElementById('bcnk_nhapKl').textContent = formatTan(d.nhap.tong.kl);
         document.getElementById('bcnk_nhapGt').textContent = formatMoney(d.nhap.tong.gt);
         document.getElementById('bcnk_ttGt').textContent = formatMoney(d.thanh_toan.tong.gt);
         document.getElementById('bcnk_tonCuoi').textContent = formatMoney(d.ton_quy_cuoi_ngay);
@@ -1567,7 +1567,7 @@
             '<td class="py-2 pr-3">' + r.khach_hang + '</td>' +
             '<td class="py-2 pr-3">' + r.dai_ly + '</td>' +
             '<td class="py-2 pr-3">' + r.nguon_goc + '</td>' +
-            '<td class="py-2 pr-3 text-right">' + r.kl.toLocaleString('vi-VN') + '</td>' +
+            '<td class="py-2 pr-3 text-right">' + formatTan(r.kl) + '</td>' +
             '<td class="py-2 pr-3 text-right">' + formatMoney(r.thanh_tien) + '</td>' +
           '</tr>';
         }).join('');
@@ -2750,6 +2750,11 @@
   function formatMoney(n) {
     n = Number(n) || 0;
     return n.toLocaleString('vi-VN') + ' đ';
+  }
+
+  function formatTan(n) {
+    n = Number(n) || 0;
+    return n.toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function showFormMsg(boxId, text, isError) {

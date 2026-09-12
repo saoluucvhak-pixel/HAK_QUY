@@ -68,12 +68,13 @@ function _datDoRongCotTheoTieuDe(sh, headers, cotBatDau) {
     const label = String(h === null || h === undefined ? '' : h);
     let w = 90;
     if (label === '') w = 24;
-    else if (/diễn giải|nội dung/i.test(label)) w = 260;
+    else if (/diễn giải|nội dung/i.test(label)) w = 340;
     else if (/người|khách hàng|đối tượng|biển số/i.test(label)) w = 170;
+    else if (/^nợ$|^có$/i.test(label)) w = 130;
     else if (/ngày/i.test(label)) w = 100;
-    else if (/tồn|thành tiền|giá trị|^nợ$|^có$|^thu$|^chi$/i.test(label)) w = 115;
+    else if (/tồn|thành tiền|giá trị|^thu$|^chi$/i.test(label)) w = 115;
     else if (/số phiếu/i.test(label)) w = 100;
-    else if (/tổng.*\(kg\)|đơn giá/i.test(label)) w = 110;
+    else if (/tổng.*\((kg|tấn)\)|đơn giá/i.test(label)) w = 110;
     sh.setColumnWidth(batDau + i, w);
   });
 }

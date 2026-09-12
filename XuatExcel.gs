@@ -13,7 +13,10 @@
 /**
  * @param {string} tenFile tên file xuất ra (không cần đuôi .xlsx)
  * @param {Array<{tenSheet:string, tieuDe?:string, phuDe?:string,
- *   headers:string[], rows:Array<Array>, condoTien?:number[]}>} dsSheet
+ *   headers:string[], rows:Array<Array>, condoTien?:number[],
+ *   soThapPhan?:number[]}>} dsSheet condoTien = định dạng tiền
+ *   '#,##0'; soThapPhan = định dạng số có 2 chữ số thập phân
+ *   '#,##0.00' (dùng cho khối lượng/tấn)
  * @returns {{base64:string, filename:string}}
  */
 function _taoFileExcel(tenFile, dsSheet) {
@@ -48,6 +51,9 @@ function _taoFileExcel(tenFile, dsSheet) {
       sh.getRange(dong, 1, sd.rows.length, soCot).setVerticalAlignment('middle');
       (sd.condoTien || []).forEach(function (colIdx) {
         sh.getRange(dong, colIdx + 1, sd.rows.length, 1).setNumberFormat('#,##0').setHorizontalAlignment('right');
+      });
+      (sd.soThapPhan || []).forEach(function (colIdx) {
+        sh.getRange(dong, colIdx + 1, sd.rows.length, 1).setNumberFormat('#,##0.00').setHorizontalAlignment('right');
       });
       sh.getRange(dong, 1, sd.rows.length, soCot)
         .setBorder(true, true, true, true, true, true, '#999999', SpreadsheetApp.BorderStyle.SOLID);
