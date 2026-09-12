@@ -1275,10 +1275,11 @@
 
   function renderBaoCao() {
     document.getElementById('mainContent').innerHTML = `
-      <div class="flex gap-2 mb-4 no-print">
+      <div class="flex gap-2 mb-4 no-print flex-wrap">
         <button onclick="switchBaoCaoTab('thuchi')" id="bcTabThuChi" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Thu - Chi</button>
         <button onclick="switchBaoCaoTab('congno')" id="bcTabCongNo" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Công nợ tổng hợp</button>
         <button onclick="switchBaoCaoTab('quahan')" id="bcTabQuaHan" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Công nợ quá hạn</button>
+        <button onclick="switchBaoCaoTab('ngaykeo')" id="bcTabNgayKeo" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Báo cáo ngày (Keo)</button>
       </div>
       <div id="baoCaoBody"></div>
     `;
@@ -1286,14 +1287,15 @@
   }
 
   function switchBaoCaoTab(tab) {
-    ['bcTabThuChi', 'bcTabCongNo', 'bcTabQuaHan'].forEach(function (id) {
+    ['bcTabThuChi', 'bcTabCongNo', 'bcTabQuaHan', 'bcTabNgayKeo'].forEach(function (id) {
       document.getElementById(id).classList.remove('bg-gray-800', 'text-white');
     });
-    const activeMap = { thuchi: 'bcTabThuChi', congno: 'bcTabCongNo', quahan: 'bcTabQuaHan' };
+    const activeMap = { thuchi: 'bcTabThuChi', congno: 'bcTabCongNo', quahan: 'bcTabQuaHan', ngaykeo: 'bcTabNgayKeo' };
     document.getElementById(activeMap[tab]).classList.add('bg-gray-800', 'text-white');
 
     if (tab === 'thuchi') renderBaoCaoThuChi();
     else if (tab === 'congno') renderBaoCaoCongNoTongHop();
+    else if (tab === 'ngaykeo') renderBaoCaoNgayKeo();
     else renderBaoCaoQuaHan();
   }
 
@@ -1417,6 +1419,158 @@
       nguoiLap: document.getElementById('bc_nguoiLap').value.trim()
     };
     xuatExcelTuServer(btn, 'xuatBaoCaoThuChiExcel', [filters]);
+  }
+
+  let BAOCAO_NGAYKEO_DATA = null;
+
+  function renderBaoCaoNgayKeo() {
+    document.getElementById('baoCaoBody').innerHTML = `
+      <div class="card mb-4 no-print">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Ngày báo cáo</label>
+            <input type="date" id="bcnk_ngay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div class="flex items-end">
+            <button onclick="loadBaoCaoNgayKeo()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Xem báo cáo</button>
+          </div>
+          <div class="flex items-end">
+            <button id="btnXuatBaoCaoNgayKeo" onclick="exportBaoCaoNgayKeoExcel(this)" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
+          </div>
+          <div class="flex items-end">
+            <button id="btnGuiEmailBaoCaoNgayKeo" onclick="guiEmailBaoCaoNgayKeo(this)" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">✉️ Gửi Email</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="card stat-card"><div class="stat-label">Tổng nhập (kg)</div><div class="stat-value text-gray-800" id="bcnk_nhapKl">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Giá trị nhập</div><div class="stat-value text-green-600" id="bcnk_nhapGt">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Giá trị thanh toán</div><div class="stat-value text-red-600" id="bcnk_ttGt">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tồn quỹ cuối ngày</div><div class="stat-value text-blue-700" id="bcnk_tonCuoi">--</div></div>
+      </div>
+
+      <div id="bcnkBangChiTiet" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+      <div class="card overflow-x-auto mt-4">
+        <div class="font-semibold text-gray-700 mb-2">Chi tiết phiếu cân trong ngày</div>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Số phiếu</th>
+              <th class="py-2 pr-3">Biển số</th>
+              <th class="py-2 pr-3">Khách hàng</th>
+              <th class="py-2 pr-3">Đại lý</th>
+              <th class="py-2 pr-3">Nguồn gốc</th>
+              <th class="py-2 pr-3 text-right">KL (kg)</th>
+              <th class="py-2 pr-3 text-right">Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody id="bcnkPhieuCanBody">
+            <tr><td colspan="7" class="py-6 text-center text-gray-400">Chọn ngày và bấm "Xem báo cáo"</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    document.getElementById('bcnk_ngay').value = _localDateStr(new Date());
+    loadBaoCaoNgayKeo();
+  }
+
+  function _bcnkBangHtml(tieuDe, tieuCot, list) {
+    const rows = list.length === 0
+      ? '<tr><td colspan="3" class="py-3 text-center text-gray-400">Không có dữ liệu</td></tr>'
+      : list.map(function (x) {
+        return '<tr class="border-b">' +
+          '<td class="py-1.5 pr-2">' + x.ten + '</td>' +
+          '<td class="py-1.5 pr-2 text-right">' + x.kl.toLocaleString('vi-VN') + '</td>' +
+          '<td class="py-1.5 pr-2 text-right">' + formatMoney(x.gt) + '</td>' +
+          '</tr>';
+      }).join('');
+    return '<div class="card"><div class="font-semibold text-gray-700 mb-2">' + tieuDe + '</div>' +
+      '<table class="w-full text-sm"><thead><tr class="text-left text-gray-500 border-b">' +
+      '<th class="py-1.5 pr-2">' + tieuCot + '</th><th class="py-1.5 pr-2 text-right">KL (kg)</th><th class="py-1.5 pr-2 text-right">Thành tiền</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+
+  function loadBaoCaoNgayKeo() {
+    const ngay = document.getElementById('bcnk_ngay').value;
+    if (!ngay) { alert('Vui lòng chọn ngày báo cáo.'); return; }
+
+    document.getElementById('bcnkBangChiTiet').innerHTML = '<div class="card text-center text-gray-400 py-6 md:col-span-2">Đang tải...</div>';
+    document.getElementById('bcnkPhieuCanBody').innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) {
+          alert('Lỗi: ' + res.message);
+          document.getElementById('bcnkBangChiTiet').innerHTML = '';
+          document.getElementById('bcnkPhieuCanBody').innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">' + res.message + '</td></tr>';
+          return;
+        }
+        BAOCAO_NGAYKEO_DATA = res.data;
+        const d = res.data;
+
+        document.getElementById('bcnk_nhapKl').textContent = d.nhap.tong.kl.toLocaleString('vi-VN');
+        document.getElementById('bcnk_nhapGt').textContent = formatMoney(d.nhap.tong.gt);
+        document.getElementById('bcnk_ttGt').textContent = formatMoney(d.thanh_toan.tong.gt);
+        document.getElementById('bcnk_tonCuoi').textContent = formatMoney(d.ton_quy_cuoi_ngay);
+
+        document.getElementById('bcnkBangChiTiet').innerHTML =
+          _bcnkBangHtml('Nhập - theo Nguồn gốc', 'Nguồn gốc', d.nhap.theo_nguon_goc) +
+          _bcnkBangHtml('Nhập - theo Đại lý', 'Đại lý', d.nhap.theo_dai_ly) +
+          _bcnkBangHtml('Thanh toán - theo Nguồn gốc', 'Nguồn gốc', d.thanh_toan.theo_nguon_goc) +
+          _bcnkBangHtml('Thanh toán - theo Đại lý', 'Đại lý', d.thanh_toan.theo_dai_ly);
+
+        const body = document.getElementById('bcnkPhieuCanBody');
+        if (!d.chi_tiet_phieu_can || d.chi_tiet_phieu_can.length === 0) {
+          body.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">Không có phiếu cân nào trong ngày.</td></tr>';
+          return;
+        }
+        body.innerHTML = d.chi_tiet_phieu_can.map(function (r) {
+          return '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="py-2 pr-3 font-medium">' + r.so_phieu + '</td>' +
+            '<td class="py-2 pr-3">' + r.bien_so + '</td>' +
+            '<td class="py-2 pr-3">' + r.khach_hang + '</td>' +
+            '<td class="py-2 pr-3">' + r.dai_ly + '</td>' +
+            '<td class="py-2 pr-3">' + r.nguon_goc + '</td>' +
+            '<td class="py-2 pr-3 text-right">' + r.kl.toLocaleString('vi-VN') + '</td>' +
+            '<td class="py-2 pr-3 text-right">' + formatMoney(r.thanh_tien) + '</td>' +
+          '</tr>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getBaoCaoNgayKeo(ngay);
+  }
+
+  function exportBaoCaoNgayKeoExcel(btn) {
+    if (!BAOCAO_NGAYKEO_DATA) { alert('Chưa có dữ liệu để xuất. Bấm "Xem báo cáo" trước.'); return; }
+    const ngay = document.getElementById('bcnk_ngay').value;
+    xuatExcelTuServer(btn, 'xuatBaoCaoNgayKeoExcel', [ngay]);
+  }
+
+  function guiEmailBaoCaoNgayKeo(btn) {
+    const ngay = document.getElementById('bcnk_ngay').value;
+    if (!ngay) { alert('Vui lòng chọn ngày báo cáo.'); return; }
+    if (!confirm('Gửi Báo cáo ngày ' + ngay + ' tới email đã thiết lập trong Quản Trị?')) return;
+
+    const textCu = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang gửi...';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = textCu;
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        alert('Đã gửi báo cáo tới: ' + res.data.da_gui_toi.join(', '));
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = textCu;
+        alert('Lỗi hệ thống: ' + err.message);
+      })
+      .guiBaoCaoNgayKeoEmail(ngay, currentUserInfo());
   }
 
   function renderBaoCaoCongNoTongHop() {
@@ -1621,10 +1775,11 @@
   /* ================= QUẢN TRỊ ================= */
   function renderQuanTri() {
     document.getElementById('mainContent').innerHTML = `
-      <div class="flex gap-2 mb-4">
+      <div class="flex gap-2 mb-4 flex-wrap">
         <button onclick="switchQuanTriTab('users')" id="qtTabUsers" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Người dùng</button>
         <button onclick="switchQuanTriTab('khoaso')" id="qtTabKhoaSo" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Khóa Sổ</button>
         <button onclick="switchQuanTriTab('auditlog')" id="qtTabAuditLog" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Nhật ký hệ thống</button>
+        <button onclick="switchQuanTriTab('baocaongay')" id="qtTabBaoCaoNgay" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Báo cáo ngày (Keo)</button>
       </div>
       <div id="quanTriBody"></div>
     `;
@@ -1632,15 +1787,80 @@
   }
 
   function switchQuanTriTab(tab) {
-    ['qtTabUsers', 'qtTabKhoaSo', 'qtTabAuditLog'].forEach(function (id) {
+    ['qtTabUsers', 'qtTabKhoaSo', 'qtTabAuditLog', 'qtTabBaoCaoNgay'].forEach(function (id) {
       document.getElementById(id).classList.remove('bg-gray-800', 'text-white');
     });
-    const map = { users: 'qtTabUsers', khoaso: 'qtTabKhoaSo', auditlog: 'qtTabAuditLog' };
+    const map = { users: 'qtTabUsers', khoaso: 'qtTabKhoaSo', auditlog: 'qtTabAuditLog', baocaongay: 'qtTabBaoCaoNgay' };
     document.getElementById(map[tab]).classList.add('bg-gray-800', 'text-white');
 
     if (tab === 'users') renderQuanTriUsers();
     else if (tab === 'khoaso') renderQuanTriKhoaSo();
+    else if (tab === 'baocaongay') renderQuanTriBaoCaoNgay();
     else renderQuanTriAuditLog();
+  }
+
+  function renderQuanTriBaoCaoNgay() {
+    document.getElementById('quanTriBody').innerHTML = `
+      <div class="card max-w-2xl">
+        <h3 class="font-semibold text-gray-700 mb-1">Cấu hình Báo cáo ngày (Keo)</h3>
+        <p class="text-xs text-gray-500 mb-4">Báo cáo ngày lấy dữ liệu từ 2 Google Sheet ngoài. Tài khoản Google đang chạy hệ thống này phải có quyền Xem trên cả 2 sheet đó.</p>
+        <div id="qtBcnkMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">ID Google Sheet "PhanTichNhapTT_DRAFT"</label>
+            <input type="text" id="qtBcnk_idPhanTich" placeholder="ID trong đường link Google Sheet" class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">ID Google Sheet "PhieuCan_DN"</label>
+            <input type="text" id="qtBcnk_idPhieuCan" placeholder="ID trong đường link Google Sheet" class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Email nhận Báo cáo ngày</label>
+            <input type="text" id="qtBcnk_email" placeholder="vd: a@gmail.com, b@gmail.com" class="w-full border rounded-lg px-3 py-2 text-sm">
+            <p class="text-xs text-gray-400 mt-1">Nhiều email cách nhau bởi dấu phẩy.</p>
+          </div>
+          <button onclick="saveCauHinhBaoCaoNgay()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">💾 Lưu cấu hình</button>
+        </div>
+      </div>
+    `;
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        document.getElementById('qtBcnk_idPhanTich').value = res.data.id_sheet_phantich;
+        document.getElementById('qtBcnk_idPhieuCan').value = res.data.id_sheet_phieucan;
+        document.getElementById('qtBcnk_email').value = res.data.email_bao_cao;
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getCauHinhBaoCaoNgay(currentUserInfo());
+  }
+
+  function saveCauHinhBaoCaoNgay() {
+    const payload = {
+      id_sheet_phantich: document.getElementById('qtBcnk_idPhanTich').value.trim(),
+      id_sheet_phieucan: document.getElementById('qtBcnk_idPhieuCan').value.trim(),
+      email_bao_cao: document.getElementById('qtBcnk_email').value.trim()
+    };
+    const msg = document.getElementById('qtBcnkMsg');
+    msg.classList.add('hidden');
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        msg.classList.remove('hidden');
+        if (!res.success) {
+          msg.className = 'mb-3 p-3 rounded-lg text-sm bg-red-50 text-red-700';
+          msg.textContent = 'Lỗi: ' + res.message;
+          return;
+        }
+        msg.className = 'mb-3 p-3 rounded-lg text-sm bg-green-50 text-green-700';
+        msg.textContent = 'Đã lưu cấu hình.';
+      })
+      .withFailureHandler(function (err) {
+        msg.classList.remove('hidden');
+        msg.className = 'mb-3 p-3 rounded-lg text-sm bg-red-50 text-red-700';
+        msg.textContent = 'Lỗi hệ thống: ' + err.message;
+      })
+      .luuCauHinhBaoCaoNgay(payload, currentUserInfo());
   }
 
   function renderQuanTriUsers() {

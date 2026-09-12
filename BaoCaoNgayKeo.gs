@@ -1,0 +1,225 @@
+/*************************************************
+ * BAOCAONGAYKEO.GS
+ * Báo cáo ngày cho nghiệp vụ mua Keo (gỗ nguyên liệu), tổng hợp từ
+ * 3 nguồn:
+ *   - Sheet "PhanTichNhapTT_DRAFT" (Google Sheet ngoài, cấu hình ở
+ *     CAU_HINH key ID_SHEET_PHANTICH_NHAP_TT): tổng Nhập/Thanh toán
+ *     trong ngày, chia theo Nguồn gốc (NG) và theo Đại lý chính
+ *     (DL: DT/QT/KL) — đúng như 2 bảng "ĐẠI LÝ"/"NGUỒN GỐC" trong
+ *     sheet Keo nhập / CK KEO của file Excel mẫu, KHÔNG tách chi
+ *     tiết theo từng đại lý phụ (theo yêu cầu người dùng).
+ *   - Sheet "PhieuCan_DN" (Google Sheet ngoài, cấu hình ở CAU_HINH
+ *     key ID_SHEET_PHIEU_CAN_DN): danh sách chi tiết từng phiếu cân
+ *     phát sinh trong ngày, để đối chiếu/tra cứu.
+ *   - Sổ Quỹ tiền mặt (PHIEU_THU/PHIEU_CHI trong chính spreadsheet
+ *     này): tồn quỹ đầu ngày / cuối ngày.
+ *
+ * Cả 2 Google Sheet ngoài PHẢI được chia sẻ (ít nhất quyền Xem) cho
+ * tài khoản Google đang đứng tên chạy Apps Script này.
+ *************************************************/
+
+const TEN_SHEET_PHANTICH_NHAP_TT = 'PhanTichNhapTT_DRAFT';
+const TEN_SHEET_PHIEU_CAN_DN = 'PhieuCan_DN';
+
+/**
+ * Mở 1 Google Sheet ngoài theo ID lưu trong CAU_HINH (key cauHinhKey)
+ * và trả về đúng sheet con tên tenSheet. Ném lỗi tiếng Việt rõ ràng
+ * nếu chưa cấu hình / không mở được / không tìm thấy sheet con.
+ */
+function _moSheetNgoaiTheoTen(cauHinhKey, tenSheet) {
+  const id = _getCauHinh(cauHinhKey);
+  if (!id) {
+    throw new Error('Chưa cấu hình ID Google Sheet nguồn dữ liệu (' + cauHinhKey +
+      '). Vào Quản Trị > "Báo cáo ngày (Keo)" để thiết lập.');
+  }
+  let ssNgoai;
+  try {
+    ssNgoai = SpreadsheetApp.openById(String(id).trim());
+  } catch (e) {
+    throw new Error('Không mở được Google Sheet nguồn dữ liệu (' + cauHinhKey +
+      '). Kiểm tra lại ID hoặc quyền chia sẻ. Chi tiết: ' + e.message);
+  }
+  const sh = ssNgoai.getSheetByName(tenSheet);
+  if (!sh) {
+    throw new Error('Không tìm thấy sheet "' + tenSheet + '" trong Google Sheet nguồn (' + cauHinhKey + ').');
+  }
+  return sh;
+}
+
+/**
+ * Tồn quỹ đầu ngày / cuối ngày của 1 loại quỹ, tính trên TOÀN BỘ
+ * lịch sử giao dịch (không phụ thuộc bộ lọc), để luôn đúng kể cả
+ * những ngày không phát sinh giao dịch nào.
+ */
+function _tonDauCuoiNgay(loaiQuy, ngay) {
+  const res = getSoQuy({ loaiQuy: loaiQuy });
+  const soDuKhoiTao = Number(_getCauHinh(_cauHinhSoDuKhoiTaoTheoQuy(loaiQuy))) || 0;
+  if (!res.success) return { dau: soDuKhoiTao, cuoi: soDuKhoiTao };
+
+  const list = res.data;
+  let cuoi = null, dau = null;
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i].ngay <= ngay) { cuoi = list[i].ton; break; }
+  }
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (list[i].ngay < ngay) { dau = list[i].ton; break; }
+  }
+  if (dau === null) dau = soDuKhoiTao;
+  if (cuoi === null) cuoi = dau;
+  return { dau: dau, cuoi: cuoi };
+}
+
+/*************************************************
+ * API: LẤY DỮ LIỆU BÁO CÁO NGÀY (KEO)
+ *************************************************/
+function getBaoCaoNgayKeo(ngay) {
+  try {
+    if (!ngay) throw new Error('Vui lòng chọn ngày báo cáo.');
+
+    const shPhanTich = _moSheetNgoaiTheoTen('ID_SHEET_PHANTICH_NHAP_TT', TEN_SHEET_PHANTICH_NHAP_TT);
+    const rowsPhanTich = _sheetToObjectsFromSheetObj(shPhanTich)
+      .filter(r => _ngayKeyLinhHoat(r['Ngày']) === ngay);
+
+    function gomNhom(loai, phanLoai) {
+      return rowsPhanTich
+        .filter(r => r['Loại'] === loai && r['PhanLoai'] === phanLoai)
+        .map(r => ({ ten: _safeText(r['Ten']), kl: Number(r['KhoiLuongKg']) || 0, gt: Number(r['GiaTri']) || 0 }))
+        .sort((a, b) => b.gt - a.gt);
+    }
+    function tongCua(loai) {
+      const t = rowsPhanTich.find(r => r['Loại'] === loai && r['PhanLoai'] === 'TONG');
+      return { kl: t ? Number(t['KhoiLuongKg']) || 0 : 0, gt: t ? Number(t['GiaTri']) || 0 : 0 };
+    }
+
+    const nhap = { theo_nguon_goc: gomNhom('NHAP', 'NG'), theo_dai_ly: gomNhom('NHAP', 'DL'), tong: tongCua('NHAP') };
+    const thanhToan = { theo_nguon_goc: gomNhom('THANHTOAN', 'NG'), theo_dai_ly: gomNhom('THANHTOAN', 'DL'), tong: tongCua('THANHTOAN') };
+
+    const shPhieuCan = _moSheetNgoaiTheoTen('ID_SHEET_PHIEU_CAN_DN', TEN_SHEET_PHIEU_CAN_DN);
+    const chiTietPhieuCan = _sheetToObjectsFromSheetObj(shPhieuCan)
+      .filter(r => _ngayKeyLinhHoat(r['Ngày cân 1']) === ngay)
+      .map(r => ({
+        so_phieu: _safeText(r['Số phiếu']),
+        bien_so: _safeText(r['Biển số 1']),
+        khach_hang: _safeText(r['Khách hàng']),
+        dai_ly: _safeText(r['ĐL']),
+        nguon_goc: _safeText(r['NG']),
+        kl: Number(r['KL hàng (KG)']) || 0,
+        don_gia: Number(r['Đơn giá_TC']) || 0,
+        thanh_tien: Number(r['Thành tiền']) || 0,
+        trang_thai: _safeText(r['Trạng thái'])
+      }))
+      .sort((a, b) => Number(a.so_phieu) - Number(b.so_phieu));
+
+    const soDu = _tonDauCuoiNgay(QUY_TIEN_MAT, ngay);
+
+    return _jsonOk({
+      ngay: ngay,
+      nhap: nhap,
+      thanh_toan: thanhToan,
+      chi_tiet_phieu_can: chiTietPhieuCan,
+      ton_quy_dau_ngay: soDu.dau,
+      ton_quy_cuoi_ngay: soDu.cuoi
+    });
+
+  } catch (err) {
+    return _jsonErr(err);
+  }
+}
+
+/*************************************************
+ * API: XUẤT BÁO CÁO NGÀY (KEO) RA EXCEL
+ *************************************************/
+function xuatBaoCaoNgayKeoExcel(ngay) {
+  try {
+    const res = getBaoCaoNgayKeo(ngay);
+    if (!res.success) throw new Error(res.message);
+    const d = res.data;
+
+    function bangTong(nhom, tieuCot) {
+      const rows = nhom.map(x => [x.ten, x.kl, x.gt]);
+      return { headers: [tieuCot, 'Khối lượng (kg)', 'Thành tiền'], rows: rows, condoTien: [1, 2] };
+    }
+
+    const tongQuan = {
+      tenSheet: 'Tổng quan',
+      tieuDe: 'BÁO CÁO NGÀY - THU MUA KEO',
+      phuDe: 'Ngày ' + ngay,
+      headers: ['Chỉ tiêu', 'Khối lượng (kg)', 'Giá trị (đ)'],
+      rows: [
+        ['Tổng NHẬP trong ngày', d.nhap.tong.kl, d.nhap.tong.gt],
+        ['Tổng THANH TOÁN trong ngày', d.thanh_toan.tong.kl, d.thanh_toan.tong.gt],
+        ['Tồn quỹ tiền mặt đầu ngày', '', d.ton_quy_dau_ngay],
+        ['Tồn quỹ tiền mặt cuối ngày', '', d.ton_quy_cuoi_ngay]
+      ],
+      condoTien: [1, 2]
+    };
+
+    const nhapNguonGoc = Object.assign({ tenSheet: 'Nhập - Nguồn gốc' }, bangTong(d.nhap.theo_nguon_goc, 'Nguồn gốc'));
+    const nhapDaiLy = Object.assign({ tenSheet: 'Nhập - Đại lý' }, bangTong(d.nhap.theo_dai_ly, 'Đại lý'));
+    const ttNguonGoc = Object.assign({ tenSheet: 'Thanh toán - Nguồn gốc' }, bangTong(d.thanh_toan.theo_nguon_goc, 'Nguồn gốc'));
+    const ttDaiLy = Object.assign({ tenSheet: 'Thanh toán - Đại lý' }, bangTong(d.thanh_toan.theo_dai_ly, 'Đại lý'));
+
+    const chiTiet = {
+      tenSheet: 'Chi tiết phiếu cân',
+      tieuDe: 'CHI TIẾT PHIẾU CÂN NGÀY ' + ngay,
+      headers: ['Số phiếu', 'Biển số', 'Khách hàng', 'Đại lý', 'Nguồn gốc', 'KL (kg)', 'Đơn giá', 'Thành tiền', 'Trạng thái'],
+      rows: d.chi_tiet_phieu_can.map(r => [r.so_phieu, r.bien_so, r.khach_hang, r.dai_ly, r.nguon_goc, r.kl, r.don_gia, r.thanh_tien, r.trang_thai]),
+      condoTien: [5, 6, 7]
+    };
+
+    const file = _taoFileExcel('BaoCaoNgayKeo_' + ngay, [tongQuan, nhapNguonGoc, nhapDaiLy, ttNguonGoc, ttDaiLy, chiTiet]);
+
+    return _jsonOk(file);
+  } catch (err) {
+    return _jsonErr(err);
+  }
+}
+
+/*************************************************
+ * API: GỬI BÁO CÁO NGÀY (KEO) QUA EMAIL
+ * Người nhận lấy từ CAU_HINH key EMAIL_BAO_CAO_NGAY (thiết lập ở
+ * Quản Trị), nhiều email cách nhau bởi dấu phẩy hoặc chấm phẩy.
+ *************************************************/
+function guiBaoCaoNgayKeoEmail(ngay, currentUser) {
+  try {
+    if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN, ROLE_THU_QUY]);
+
+    const emailCauHinh = _getCauHinh('EMAIL_BAO_CAO_NGAY');
+    const danhSachEmail = String(emailCauHinh || '').split(/[,;]/).map(e => e.trim()).filter(Boolean);
+    if (danhSachEmail.length === 0) {
+      throw new Error('Chưa thiết lập email nhận báo cáo. Vào Quản Trị > "Báo cáo ngày (Keo)" để thiết lập.');
+    }
+
+    const fileRes = xuatBaoCaoNgayKeoExcel(ngay);
+    if (!fileRes.success) throw new Error(fileRes.message);
+
+    const blob = Utilities.newBlob(
+      Utilities.base64Decode(fileRes.data.base64),
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      fileRes.data.filename
+    );
+
+    const dataRes = getBaoCaoNgayKeo(ngay);
+    const d = dataRes.success ? dataRes.data : null;
+    let noiDung = 'Kính gửi Anh/Chị,\n\nHệ thống HAK_QUY gửi Báo cáo ngày (thu mua Keo) ngày ' + ngay + ', chi tiết xem file Excel đính kèm.';
+    if (d) {
+      noiDung += '\n\n- Tổng nhập: ' + Math.round(d.nhap.tong.gt).toLocaleString('vi-VN') + ' đ (' + d.nhap.tong.kl.toLocaleString('vi-VN') + ' kg)' +
+        '\n- Tổng thanh toán: ' + Math.round(d.thanh_toan.tong.gt).toLocaleString('vi-VN') + ' đ (' + d.thanh_toan.tong.kl.toLocaleString('vi-VN') + ' kg)' +
+        '\n- Tồn quỹ tiền mặt cuối ngày: ' + Math.round(d.ton_quy_cuoi_ngay).toLocaleString('vi-VN') + ' đ';
+    }
+    noiDung += '\n\n(Email được gửi tự động từ hệ thống HAK_QUY)';
+
+    GmailApp.sendEmail(danhSachEmail.join(','), 'Báo cáo ngày Keo - ' + ngay, noiDung, {
+      attachments: [blob],
+      name: 'HAK_QUY - Báo cáo tự động'
+    });
+
+    _writeAuditLog(currentUser.full_name, 'Báo Cáo Ngày', 'Gửi Email', ngay, '', 'Đã gửi tới: ' + danhSachEmail.join(', '));
+
+    return _jsonOk({ da_gui_toi: danhSachEmail });
+
+  } catch (err) {
+    return _jsonErr(err);
+  }
+}

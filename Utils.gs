@@ -30,7 +30,16 @@ function _cleanCell(v) {
  * __row = vị trí dòng thật trên sheet (1-based), dùng khi cần sửa lại dòng đó.
  */
 function _sheetToObjects(sheetName) {
-  const sh = _sheet(sheetName);
+  return _sheetToObjectsFromSheetObj(_sheet(sheetName));
+}
+
+/**
+ * Giống _sheetToObjects nhưng nhận thẳng 1 đối tượng Sheet thay vì tên
+ * sheet trong spreadsheet đang chạy — dùng để đọc dữ liệu từ 1 Google
+ * Sheet KHÁC (ví dụ PhieuCan_DN, PhanTichNhapTT_DRAFT) mở qua
+ * SpreadsheetApp.openById().
+ */
+function _sheetToObjectsFromSheetObj(sh) {
   const values = sh.getDataRange().getValues();
   if (values.length < 2) return [];
   const headers = values[0].map(h => String(h).trim());
@@ -44,6 +53,20 @@ function _sheetToObjects(sheetName) {
     rows.push(obj);
   }
   return rows;
+}
+
+/**
+ * Chuyển 1 giá trị đọc từ ô Sheet (có thể là Date thật, hoặc chuỗi text
+ * "yyyy-MM-dd" như trong PhanTichNhapTT_DRAFT) thành khóa ngày dạng
+ * "yyyy-MM-dd" để so sánh/lọc, không phụ thuộc việc ô đó được lưu dưới
+ * dạng Date hay Text.
+ */
+function _ngayKeyLinhHoat(v) {
+  if (!v) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    return _isValidDate(v) ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd') : '';
+  }
+  return String(v).trim();
 }
 
 function _jsonOk(data) {

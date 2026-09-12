@@ -247,6 +247,49 @@ function toggleUserStatus(targetUsername, currentUser) {
 }
 
 /*************************************************
+ * ============ CẤU HÌNH BÁO CÁO NGÀY (KEO) + EMAIL ============
+ *************************************************/
+
+function getCauHinhBaoCaoNgay(currentUser) {
+  try {
+    if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN]);
+
+    return _jsonOk({
+      id_sheet_phantich: _getCauHinh('ID_SHEET_PHANTICH_NHAP_TT') || '',
+      id_sheet_phieucan: _getCauHinh('ID_SHEET_PHIEU_CAN_DN') || '',
+      email_bao_cao: _getCauHinh('EMAIL_BAO_CAO_NGAY') || ''
+    });
+  } catch (err) {
+    return _jsonErr(err);
+  }
+}
+
+function luuCauHinhBaoCaoNgay(payload, currentUser) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+
+    if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN]);
+    if (!payload) throw new Error('Thiếu dữ liệu cấu hình.');
+
+    _setCauHinh('ID_SHEET_PHANTICH_NHAP_TT', String(payload.id_sheet_phantich || '').trim());
+    _setCauHinh('ID_SHEET_PHIEU_CAN_DN', String(payload.id_sheet_phieucan || '').trim());
+    _setCauHinh('EMAIL_BAO_CAO_NGAY', String(payload.email_bao_cao || '').trim());
+
+    _writeAuditLog(currentUser.full_name, 'Quản Trị', 'Sửa', 'CAU_HINH_BAO_CAO_NGAY', '', 'Cập nhật cấu hình Báo cáo ngày (Keo) + email nhận báo cáo');
+
+    return _jsonOk({});
+
+  } catch (err) {
+    return _jsonErr(err);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/*************************************************
  * ================= NHẬT KÝ HỆ THỐNG (AUDIT LOG) =================
  *************************************************/
 
