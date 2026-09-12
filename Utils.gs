@@ -56,6 +56,29 @@ function _sheetToObjectsFromSheetObj(sh) {
 }
 
 /**
+ * Đặt độ rộng cột hợp lý dựa theo tên tiêu đề cột, thay cho
+ * autoResizeColumns() — vốn tính độ rộng KHÔNG đáng tin cậy khi
+ * dòng 1 phía trên là 1 ô đã merge() ngang qua nhiều cột (tiêu đề
+ * báo cáo), dễ khiến các cột dữ liệu bên dưới bị co hẹp/lệch,
+ * trông không chuẩn. Dùng cho mọi sheet Excel xuất ra.
+ */
+function _datDoRongCotTheoTieuDe(sh, headers, cotBatDau) {
+  const batDau = cotBatDau || 1;
+  headers.forEach((h, i) => {
+    const label = String(h === null || h === undefined ? '' : h);
+    let w = 90;
+    if (label === '') w = 24;
+    else if (/diễn giải|nội dung/i.test(label)) w = 260;
+    else if (/người|khách hàng|đối tượng|biển số/i.test(label)) w = 170;
+    else if (/ngày/i.test(label)) w = 100;
+    else if (/tồn|thành tiền|giá trị|^nợ$|^có$|^thu$|^chi$/i.test(label)) w = 115;
+    else if (/số phiếu/i.test(label)) w = 100;
+    else if (/tổng.*\(kg\)|đơn giá/i.test(label)) w = 110;
+    sh.setColumnWidth(batDau + i, w);
+  });
+}
+
+/**
  * Chuyển 1 giá trị đọc từ ô Sheet (có thể là Date thật, hoặc chuỗi text
  * "yyyy-MM-dd" như trong PhanTichNhapTT_DRAFT) thành khóa ngày dạng
  * "yyyy-MM-dd" để so sánh/lọc, không phụ thuộc việc ô đó được lưu dưới

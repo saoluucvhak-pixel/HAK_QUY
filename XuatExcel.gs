@@ -45,18 +45,19 @@ function _taoFileExcel(tenFile, dsSheet) {
 
     if (sd.rows.length > 0) {
       sh.getRange(dong, 1, sd.rows.length, soCot).setValues(sd.rows);
+      sh.getRange(dong, 1, sd.rows.length, soCot).setVerticalAlignment('middle');
       (sd.condoTien || []).forEach(function (colIdx) {
-        sh.getRange(dong, colIdx + 1, sd.rows.length, 1).setNumberFormat('#,##0');
+        sh.getRange(dong, colIdx + 1, sd.rows.length, 1).setNumberFormat('#,##0').setHorizontalAlignment('right');
       });
       sh.getRange(dong, 1, sd.rows.length, soCot)
-        .setBorder(true, true, true, true, true, true, '#d1d5db', SpreadsheetApp.BorderStyle.SOLID);
+        .setBorder(true, true, true, true, true, true, '#999999', SpreadsheetApp.BorderStyle.SOLID);
     }
 
     sh.getRange(dongHeader, 1, 1, soCot)
-      .setBorder(true, true, true, true, true, true, '#d1d5db', SpreadsheetApp.BorderStyle.SOLID);
+      .setBorder(true, true, true, true, true, true, '#999999', SpreadsheetApp.BorderStyle.SOLID);
 
     sh.setFrozenRows(dongHeader);
-    sh.autoResizeColumns(1, soCot);
+    _datDoRongCotTheoTieuDe(sh, sd.headers);
   });
 
   return _xuatVaXoaFile(ss, tenFile);

@@ -26,6 +26,19 @@ function _ddmmyyyy(ngayKey) {
   return p[2] + '/' + p[1] + '/' + p[0];
 }
 
+/**
+ * Chuyển 1 khóa ngày "yyyy-MM-dd" (chuỗi text getSoQuy() trả về)
+ * thành 1 Date thật, để ghi vào Excel dưới dạng Ngày Tháng có thể
+ * định dạng/sắp xếp — thay vì để lọt ra 1 chuỗi text thô "2026-09-01"
+ * trông không giống một cột Ngày chuẩn.
+ */
+function _ngayTuKey(ngayKey) {
+  if (!ngayKey) return '';
+  const p = String(ngayKey).split('-');
+  if (p.length !== 3) return ngayKey;
+  return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+}
+
 /*************************************************
  * API: XUẤT FILE EXCEL TỔNG HỢP
  *************************************************/
@@ -70,6 +83,7 @@ function xuatTongHopExcel(nam, thang) {
 function _veSheetSoKeToan(ss, idx, cfg) {
   const soCot = cfg.headers.length;
   const sh = idx === 0 ? ss.getSheets()[0].setName(cfg.tenSheet) : ss.insertSheet(cfg.tenSheet);
+  const tongSoDong = 4 + 1 + cfg.dataRows.length; // 2 dòng tiêu đề + 2 dòng header + 1 dòng tồn đầu kỳ + dữ liệu
 
   sh.getRange(1, 1, 1, soCot).merge().setValue(cfg.tieuDe)
     .setFontWeight('bold').setFontSize(13).setHorizontalAlignment('center');
@@ -86,24 +100,25 @@ function _veSheetSoKeToan(ss, idx, cfg) {
   }
   sh.getRange(3, 1, 2, soCot)
     .setFontWeight('bold').setBackground('#1e40af').setFontColor('#ffffff')
-    .setHorizontalAlignment('center').setVerticalAlignment('middle');
-  sh.getRange(3, 1, 2, soCot).setBorder(true, true, true, true, true, true, '#d1d5db', SpreadsheetApp.BorderStyle.SOLID);
+    .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true);
+  sh.setRowHeight(3, 22);
+  sh.setRowHeight(4, 22);
 
   const dong = 5;
-  sh.getRange(dong, 1, 1, soCot).setValues([cfg.tonDauKyRow]).setFontWeight('bold');
-  (cfg.condoTienCols || []).forEach(c => sh.getRange(dong, c).setNumberFormat('#,##0'));
+  const toanBoDuLieu = [cfg.tonDauKyRow].concat(cfg.dataRows);
+  sh.getRange(dong, 1, toanBoDuLieu.length, soCot).setValues(toanBoDuLieu);
+  sh.getRange(dong, 1, 1, soCot).setFontWeight('bold').setBackground('#eef2ff');
+  sh.getRange(dong, 1, toanBoDuLieu.length, soCot).setVerticalAlignment('middle');
+  (cfg.condoTienCols || []).forEach(c => {
+    sh.getRange(dong, c, toanBoDuLieu.length, 1).setNumberFormat('#,##0').setHorizontalAlignment('right');
+  });
+  cfg.ngayCols.forEach(c => sh.getRange(dong, c, toanBoDuLieu.length, 1).setHorizontalAlignment('center').setNumberFormat('dd/MM/yyyy'));
 
-  if (cfg.dataRows.length > 0) {
-    sh.getRange(dong + 1, 1, cfg.dataRows.length, soCot).setValues(cfg.dataRows);
-    (cfg.condoTienCols || []).forEach(c => {
-      sh.getRange(dong + 1, c, cfg.dataRows.length, 1).setNumberFormat('#,##0');
-    });
-    sh.getRange(dong, 1, cfg.dataRows.length + 1, soCot)
-      .setBorder(true, true, true, true, true, true, '#d1d5db', SpreadsheetApp.BorderStyle.SOLID);
-  }
+  sh.getRange(3, 1, tongSoDong - 2, soCot)
+    .setBorder(true, true, true, true, true, true, '#999999', SpreadsheetApp.BorderStyle.SOLID);
 
   sh.setFrozenRows(4);
-  sh.autoResizeColumns(1, soCot);
+  _datDoRongCotTheoTieuDe(sh, cfg.headers);
   return sh;
 }
 
@@ -120,7 +135,7 @@ function _veSheetQuyTong(ss, idx, nam, thang) {
   const headers = ['Ngày hạch toán', 'Ngày chứng từ', 'Số phiếu thu', 'Số phiếu chi', 'Diễn giải',
     'Tài khoản', 'TK đối ứng', 'Số phát sinh', '', 'Số tồn', 'Người nhận/Người nộp', 'Mã NV'];
   const tonDauKyRow = ['', '', '', '', 'Số tồn đầu kỳ', '1111', '', 0, 0, tonDauKy, '', ''];
-  const dataRows = list.map(t => [t.ngay_hach_toan, t.ngay, t.so_phieu_thu, t.so_phieu_chi, t.noi_dung,
+  const dataRows = list.map(t => [_ngayTuKey(t.ngay_hach_toan), _ngayTuKey(t.ngay), t.so_phieu_thu, t.so_phieu_chi, t.noi_dung,
     t.tai_khoan, t.tk_doi_ung, t.thu || '', t.chi || '', t.ton, t.nguoi_nhan_nop, t.ma_nhan_vien]);
 
   _veSheetSoKeToan(ss, idx, {
@@ -129,6 +144,7 @@ function _veSheetQuyTong(ss, idx, nam, thang) {
     phuDe: 'Loại tiền: Tổng hợp; Tài khoản: 1111; Từ ngày ' + _ddmmyyyy(tuNgay) + ' đến ngày ' + _ddmmyyyy(denNgay),
     headers: headers,
     idxNo: 8,
+    ngayCols: [1, 2],
     tonDauKyRow: tonDauKyRow,
     dataRows: dataRows,
     condoTienCols: [8, 9, 10]
@@ -147,7 +163,7 @@ function _veSheetCongDoanNam(ss, idx, nam) {
   const headers = ['Ngày hạch toán', 'Ngày chứng từ', 'Số phiếu thu', 'Số phiếu chi', 'Diễn giải',
     'Số phát sinh', '', 'Số tồn', 'Người nhận/Người nộp', 'Chi nhánh'];
   const tonDauKyRow = ['', '', '', '', 'Số tồn đầu kỳ', 0, 0, tonDauKy, '', ''];
-  const dataRows = list.map(t => [t.ngay_hach_toan, t.ngay, t.so_phieu_thu, t.so_phieu_chi, t.noi_dung,
+  const dataRows = list.map(t => [_ngayTuKey(t.ngay_hach_toan), _ngayTuKey(t.ngay), t.so_phieu_thu, t.so_phieu_chi, t.noi_dung,
     t.thu || '', t.chi || '', t.ton, t.nguoi_nhan_nop, t.chi_nhanh]);
 
   _veSheetSoKeToan(ss, idx, {
@@ -156,6 +172,7 @@ function _veSheetCongDoanNam(ss, idx, nam) {
     phuDe: 'Loại tiền: VND; Từ ngày ' + _ddmmyyyy(tuNgay) + ' đến ngày ' + _ddmmyyyy(denNgay),
     headers: headers,
     idxNo: 6,
+    ngayCols: [1, 2],
     tonDauKyRow: tonDauKyRow,
     dataRows: dataRows,
     condoTienCols: [6, 7, 8]
@@ -193,13 +210,15 @@ function _veSheetCom(ss, idx, nam, thang) {
     }
   }
 
-  sh.getRange(4, 1, dataRows.length, soCot).setValues(dataRows);
-  sh.getRange(4, 5, dataRows.length, 2).setNumberFormat('#,##0');
-  sh.getRange(4, 8, dataRows.length, 1).setNumberFormat('#,##0');
-  sh.getRange(3, 1, dataRows.length + 1, soCot).setBorder(true, true, true, true, true, true, '#d1d5db', SpreadsheetApp.BorderStyle.SOLID);
+  sh.getRange(4, 1, dataRows.length, soCot).setValues(dataRows).setVerticalAlignment('middle');
+  sh.getRange(4, 1, dataRows.length, 4).setHorizontalAlignment('center');
+  sh.getRange(4, 5, dataRows.length, 2).setNumberFormat('#,##0').setHorizontalAlignment('right');
+  sh.getRange(4, 7, dataRows.length, 1).setHorizontalAlignment('center');
+  sh.getRange(4, 8, dataRows.length, 1).setNumberFormat('#,##0').setHorizontalAlignment('right');
+  sh.getRange(3, 1, dataRows.length + 1, soCot).setBorder(true, true, true, true, true, true, '#999999', SpreadsheetApp.BorderStyle.SOLID);
 
   sh.setFrozenRows(3);
-  sh.autoResizeColumns(1, soCot);
+  _datDoRongCotTheoTieuDe(sh, headers);
 }
 
 /**
@@ -282,14 +301,27 @@ function _veSheetKeoCalendar(ss, idx, tenSheet, loai, nam, thang, rowsPhanTich, 
   totalRow[soCotTrai + 3] = tongGtAll;
   dataRows.push(totalRow);
 
-  sh.getRange(3, 1, dataRows.length, soCot).setValues(dataRows);
-  sh.getRange(3, 2, dataRows.length, 1).setNumberFormat('#,##0');
-  sh.getRange(3, 3, dataRows.length, 1).setNumberFormat('#,##0');
-  sh.getRange(3, soCotTrai + 3, dataRows.length, 1).setNumberFormat('#,##0');
-  sh.getRange(3, soCotTrai + 4, dataRows.length, 1).setNumberFormat('#,##0');
-  sh.getRange(dataRows.length + 2, 1, 1, soCot).setFontWeight('bold');
-  sh.getRange(2, 1, dataRows.length + 1, soCot).setBorder(true, true, true, true, true, true, '#d1d5db', SpreadsheetApp.BorderStyle.SOLID);
+  sh.getRange(3, 1, dataRows.length, soCot).setValues(dataRows).setVerticalAlignment('middle');
+
+  // Cột "Ngày" (trái: cột 1, phải: cột soCotTrai+2) căn giữa
+  sh.getRange(3, 1, dataRows.length, 1).setHorizontalAlignment('center');
+  sh.getRange(3, soCotTrai + 2, dataRows.length, 1).setHorizontalAlignment('center');
+
+  // Cột khối lượng (kg) — có thể lẻ, giữ 2 số thập phân: Tổng KL +
+  // từng cột Đại lý/Nguồn gốc, cả bên trái lẫn bên phải
+  const cotKlTrai = [2].concat(dealerList.map((_, i) => 4 + i));
+  const cotKlPhai = [soCotTrai + 3].concat(nguonGocList.map((_, i) => soCotTrai + 5 + i));
+  cotKlTrai.concat(cotKlPhai).forEach(c => {
+    sh.getRange(3, c, dataRows.length, 1).setNumberFormat('#,##0.00').setHorizontalAlignment('right');
+  });
+
+  // Cột "Thành tiền" (trái: cột 3, phải: cột soCotTrai+4) — tiền, không lẻ
+  sh.getRange(3, 3, dataRows.length, 1).setNumberFormat('#,##0').setHorizontalAlignment('right');
+  sh.getRange(3, soCotTrai + 4, dataRows.length, 1).setNumberFormat('#,##0').setHorizontalAlignment('right');
+
+  sh.getRange(dataRows.length + 2, 1, 1, soCot).setFontWeight('bold').setBackground('#eef2ff');
+  sh.getRange(2, 1, dataRows.length + 1, soCot).setBorder(true, true, true, true, true, true, '#999999', SpreadsheetApp.BorderStyle.SOLID);
 
   sh.setFrozenRows(2);
-  sh.autoResizeColumns(1, soCot);
+  _datDoRongCotTheoTieuDe(sh, headerRow);
 }
