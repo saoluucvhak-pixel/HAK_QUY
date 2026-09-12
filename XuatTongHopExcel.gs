@@ -1,0 +1,294 @@
+/*************************************************
+ * XUATTONGHOPEXCEL.GS
+ * Xuất 1 file Excel TỔNG HỢP theo đúng bố cục các sheet trong file
+ * Excel mẫu gốc (QUỸ TIỀN MẶT...xlsx) mà người dùng cung cấp:
+ *   - "Quỹ tổng"   : Sổ kế toán chi tiết Quỹ tiền mặt, theo THÁNG
+ *   - "Keo nhập"   : bảng lịch theo ngày (1 dòng/ngày) — bên trái
+ *                    theo Đại lý (DT/QT/KL), bên phải theo Nguồn gốc
+ *   - "CK KEO"     : như "Keo nhập" nhưng cho phần Thanh toán (Chi)
+ *   - "cơm"        : Sổ Cơm theo THÁNG
+ *   - "Công đoàn"  : Sổ kế toán chi tiết Quỹ Công đoàn, theo CẢ NĂM
+ *                    (đúng như file mẫu gốc lấy cả năm cho sheet này)
+ *
+ * KHÔNG có sheet "NHân viên" (theo yêu cầu) và "Kangatang" (sheet
+ * rỗng trong file gốc, không có dữ liệu để tái tạo).
+ *
+ * "Keo nhập"/"CK KEO" lấy dữ liệu từ sheet PhanTichNhapTT_DRAFT
+ * (Google Sheet ngoài, xem BaoCaoNgayKeo.gs) — vẫn theo đúng mức
+ * đơn giản hoá đã thống nhất trước đó (đại lý chỉ DT/QT/KL, không
+ * tách theo từng đại lý phụ), chỉ khác là trình bày theo LỊCH (1
+ * dòng/ngày trong tháng) thay vì 1 ngày đơn lẻ như "Báo cáo ngày".
+ *************************************************/
+
+function _ddmmyyyy(ngayKey) {
+  const p = String(ngayKey).split('-');
+  return p[2] + '/' + p[1] + '/' + p[0];
+}
+
+/*************************************************
+ * API: XUẤT FILE EXCEL TỔNG HỢP
+ *************************************************/
+function xuatTongHopExcel(nam, thang) {
+  try {
+    nam = Number(nam);
+    thang = Number(thang);
+    if (!nam || !thang || thang < 1 || thang > 12) throw new Error('Vui lòng chọn Tháng/Năm hợp lệ.');
+
+    const tenFile = 'BaoCaoTongHop_' + nam + '_' + String(thang).padStart(2, '0');
+    const ss = SpreadsheetApp.create(tenFile);
+
+    let rowsPhanTich = [];
+    let loiNguonKeo = '';
+    try {
+      const shPhanTich = _moSheetNgoaiTheoTen('ID_SHEET_PHANTICH_NHAP_TT', TEN_SHEET_PHANTICH_NHAP_TT);
+      _kiemTraCotBatBuoc(shPhanTich, ['Ngày', 'Loại', 'PhanLoai', 'Ten', 'KhoiLuongKg', 'GiaTri']);
+      rowsPhanTich = _sheetToObjectsFromSheetObj(shPhanTich);
+    } catch (e) {
+      loiNguonKeo = e.message;
+    }
+
+    _veSheetQuyTong(ss, 0, nam, thang);
+    _veSheetKeoCalendar(ss, 1, 'Keo nhập', 'NHAP', nam, thang, rowsPhanTich, loiNguonKeo);
+    _veSheetKeoCalendar(ss, 2, 'CK KEO', 'THANHTOAN', nam, thang, rowsPhanTich, loiNguonKeo);
+    _veSheetCom(ss, 3, nam, thang);
+    _veSheetCongDoanNam(ss, 4, nam);
+
+    const file = _xuatVaXoaFile(ss, tenFile);
+    return _jsonOk(file);
+
+  } catch (err) {
+    return _jsonErr(err);
+  }
+}
+
+/**
+ * Dựng khung "Sổ kế toán chi tiết" 2 dòng tiêu đề cột (dòng "Số phát
+ * sinh" gộp ngang, tách "Nợ"/"Có" ở dòng dưới) — dùng chung cho sheet
+ * "Quỹ tổng" và "Công đoàn", chỉ khác bộ cột.
+ */
+function _veSheetSoKeToan(ss, idx, cfg) {
+  const soCot = cfg.headers.length;
+  const sh = idx === 0 ? ss.getSheets()[0].setName(cfg.tenSheet) : ss.insertSheet(cfg.tenSheet);
+
+  sh.getRange(1, 1, 1, soCot).merge().setValue(cfg.tieuDe)
+    .setFontWeight('bold').setFontSize(13).setHorizontalAlignment('center');
+  sh.getRange(2, 1, 1, soCot).merge().setValue(cfg.phuDe)
+    .setFontStyle('italic').setFontSize(10).setHorizontalAlignment('center').setFontColor('#555555');
+
+  sh.getRange(3, 1, 1, soCot).setValues([cfg.headers]);
+  sh.getRange(3, cfg.idxNo, 1, 2).merge().setValue('Số phát sinh');
+  sh.getRange(4, cfg.idxNo).setValue('Nợ');
+  sh.getRange(4, cfg.idxNo + 1).setValue('Có');
+  for (let c = 1; c <= soCot; c++) {
+    if (c === cfg.idxNo || c === cfg.idxNo + 1) continue;
+    sh.getRange(3, c, 2, 1).merge();
+  }
+  sh.getRange(3, 1, 2, soCot)
+    .setFontWeight('bold').setBackground('#1e40af').setFontColor('#ffffff')
+    .setHorizontalAlignment('center').setVerticalAlignment('middle');
+  sh.getRange(3, 1, 2, soCot).setBorder(true, true, true, true, true, true, '#d1d5db', SpreadsheetApp.BorderStyle.SOLID);
+
+  const dong = 5;
+  sh.getRange(dong, 1, 1, soCot).setValues([cfg.tonDauKyRow]).setFontWeight('bold');
+  (cfg.condoTienCols || []).forEach(c => sh.getRange(dong, c).setNumberFormat('#,##0'));
+
+  if (cfg.dataRows.length > 0) {
+    sh.getRange(dong + 1, 1, cfg.dataRows.length, soCot).setValues(cfg.dataRows);
+    (cfg.condoTienCols || []).forEach(c => {
+      sh.getRange(dong + 1, c, cfg.dataRows.length, 1).setNumberFormat('#,##0');
+    });
+    sh.getRange(dong, 1, cfg.dataRows.length + 1, soCot)
+      .setBorder(true, true, true, true, true, true, '#d1d5db', SpreadsheetApp.BorderStyle.SOLID);
+  }
+
+  sh.setFrozenRows(4);
+  sh.autoResizeColumns(1, soCot);
+  return sh;
+}
+
+function _veSheetQuyTong(ss, idx, nam, thang) {
+  const cuoiThang = new Date(nam, thang, 0).getDate();
+  const tuNgay = nam + '-' + String(thang).padStart(2, '0') + '-01';
+  const denNgay = nam + '-' + String(thang).padStart(2, '0') + '-' + String(cuoiThang).padStart(2, '0');
+
+  const res = getSoQuy({ loaiQuy: QUY_TIEN_MAT, tuNgay: tuNgay, denNgay: denNgay });
+  if (!res.success) throw new Error(res.message);
+  const list = res.data;
+  const tonDauKy = _tonDauCuoiNgay(QUY_TIEN_MAT, tuNgay).dau;
+
+  const headers = ['Ngày hạch toán', 'Ngày chứng từ', 'Số phiếu thu', 'Số phiếu chi', 'Diễn giải',
+    'Tài khoản', 'TK đối ứng', 'Số phát sinh', '', 'Số tồn', 'Người nhận/Người nộp', 'Mã NV'];
+  const tonDauKyRow = ['', '', '', '', 'Số tồn đầu kỳ', '1111', '', 0, 0, tonDauKy, '', ''];
+  const dataRows = list.map(t => [t.ngay_hach_toan, t.ngay, t.so_phieu_thu, t.so_phieu_chi, t.noi_dung,
+    t.tai_khoan, t.tk_doi_ung, t.thu || '', t.chi || '', t.ton, t.nguoi_nhan_nop, t.ma_nhan_vien]);
+
+  _veSheetSoKeToan(ss, idx, {
+    tenSheet: 'Quỹ tổng',
+    tieuDe: 'SỔ KẾ TOÁN CHI TIẾT QUỸ TIỀN MẶT',
+    phuDe: 'Loại tiền: Tổng hợp; Tài khoản: 1111; Từ ngày ' + _ddmmyyyy(tuNgay) + ' đến ngày ' + _ddmmyyyy(denNgay),
+    headers: headers,
+    idxNo: 8,
+    tonDauKyRow: tonDauKyRow,
+    dataRows: dataRows,
+    condoTienCols: [8, 9, 10]
+  });
+}
+
+function _veSheetCongDoanNam(ss, idx, nam) {
+  const tuNgay = nam + '-01-01';
+  const denNgay = nam + '-12-31';
+
+  const res = getSoQuy({ loaiQuy: QUY_CONG_DOAN, tuNgay: tuNgay, denNgay: denNgay });
+  if (!res.success) throw new Error(res.message);
+  const list = res.data;
+  const tonDauKy = _tonDauCuoiNgay(QUY_CONG_DOAN, tuNgay).dau;
+
+  const headers = ['Ngày hạch toán', 'Ngày chứng từ', 'Số phiếu thu', 'Số phiếu chi', 'Diễn giải',
+    'Số phát sinh', '', 'Số tồn', 'Người nhận/Người nộp', 'Chi nhánh'];
+  const tonDauKyRow = ['', '', '', '', 'Số tồn đầu kỳ', 0, 0, tonDauKy, '', ''];
+  const dataRows = list.map(t => [t.ngay_hach_toan, t.ngay, t.so_phieu_thu, t.so_phieu_chi, t.noi_dung,
+    t.thu || '', t.chi || '', t.ton, t.nguoi_nhan_nop, t.chi_nhanh]);
+
+  _veSheetSoKeToan(ss, idx, {
+    tenSheet: 'Công đoàn',
+    tieuDe: 'SỔ KẾ TOÁN CHI TIẾT QUỸ CÔNG ĐOÀN',
+    phuDe: 'Loại tiền: VND; Từ ngày ' + _ddmmyyyy(tuNgay) + ' đến ngày ' + _ddmmyyyy(denNgay),
+    headers: headers,
+    idxNo: 6,
+    tonDauKyRow: tonDauKyRow,
+    dataRows: dataRows,
+    condoTienCols: [6, 7, 8]
+  });
+}
+
+function _veSheetCom(ss, idx, nam, thang) {
+  const res = getSoComThang(nam, thang);
+  if (!res.success) throw new Error(res.message);
+  const d = res.data;
+  const cuoiThang = new Date(nam, thang, 0).getDate();
+
+  const sh = idx === 0 ? ss.getSheets()[0].setName('cơm') : ss.insertSheet('cơm');
+  const headers = ['NGÀY', 'Trưa', 'Tối', 'Tổng', 'Đơn giá', 'Thành tiền', 'Ngày tạm ứng', 'Số tiền tạm ứng'];
+  const soCot = headers.length;
+
+  sh.getRange(1, 1, 1, soCot).merge().setValue('THÁNG ' + String(thang).padStart(2, '0') + '/' + nam)
+    .setFontWeight('bold').setFontSize(13).setHorizontalAlignment('center');
+  sh.getRange(2, 1, 1, soCot).merge().setValue('(Từ 01-' + cuoiThang + '/' + String(thang).padStart(2, '0') + ')')
+    .setFontStyle('italic').setFontSize(10).setHorizontalAlignment('center').setFontColor('#555555');
+  sh.getRange(3, 1, 1, soCot).setValues([headers])
+    .setFontWeight('bold').setBackground('#1e40af').setFontColor('#ffffff').setHorizontalAlignment('center');
+
+  const byDay = {};
+  d.rows.forEach(r => { byDay[Number(r.ngay.slice(8, 10))] = r; });
+
+  const dataRows = [];
+  for (let day = 1; day <= cuoiThang; day++) {
+    const r = byDay[day];
+    if (r) {
+      dataRows.push([day, r.buoi_trua || '', r.buoi_toi || '', r.tong_suat || 0, r.don_gia || '', r.thanh_tien || '',
+        r.ngay_tam_ung ? Number(r.ngay_tam_ung.slice(8, 10)) : '', r.so_tien_tam_ung || '']);
+    } else {
+      dataRows.push([day, '', '', 0, '', '', '', '']);
+    }
+  }
+
+  sh.getRange(4, 1, dataRows.length, soCot).setValues(dataRows);
+  sh.getRange(4, 5, dataRows.length, 2).setNumberFormat('#,##0');
+  sh.getRange(4, 8, dataRows.length, 1).setNumberFormat('#,##0');
+  sh.getRange(3, 1, dataRows.length + 1, soCot).setBorder(true, true, true, true, true, true, '#d1d5db', SpreadsheetApp.BorderStyle.SOLID);
+
+  sh.setFrozenRows(3);
+  sh.autoResizeColumns(1, soCot);
+}
+
+/**
+ * Bảng lịch theo ngày cho "Keo nhập" (loai = 'NHAP') / "CK KEO"
+ * (loai = 'THANHTOAN'): bên trái theo Đại lý, bên phải theo Nguồn
+ * gốc, mỗi dòng là 1 ngày trong tháng — đúng bố cục file mẫu, chỉ
+ * khác là danh sách đại lý/nguồn gốc lấy động từ dữ liệu thật
+ * (không cố định cứng theo file mẫu cũ) và KHÔNG tách chi tiết theo
+ * từng đại lý phụ (đã thống nhất với người dùng trước đó).
+ */
+function _veSheetKeoCalendar(ss, idx, tenSheet, loai, nam, thang, rowsPhanTich, loiNguonKeo) {
+  const sh = idx === 0 ? ss.getSheets()[0].setName(tenSheet) : ss.insertSheet(tenSheet);
+
+  if (loiNguonKeo) {
+    sh.getRange(1, 1).setValue('Không lấy được dữ liệu từ sheet nguồn PhanTichNhapTT_DRAFT: ' + loiNguonKeo)
+      .setFontColor('#b91c1c').setFontWeight('bold');
+    return;
+  }
+
+  const cuoiThang = new Date(nam, thang, 0).getDate();
+  const monthPrefix = nam + '-' + String(thang).padStart(2, '0');
+
+  const rows = rowsPhanTich.filter(r => r['Loại'] === loai && _ngayKeyLinhHoat(r['Ngày']).slice(0, 7) === monthPrefix);
+
+  const dealerSet = {}, nguonGocSet = {};
+  rows.forEach(r => {
+    if (r['PhanLoai'] === 'DL') dealerSet[_safeText(r['Ten'])] = true;
+    else if (r['PhanLoai'] === 'NG') nguonGocSet[_safeText(r['Ten'])] = true;
+  });
+  const dealerList = Object.keys(dealerSet).sort();
+  const nguonGocList = Object.keys(nguonGocSet).sort();
+
+  const nhanLabel = loai === 'NHAP' ? 'nhập' : 'thanh toán';
+  const leftHeaders = ['Ngày', 'Tổng ' + nhanLabel + ' (kg)', 'Thành tiền'].concat(dealerList);
+  const rightHeaders = ['Ngày', 'Tổng ' + nhanLabel + ' (kg)', 'Thành tiền'].concat(nguonGocList);
+  const soCotTrai = leftHeaders.length;
+  const soCotPhai = rightHeaders.length;
+  const soCot = soCotTrai + 1 + soCotPhai;
+
+  const byDay = {};
+  rows.forEach(r => {
+    const d = _ngayKeyLinhHoat(r['Ngày']);
+    if (!byDay[d]) byDay[d] = {};
+    byDay[d][r['PhanLoai'] + '|' + _safeText(r['Ten'])] = { kl: Number(r['KhoiLuongKg']) || 0, gt: Number(r['GiaTri']) || 0 };
+  });
+
+  sh.getRange(1, 1, 1, soCot).merge().setValue(
+    (loai === 'NHAP' ? 'BÁO CÁO NHẬP KEO' : 'BÁO CÁO THANH TOÁN (CHI) KEO') +
+    ' THÁNG ' + String(thang).padStart(2, '0') + '/' + nam
+  ).setFontWeight('bold').setFontSize(13).setHorizontalAlignment('center');
+
+  const headerRow = leftHeaders.concat(['']).concat(rightHeaders);
+  sh.getRange(2, 1, 1, soCot).setValues([headerRow])
+    .setFontWeight('bold').setBackground('#1e40af').setFontColor('#ffffff').setHorizontalAlignment('center');
+
+  const dataRows = [];
+  let tongKlAll = 0, tongGtAll = 0;
+  for (let day = 1; day <= cuoiThang; day++) {
+    const dKey = monthPrefix + '-' + String(day).padStart(2, '0');
+    const tong = (byDay[dKey] && byDay[dKey]['TONG|Tổng cộng']) || { kl: 0, gt: 0 };
+    tongKlAll += tong.kl;
+    tongGtAll += tong.gt;
+
+    const leftRow = [day, tong.kl || '', tong.gt || ''].concat(dealerList.map(name => {
+      const c = byDay[dKey] && byDay[dKey]['DL|' + name];
+      return c ? c.kl : '';
+    }));
+    const rightRow = [day, tong.kl || '', tong.gt || ''].concat(nguonGocList.map(name => {
+      const c = byDay[dKey] && byDay[dKey]['NG|' + name];
+      return c ? c.kl : '';
+    }));
+    dataRows.push(leftRow.concat(['']).concat(rightRow));
+  }
+
+  const totalRow = new Array(soCot).fill('');
+  totalRow[0] = 'Tổng cộng';
+  totalRow[1] = tongKlAll;
+  totalRow[2] = tongGtAll;
+  totalRow[soCotTrai + 2] = tongKlAll;
+  totalRow[soCotTrai + 3] = tongGtAll;
+  dataRows.push(totalRow);
+
+  sh.getRange(3, 1, dataRows.length, soCot).setValues(dataRows);
+  sh.getRange(3, 2, dataRows.length, 1).setNumberFormat('#,##0');
+  sh.getRange(3, 3, dataRows.length, 1).setNumberFormat('#,##0');
+  sh.getRange(3, soCotTrai + 3, dataRows.length, 1).setNumberFormat('#,##0');
+  sh.getRange(3, soCotTrai + 4, dataRows.length, 1).setNumberFormat('#,##0');
+  sh.getRange(dataRows.length + 2, 1, 1, soCot).setFontWeight('bold');
+  sh.getRange(2, 1, dataRows.length + 1, soCot).setBorder(true, true, true, true, true, true, '#d1d5db', SpreadsheetApp.BorderStyle.SOLID);
+
+  sh.setFrozenRows(2);
+  sh.autoResizeColumns(1, soCot);
+}

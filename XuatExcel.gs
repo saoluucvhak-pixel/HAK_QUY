@@ -18,7 +18,6 @@
  */
 function _taoFileExcel(tenFile, dsSheet) {
   const ss = SpreadsheetApp.create(tenFile);
-  const fileId = ss.getId();
 
   dsSheet.forEach(function (sd, idx) {
     const sh = idx === 0 ? ss.getSheets()[0].setName(sd.tenSheet) : ss.insertSheet(sd.tenSheet);
@@ -60,7 +59,19 @@ function _taoFileExcel(tenFile, dsSheet) {
     sh.autoResizeColumns(1, soCot);
   });
 
+  return _xuatVaXoaFile(ss, tenFile);
+}
+
+/**
+ * Xuất 1 Spreadsheet tạm (đã đổ đủ dữ liệu/định dạng) ra file .xlsx
+ * dạng base64, rồi xoá Spreadsheet tạm đó khỏi Drive ngay — dùng
+ * chung cho _taoFileExcel() và mọi hàm tự dựng sheet thủ công khác
+ * (ví dụ báo cáo tổng hợp nhiều sheet với layout phức tạp, không
+ * theo khuôn 1-tiêu-đề/1-bảng của _taoFileExcel).
+ */
+function _xuatVaXoaFile(ss, tenFile) {
   SpreadsheetApp.flush();
+  const fileId = ss.getId();
 
   const token = ScriptApp.getOAuthToken();
   const url = 'https://docs.google.com/spreadsheets/d/' + fileId + '/export?format=xlsx';
