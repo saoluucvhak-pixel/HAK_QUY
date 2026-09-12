@@ -163,6 +163,10 @@ function _veSheetSoKeToan(ss, idx, cfg) {
 
   sh.setFrozenRows(4);
   _datDoRongCotTheoTieuDe(sh, cfg.headers);
+  // Cột Nợ/Có (dòng con, không nằm trong cfg.headers ở dòng 3 nên
+  // _datDoRongCotTheoTieuDe không nhận diện được) — đặt tay cho chắc
+  sh.setColumnWidth(cfg.idxNo, 170);
+  sh.setColumnWidth(cfg.idxNo + 1, 170);
   return sh;
 }
 
