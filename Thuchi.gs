@@ -316,17 +316,18 @@ function getSoQuy(filters) {
     _sheetToObjects(SHEET_PHIEU_THU).forEach(p => {
       if (p.trang_thai !== TRANG_THAI_HOP_LE) return;
       if (_chuanHoaLoaiQuy(p.loai_quy) !== loaiQuy) return;
+      const soPhieuThu = _safeText(p.so_phieu_thu);
       list.push({
         ngay: _fmtDate(p.ngay_thu), gio: p.gio_thu || '00:00',
         ngay_hach_toan: p.ngay_hach_toan ? _fmtDate(p.ngay_hach_toan) : _fmtDate(p.ngay_thu),
-        so_phieu_thu: p.so_phieu_thu, so_phieu_chi: '', so_phieu: p.so_phieu_thu,
-        noi_dung: p.noi_dung_thu,
-        tai_khoan: p.tai_khoan || '1111', tk_doi_ung: p.tk_doi_ung || '',
+        so_phieu_thu: soPhieuThu, so_phieu_chi: '', so_phieu: soPhieuThu,
+        noi_dung: _safeText(p.noi_dung_thu),
+        tai_khoan: _safeText(p.tai_khoan) || '1111', tk_doi_ung: _safeText(p.tk_doi_ung),
         ma_doi_tuong: p.ma_doi_tuong,
         doi_tuong: doiTuongMap[p.ma_doi_tuong] || p.ma_doi_tuong || '',
         thu: Number(p.so_tien) || 0, chi: 0, loai: 'Thu',
-        nguoi_nhan_nop: p.nguoi_nop_tien || '',
-        ma_nhan_vien: p.ma_nhan_vien || '', chi_nhanh: p.chi_nhanh || '',
+        nguoi_nhan_nop: _safeText(p.nguoi_nop_tien),
+        ma_nhan_vien: _safeText(p.ma_nhan_vien), chi_nhanh: _safeText(p.chi_nhanh),
         nguoi_lap: p.nguoi_lap, thoi_gian_lap: p.thoi_gian_lap
       });
     });
@@ -334,17 +335,18 @@ function getSoQuy(filters) {
     _sheetToObjects(SHEET_PHIEU_CHI).forEach(p => {
       if (p.trang_thai !== TRANG_THAI_HOP_LE) return;
       if (_chuanHoaLoaiQuy(p.loai_quy) !== loaiQuy) return;
+      const soPhieuChi = _safeText(p.so_phieu_chi);
       list.push({
         ngay: _fmtDate(p.ngay_chi), gio: p.gio_chi || '00:00',
         ngay_hach_toan: p.ngay_hach_toan ? _fmtDate(p.ngay_hach_toan) : _fmtDate(p.ngay_chi),
-        so_phieu_thu: '', so_phieu_chi: p.so_phieu_chi, so_phieu: p.so_phieu_chi,
-        noi_dung: p.noi_dung_chi,
-        tai_khoan: p.tai_khoan || '1111', tk_doi_ung: p.tk_doi_ung || '',
+        so_phieu_thu: '', so_phieu_chi: soPhieuChi, so_phieu: soPhieuChi,
+        noi_dung: _safeText(p.noi_dung_chi),
+        tai_khoan: _safeText(p.tai_khoan) || '1111', tk_doi_ung: _safeText(p.tk_doi_ung),
         ma_doi_tuong: p.ma_doi_tuong,
         doi_tuong: doiTuongMap[p.ma_doi_tuong] || p.ma_doi_tuong || '',
         thu: 0, chi: Number(p.so_tien) || 0, loai: 'Chi',
-        nguoi_nhan_nop: p.nguoi_nhan_tien || '',
-        ma_nhan_vien: p.ma_nhan_vien || '', chi_nhanh: p.chi_nhanh || '',
+        nguoi_nhan_nop: _safeText(p.nguoi_nhan_tien),
+        ma_nhan_vien: _safeText(p.ma_nhan_vien), chi_nhanh: _safeText(p.chi_nhanh),
         nguoi_lap: p.nguoi_lap, thoi_gian_lap: p.thoi_gian_lap
       });
     });

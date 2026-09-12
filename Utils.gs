@@ -66,6 +66,23 @@ function _isValidDate(d) {
   return Object.prototype.toString.call(d) === '[object Date]' && !isNaN(d.getTime());
 }
 
+/**
+ * Ép 1 giá trị đọc từ Sheet thành CHUỖI an toàn để trả về client.
+ * Dùng cho các cột lẽ ra là text tự do (số phiếu, mã, ghi chú...) nhưng
+ * có thể lỡ bị Google Sheets tự động hiểu nhầm thành Ngày/Số khi nhập
+ * liệu (ví dụ số phiếu "01/02" bị hiểu thành ngày 01/02). Nếu vô tình
+ * vẫn còn 1 ô như vậy, hàm này chuyển về dạng hiển thị dd/MM/yyyy thay
+ * vì để lọt 1 Date/Invalid Date thô ra ngoài (có thể làm hỏng ngầm
+ * phản hồi của google.script.run).
+ */
+function _safeText(v) {
+  if (v === null || v === undefined) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    return _isValidDate(v) ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'dd/MM/yyyy') : '';
+  }
+  return String(v);
+}
+
 function _fmtDate(d) {
   if (!d) return '';
   if (_isValidDate(d)) {
