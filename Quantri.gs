@@ -274,8 +274,11 @@ function luuCauHinhBaoCaoNgay(payload, currentUser) {
     _yeuCauQuyen(currentUser.username, [ROLE_ADMIN]);
     if (!payload) throw new Error('Thiếu dữ liệu cấu hình.');
 
-    _setCauHinh('ID_SHEET_PHANTICH_NHAP_TT', String(payload.id_sheet_phantich || '').trim());
-    _setCauHinh('ID_SHEET_PHIEU_CAN_DN', String(payload.id_sheet_phieucan || '').trim());
+    // Cho phép dán nguyên đường link Google Sheet thay vì chỉ ID —
+    // _rutGonIdSheet tự tách lấy đúng phần ID để lưu, tránh lỗi
+    // "Illegal spreadsheet id or key" khi mở sheet sau này.
+    _setCauHinh('ID_SHEET_PHANTICH_NHAP_TT', _rutGonIdSheet(payload.id_sheet_phantich));
+    _setCauHinh('ID_SHEET_PHIEU_CAN_DN', _rutGonIdSheet(payload.id_sheet_phieucan));
     _setCauHinh('EMAIL_BAO_CAO_NGAY', String(payload.email_bao_cao || '').trim());
 
     _writeAuditLog(currentUser.full_name, 'Quản Trị', 'Sửa', 'CAU_HINH_BAO_CAO_NGAY', '', 'Cập nhật cấu hình Báo cáo ngày (Keo) + email nhận báo cáo');

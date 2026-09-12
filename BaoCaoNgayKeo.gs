@@ -22,19 +22,32 @@ const TEN_SHEET_PHANTICH_NHAP_TT = 'PhanTichNhapTT_DRAFT';
 const TEN_SHEET_PHIEU_CAN_DN = 'PhieuCan_DN';
 
 /**
+ * Cho phép cấu hình dán ID thô ("1kjYne-...") HOẶC nguyên đường link
+ * Google Sheet ("https://docs.google.com/spreadsheets/d/1kjYne-.../edit?usp=sharing")
+ * đều dùng được — SpreadsheetApp.openById() chỉ nhận đúng ID, dán
+ * nguyên link vào sẽ báo lỗi "Illegal spreadsheet id or key".
+ */
+function _rutGonIdSheet(giaTri) {
+  if (!giaTri) return '';
+  const s = String(giaTri).trim();
+  const m = s.match(/\/d\/([a-zA-Z0-9_-]+)/);
+  return m ? m[1] : s;
+}
+
+/**
  * Mở 1 Google Sheet ngoài theo ID lưu trong CAU_HINH (key cauHinhKey)
  * và trả về đúng sheet con tên tenSheet. Ném lỗi tiếng Việt rõ ràng
  * nếu chưa cấu hình / không mở được / không tìm thấy sheet con.
  */
 function _moSheetNgoaiTheoTen(cauHinhKey, tenSheet) {
-  const id = _getCauHinh(cauHinhKey);
+  const id = _rutGonIdSheet(_getCauHinh(cauHinhKey));
   if (!id) {
     throw new Error('Chưa cấu hình ID Google Sheet nguồn dữ liệu (' + cauHinhKey +
       '). Vào Quản Trị > "Báo cáo ngày (Keo)" để thiết lập.');
   }
   let ssNgoai;
   try {
-    ssNgoai = SpreadsheetApp.openById(String(id).trim());
+    ssNgoai = SpreadsheetApp.openById(id);
   } catch (e) {
     throw new Error('Không mở được Google Sheet nguồn dữ liệu (' + cauHinhKey +
       '). Kiểm tra lại ID hoặc quyền chia sẻ. Chi tiết: ' + e.message);
