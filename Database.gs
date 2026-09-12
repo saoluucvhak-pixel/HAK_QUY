@@ -23,6 +23,7 @@ function setupDatabase() {
   _setupKhoaSoSheet(ss);
   _setupAuditLogSheet(ss);
   _setupCauHinhSheet(ss);
+  _setupSoComSheet(ss);
 
   const defaultSheet = ss.getSheetByName('Sheet1');
   if (defaultSheet && ss.getSheets().length > 1) {
@@ -30,7 +31,7 @@ function setupDatabase() {
   }
 
   SpreadsheetApp.getUi().alert(
-    'Đã tạo xong Database (12 sheet)!\n\n' +
+    'Đã tạo xong Database (13 sheet)!\n\n' +
     'Tài khoản đăng nhập mẫu:\n' +
     'Username: admin\n' +
     'Password: admin123\n\n' +
@@ -119,18 +120,25 @@ function _setupLoaiChiSheet(ss) {
   _styleHeader(sh, headers.length);
 }
 
-/* ---------- 5. PHIEU_THU ---------- */
+/* ---------- 5. PHIEU_THU ----------
+ * Các cột loai_quy/ngay_hach_toan/tai_khoan/tk_doi_ung/ma_nhan_vien/chi_nhanh
+ * được thêm ở CUỐI để phục vụ Sổ Quỹ theo mẫu kế toán (Ngày hạch toán,
+ * Tài khoản, TK đối ứng...) và để 1 bộ Phiếu Thu/Chi có thể ghi cho
+ * nhiều Sổ Quỹ khác nhau (Quỹ tiền mặt / Quỹ Công đoàn) qua cột loai_quy.
+ */
 function _setupPhieuThuSheet(ss) {
   const sh = _getOrCreateSheet(ss, SHEET_PHIEU_THU);
   const headers = [
     'id', 'so_phieu_thu', 'ngay_thu', 'gio_thu', 'loai_giao_dich',
     'nguoi_nop_tien', 'ma_doi_tuong', 'noi_dung_thu', 'ma_loai_thu', 'so_tien',
     'chung_tu_lien_quan', 'ghi_chu', 'nguoi_lap', 'thoi_gian_lap',
-    'nguoi_sua_cuoi', 'thoi_gian_sua_cuoi', 'trang_thai', 'ly_do_huy'
+    'nguoi_sua_cuoi', 'thoi_gian_sua_cuoi', 'trang_thai', 'ly_do_huy',
+    'loai_quy', 'ngay_hach_toan', 'tai_khoan', 'tk_doi_ung', 'ma_nhan_vien', 'chi_nhanh'
   ];
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
   sh.getRange(2, 3, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
   sh.getRange(2, 10, sh.getMaxRows() - 1, 1).setNumberFormat('#,##0');
+  sh.getRange(2, 20, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
   _styleHeader(sh, headers.length);
 }
 
@@ -141,11 +149,13 @@ function _setupPhieuChiSheet(ss) {
     'id', 'so_phieu_chi', 'ngay_chi', 'gio_chi', 'loai_giao_dich',
     'nguoi_nhan_tien', 'ma_doi_tuong', 'noi_dung_chi', 'ma_loai_chi', 'so_tien',
     'chung_tu_lien_quan', 'ghi_chu', 'nguoi_lap', 'thoi_gian_lap',
-    'nguoi_sua_cuoi', 'thoi_gian_sua_cuoi', 'trang_thai', 'ly_do_huy'
+    'nguoi_sua_cuoi', 'thoi_gian_sua_cuoi', 'trang_thai', 'ly_do_huy',
+    'loai_quy', 'ngay_hach_toan', 'tai_khoan', 'tk_doi_ung', 'ma_nhan_vien', 'chi_nhanh'
   ];
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
   sh.getRange(2, 3, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
   sh.getRange(2, 10, sh.getMaxRows() - 1, 1).setNumberFormat('#,##0');
+  sh.getRange(2, 20, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
   _styleHeader(sh, headers.length);
 }
 
@@ -221,9 +231,120 @@ function _setupCauHinhSheet(ss) {
   const sample = [
     ['SO_PHIEU_THU_TIEP_THEO', 1, 'Số thứ tự Phiếu Thu kế tiếp (dùng để sinh PT000001...)'],
     ['SO_PHIEU_CHI_TIEP_THEO', 1, 'Số thứ tự Phiếu Chi kế tiếp (dùng để sinh PC000001...)'],
-    ['SO_DU_QUY_KHOI_TAO', 0, 'Số dư quỹ tiền mặt tại thời điểm bắt đầu dùng hệ thống']
+    ['SO_DU_QUY_KHOI_TAO', 0, 'Số dư quỹ tiền mặt tại thời điểm bắt đầu dùng hệ thống'],
+    ['SO_DU_QUY_CONG_DOAN_KHOI_TAO', 0, 'Số dư Quỹ Công đoàn tại thời điểm bắt đầu dùng hệ thống'],
+    ['SO_DU_QUY_COM_KHOI_TAO', 0, 'Số dư (tạm ứng còn lại) Quỹ Cơm tại thời điểm bắt đầu dùng hệ thống'],
+    ['DON_GIA_COM_MAC_DINH', 25000, 'Đơn giá 1 suất ăn mặc định (đồng/suất), dùng để gợi ý khi nhập Sổ Cơm']
   ];
   sh.getRange(2, 1, sample.length, headers.length).setValues(sample);
 
   _styleHeader(sh, headers.length);
+}
+
+/* ---------- 13. SO_COM ----------
+ * Sổ theo dõi suất ăn (trưa/tối) và tạm ứng tiền cơm hàng ngày,
+ * mô phỏng theo mẫu "cơm" trong file Excel: mỗi dòng là 1 ngày,
+ * có thể kèm theo 1 lần tạm ứng tiền cơm nếu ngày đó nhận tạm ứng.
+ * Tồn quỹ cơm = Số dư khởi tạo + lũy kế tạm ứng - lũy kế thành tiền.
+ */
+function _setupSoComSheet(ss) {
+  const sh = _getOrCreateSheet(ss, SHEET_SO_COM);
+  const headers = [
+    'id', 'ngay', 'buoi_trua', 'buoi_toi', 'tong_suat', 'don_gia', 'thanh_tien',
+    'ngay_tam_ung', 'so_tien_tam_ung', 'nguoi_lap', 'thoi_gian_lap', 'ghi_chu'
+  ];
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  sh.getRange(2, 2, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, 6, sh.getMaxRows() - 1, 2).setNumberFormat('#,##0');
+  sh.getRange(2, 8, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, 9, sh.getMaxRows() - 1, 1).setNumberFormat('#,##0');
+  _styleHeader(sh, headers.length);
+}
+
+/*************************************************
+ * NÂNG CẤP KHÔNG XÓA DỮ LIỆU
+ * Dùng hàm này (thay vì setupDatabase) khi hệ thống ĐÃ CÓ dữ liệu
+ * thật và chỉ cần bổ sung: cột mở rộng cho Sổ Quỹ ở PHIEU_THU/
+ * PHIEU_CHI, sheet SO_COM, và các dòng cấu hình mới cho Quỹ
+ * Công đoàn / Quỹ Cơm. KHÔNG xóa bất kỳ dữ liệu nào đã có.
+ *
+ * CÁCH CHẠY: Trong Apps Script Editor, chọn hàm "migrateSoQuyMoRong"
+ * ở dropdown trên cùng > bấm Run > chạy 1 lần duy nhất.
+ *************************************************/
+function migrateSoQuyMoRong() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const cotMoi = ['loai_quy', 'ngay_hach_toan', 'tai_khoan', 'tk_doi_ung', 'ma_nhan_vien', 'chi_nhanh'];
+
+  _themCotConThieu(ss, SHEET_PHIEU_THU, cotMoi);
+  _themCotConThieu(ss, SHEET_PHIEU_CHI, cotMoi);
+  _dienGiaTriMacDinhCotMoiSoQuy(ss, SHEET_PHIEU_THU, 'ngay_thu');
+  _dienGiaTriMacDinhCotMoiSoQuy(ss, SHEET_PHIEU_CHI, 'ngay_chi');
+
+  if (!ss.getSheetByName(SHEET_SO_COM)) _setupSoComSheet(ss);
+
+  _themCauHinhNeuChua('SO_DU_QUY_CONG_DOAN_KHOI_TAO', 0, 'Số dư Quỹ Công đoàn tại thời điểm bắt đầu dùng hệ thống');
+  _themCauHinhNeuChua('SO_DU_QUY_COM_KHOI_TAO', 0, 'Số dư (tạm ứng còn lại) Quỹ Cơm tại thời điểm bắt đầu dùng hệ thống');
+  _themCauHinhNeuChua('DON_GIA_COM_MAC_DINH', 25000, 'Đơn giá 1 suất ăn mặc định (đồng/suất), dùng để gợi ý khi nhập Sổ Cơm');
+
+  SpreadsheetApp.getUi().alert(
+    'Đã nâng cấp xong!\n\n' +
+    '- PHIEU_THU / PHIEU_CHI: đã thêm cột loai_quy, ngay_hach_toan, tai_khoan, tk_doi_ung, ma_nhan_vien, chi_nhanh.\n' +
+    '- Đã tạo sheet SO_COM (nếu chưa có).\n' +
+    '- Đã bổ sung cấu hình Quỹ Công đoàn / Quỹ Cơm trong CAU_HINH.\n\n' +
+    'Toàn bộ dữ liệu cũ được giữ nguyên. Hãy vào sheet CAU_HINH để cập nhật số dư đầu kỳ thật của Quỹ Công đoàn / Quỹ Cơm nếu cần.'
+  );
+}
+
+function _themCotConThieu(ss, sheetName, newCols) {
+  const sh = ss.getSheetByName(sheetName);
+  if (!sh) return;
+  const lastCol = sh.getLastColumn();
+  const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
+  let nextCol = lastCol;
+  newCols.forEach(col => {
+    if (headers.indexOf(col) === -1) {
+      nextCol++;
+      sh.getRange(1, nextCol).setValue(col);
+    }
+  });
+}
+
+/**
+ * Điền giá trị mặc định cho các dòng dữ liệu cũ (trước khi có cột mới):
+ * loai_quy -> Quỹ tiền mặt, tai_khoan -> 1111, ngay_hach_toan -> = ngày chứng từ.
+ */
+function _dienGiaTriMacDinhCotMoiSoQuy(ss, sheetName, colNgayChungTu) {
+  const sh = ss.getSheetByName(sheetName);
+  if (!sh) return;
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return;
+
+  const lastCol = sh.getLastColumn();
+  const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
+  const idxLoaiQuy = headers.indexOf('loai_quy');
+  const idxTaiKhoan = headers.indexOf('tai_khoan');
+  const idxNgayHachToan = headers.indexOf('ngay_hach_toan');
+  const idxNgayCT = headers.indexOf(colNgayChungTu);
+
+  const range = sh.getRange(2, 1, lastRow - 1, lastCol);
+  const values = range.getValues();
+  let changed = false;
+
+  for (let i = 0; i < values.length; i++) {
+    if (idxLoaiQuy > -1 && !values[i][idxLoaiQuy]) { values[i][idxLoaiQuy] = QUY_TIEN_MAT; changed = true; }
+    if (idxTaiKhoan > -1 && !values[i][idxTaiKhoan]) { values[i][idxTaiKhoan] = '1111'; changed = true; }
+    if (idxNgayHachToan > -1 && idxNgayCT > -1 && !values[i][idxNgayHachToan] && values[i][idxNgayCT]) {
+      values[i][idxNgayHachToan] = values[i][idxNgayCT];
+      changed = true;
+    }
+  }
+
+  if (changed) range.setValues(values);
+}
+
+function _themCauHinhNeuChua(key, value, ghiChu) {
+  const existing = _getCauHinh(key);
+  if (existing === null || existing === undefined) {
+    _sheet(SHEET_CAU_HINH).appendRow([key, value, ghiChu]);
+  }
 }

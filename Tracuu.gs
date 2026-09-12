@@ -80,7 +80,8 @@ function getChiTietGiaoDich(soPhieu, loai) {
           doi_tuong: doiTuongMap[row.ma_doi_tuong] || '', noi_dung: row.noi_dung_thu,
           so_tien: Number(row.so_tien) || 0, chung_tu: row.chung_tu_lien_quan, ghi_chu: row.ghi_chu,
           nguoi_lap: row.nguoi_lap, thoi_gian_lap: _fmtDateTime(row.thoi_gian_lap),
-          trang_thai: row.trang_thai, ly_do_huy: row.ly_do_huy
+          trang_thai: row.trang_thai, ly_do_huy: row.ly_do_huy,
+          loai_quy: _chuanHoaLoaiQuy(row.loai_quy), tai_khoan: row.tai_khoan || '1111', tk_doi_ung: row.tk_doi_ung || ''
         };
       }
     } else if (loai === 'Chi') {
@@ -92,7 +93,8 @@ function getChiTietGiaoDich(soPhieu, loai) {
           doi_tuong: doiTuongMap[row.ma_doi_tuong] || '', noi_dung: row.noi_dung_chi,
           so_tien: Number(row.so_tien) || 0, chung_tu: row.chung_tu_lien_quan, ghi_chu: row.ghi_chu,
           nguoi_lap: row.nguoi_lap, thoi_gian_lap: _fmtDateTime(row.thoi_gian_lap),
-          trang_thai: row.trang_thai, ly_do_huy: row.ly_do_huy
+          trang_thai: row.trang_thai, ly_do_huy: row.ly_do_huy,
+          loai_quy: _chuanHoaLoaiQuy(row.loai_quy), tai_khoan: row.tai_khoan || '1111', tk_doi_ung: row.tk_doi_ung || ''
         };
       }
     } else {

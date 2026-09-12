@@ -14,6 +14,18 @@ function _sheet(name) {
 }
 
 /**
+ * Loại bỏ các ký tự điều khiển/line-separator ẩn (đặc biệt U+2028, U+2029)
+ * hay lọt vào dữ liệu khi copy/paste từ Excel, Word, PDF... Các ký tự này
+ * không hiện ra khi nhìn ô tính, nhưng có thể khiến phản hồi của
+ * google.script.run bị hỏng ngầm trong lúc truyền về trình duyệt — server
+ * chạy đúng và trả dữ liệu đúng, nhưng client lại nhận về null.
+ */
+function _cleanCell(v) {
+  if (typeof v !== 'string') return v;
+  return v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u2028\u2029]/g, ' ');
+}
+
+/**
  * Đọc toàn bộ 1 sheet, trả về mảng object (key = tên cột ở dòng header).
  * __row = vị trí dòng thật trên sheet (1-based), dùng khi cần sửa lại dòng đó.
  */
@@ -27,7 +39,7 @@ function _sheetToObjects(sheetName) {
     const row = values[i];
     if (row.every(c => c === '' || c === null)) continue; // bỏ dòng trống
     const obj = {};
-    headers.forEach((h, idx) => obj[h] = row[idx]);
+    headers.forEach((h, idx) => obj[h] = _cleanCell(row[idx]));
     obj.__row = i + 1;
     rows.push(obj);
   }
@@ -41,19 +53,34 @@ function _jsonErr(err) {
   return { success: false, message: (err && err.message) ? err.message : String(err) };
 }
 
+/**
+ * Kiểm tra 1 giá trị có phải Date object HỢP LỆ hay không (loại trừ
+ * "Invalid Date" — trường hợp Google Sheets không parse được 1 ô text
+ * tưởng là ngày, ví dụ do lệch định dạng ngôn ngữ/khu vực lúc dán dữ
+ * liệu). Utilities.formatDate() trên 1 Invalid Date sẽ ném lỗi, và một
+ * Date không hợp lệ lọt vào phản hồi trả về trình duyệt có thể khiến
+ * google.script.run âm thầm hỏng, khiến client nhận về null dù server
+ * chạy thành công.
+ */
+function _isValidDate(d) {
+  return Object.prototype.toString.call(d) === '[object Date]' && !isNaN(d.getTime());
+}
+
 function _fmtDate(d) {
   if (!d) return '';
-  if (Object.prototype.toString.call(d) === '[object Date]') {
+  if (_isValidDate(d)) {
     return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   }
+  if (Object.prototype.toString.call(d) === '[object Date]') return ''; // Invalid Date
   return String(d);
 }
 
 function _fmtDateTime(d) {
   if (!d) return '';
-  if (Object.prototype.toString.call(d) === '[object Date]') {
+  if (_isValidDate(d)) {
     return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
   }
+  if (Object.prototype.toString.call(d) === '[object Date]') return ''; // Invalid Date
   return String(d);
 }
 

@@ -30,8 +30,10 @@ function getDashboardData() {
   try {
     const todayKey = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
 
-    const allThu = _sheetToObjects(SHEET_PHIEU_THU).filter(p => p.trang_thai === TRANG_THAI_HOP_LE);
-    const allChi = _sheetToObjects(SHEET_PHIEU_CHI).filter(p => p.trang_thai === TRANG_THAI_HOP_LE);
+    // Dashboard chỉ phản ánh Quỹ tiền mặt chính — Quỹ Công đoàn / Quỹ Cơm
+    // là các quỹ riêng, có tồn/Sổ Quỹ tách biệt (xem _tonQuyHienTai bên dưới).
+    const allThu = _sheetToObjects(SHEET_PHIEU_THU).filter(p => p.trang_thai === TRANG_THAI_HOP_LE && _chuanHoaLoaiQuy(p.loai_quy) === QUY_TIEN_MAT);
+    const allChi = _sheetToObjects(SHEET_PHIEU_CHI).filter(p => p.trang_thai === TRANG_THAI_HOP_LE && _chuanHoaLoaiQuy(p.loai_quy) === QUY_TIEN_MAT);
 
     // Tồn đầu ngày = Số dư khởi tạo + tổng Thu - tổng Chi của TẤT CẢ các ngày TRƯỚC hôm nay
     const soDuKhoiTao = Number(_getCauHinh('SO_DU_QUY_KHOI_TAO')) || 0;
@@ -90,7 +92,8 @@ function getDashboardData() {
       so_phieu_chi_hom_nay: soPhieuChiHomNay,
       tong_phai_thu: tongPhaiThu,
       tong_phai_tra: tongPhaiTra,
-      cong_no_qua_han: quaHanCount
+      cong_no_qua_han: quaHanCount,
+      ton_quy_cong_doan: _tonQuyHienTai(QUY_CONG_DOAN)
     });
 
   } catch (err) {

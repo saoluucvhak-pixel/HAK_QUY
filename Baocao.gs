@@ -19,12 +19,13 @@ function getBaoCaoThuChi(filters) {
     filters = filters || {};
     if (!filters.tuNgay || !filters.denNgay) throw new Error('Vui lòng chọn khoảng ngày báo cáo.');
 
-    const soDuKhoiTao = Number(_getCauHinh('SO_DU_QUY_KHOI_TAO')) || 0;
+    const loaiQuy = _chuanHoaLoaiQuy(filters.loaiQuy);
+    const soDuKhoiTao = Number(_getCauHinh(_cauHinhSoDuKhoiTaoTheoQuy(loaiQuy))) || 0;
     const doiTuongMap = {};
     _sheetToObjects(SHEET_DOITUONG).forEach(d => doiTuongMap[d.ma_doi_tuong] = d.ten_doi_tuong);
 
-    const allThu = _sheetToObjects(SHEET_PHIEU_THU).filter(p => p.trang_thai === TRANG_THAI_HOP_LE);
-    const allChi = _sheetToObjects(SHEET_PHIEU_CHI).filter(p => p.trang_thai === TRANG_THAI_HOP_LE);
+    const allThu = _sheetToObjects(SHEET_PHIEU_THU).filter(p => p.trang_thai === TRANG_THAI_HOP_LE && _chuanHoaLoaiQuy(p.loai_quy) === loaiQuy);
+    const allChi = _sheetToObjects(SHEET_PHIEU_CHI).filter(p => p.trang_thai === TRANG_THAI_HOP_LE && _chuanHoaLoaiQuy(p.loai_quy) === loaiQuy);
 
     // Tồn đầu kỳ: TOÀN BỘ giao dịch trước tuNgay (không lọc phụ)
     let tonDauKy = soDuKhoiTao;
