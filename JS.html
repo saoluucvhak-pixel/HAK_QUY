@@ -1280,7 +1280,7 @@
         <button onclick="switchBaoCaoTab('congno')" id="bcTabCongNo" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Công nợ tổng hợp</button>
         <button onclick="switchBaoCaoTab('quahan')" id="bcTabQuaHan" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Công nợ quá hạn</button>
         <button onclick="switchBaoCaoTab('ngaykeo')" id="bcTabNgayKeo" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Báo cáo ngày (Keo)</button>
-        <button onclick="switchBaoCaoTab('tonghop')" id="bcTabTongHop" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Xuất Excel Tổng Hợp</button>
+        <button onclick="switchBaoCaoTab('tonghop')" id="bcTabTongHop" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Báo cáo tháng</button>
       </div>
       <div id="baoCaoBody"></div>
     `;
@@ -1297,17 +1297,17 @@
     if (tab === 'thuchi') renderBaoCaoThuChi();
     else if (tab === 'congno') renderBaoCaoCongNoTongHop();
     else if (tab === 'ngaykeo') renderBaoCaoNgayKeo();
-    else if (tab === 'tonghop') renderBaoCaoTongHop();
+    else if (tab === 'tonghop') renderBaoCaoThang();
     else renderBaoCaoQuaHan();
   }
 
-  function renderBaoCaoTongHop() {
+  let BAOCAO_THANG_DATA = null;
+
+  function renderBaoCaoThang() {
     const now = new Date();
     document.getElementById('baoCaoBody').innerHTML = `
-      <div class="card max-w-xl">
-        <h3 class="font-semibold text-gray-700 mb-1">Xuất Excel Tổng Hợp</h3>
-        <p class="text-xs text-gray-500 mb-4">Xuất 1 file Excel gồm các sheet: Quy_TamUng (tháng), KEO_NHAP (tháng), CK_KEO (tháng), COM (tháng), QUY_CongDoan (cả năm) — đúng bố cục file mẫu, không có mục Nhân viên.</p>
-        <div class="grid grid-cols-2 gap-3 mb-4">
+      <div class="card mb-4 no-print">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
           <div>
             <label class="block text-xs text-gray-500 mb-1">Tháng</label>
             <select id="bcth_thang" class="w-full border rounded-lg px-2 py-1.5 text-sm"></select>
@@ -1316,20 +1316,106 @@
             <label class="block text-xs text-gray-500 mb-1">Năm</label>
             <input type="number" id="bcth_nam" class="w-full border rounded-lg px-2 py-1.5 text-sm" value="${now.getFullYear()}">
           </div>
+          <div class="flex items-end">
+            <button onclick="loadBaoCaoThang()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Xem báo cáo</button>
+          </div>
+          <div class="flex items-end">
+            <button id="btnXuatBaoCaoThang" onclick="exportBaoCaoThangExcel(this)" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
+          </div>
+          <div class="flex items-end">
+            <button id="btnGuiEmailBaoCaoThang" onclick="guiEmailBaoCaoThang(this)" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">✉️ Gửi Email</button>
+          </div>
         </div>
-        <button id="btnXuatTongHop" onclick="exportBaoCaoTongHopExcel(this)" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">⬇ Xuất Excel Tổng Hợp</button>
       </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="card stat-card"><div class="stat-label">Tổng nhập Keo (tấn)</div><div class="stat-value text-gray-800" id="bcth_nhapKl">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tổng thanh toán Keo</div><div class="stat-value text-red-600" id="bcth_ttGt">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tồn quỹ tiền mặt cuối tháng</div><div class="stat-value text-blue-700" id="bcth_tonTienMat">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tồn quỹ công đoàn cuối tháng</div><div class="stat-value text-purple-700" id="bcth_tonCongDoan">--</div></div>
+      </div>
+
+      <div class="card">
+        <div class="font-semibold text-gray-700 mb-2">Sổ Cơm trong tháng</div>
+        <div class="grid grid-cols-3 gap-3 text-sm">
+          <div><div class="text-gray-500 text-xs">Tổng suất ăn</div><div class="font-semibold" id="bcth_comSuat">--</div></div>
+          <div><div class="text-gray-500 text-xs">Thành tiền</div><div class="font-semibold" id="bcth_comTien">--</div></div>
+          <div><div class="text-gray-500 text-xs">Tạm ứng</div><div class="font-semibold" id="bcth_comTamUng">--</div></div>
+        </div>
+      </div>
+
+      <p class="text-xs text-gray-400 mt-3">File Excel xuất ra gồm các sheet: Quy_TamUng (tháng), KEO_NHAP (tháng), CK_KEO (tháng), COM (tháng), QUY_CongDoan (cả năm).</p>
     `;
+
     const sel = document.getElementById('bcth_thang');
     for (let m = 1; m <= 12; m++) sel.innerHTML += '<option value="' + m + '">Tháng ' + m + '</option>';
     sel.value = now.getMonth() + 1;
+
+    loadBaoCaoThang();
   }
 
-  function exportBaoCaoTongHopExcel(btn) {
+  function loadBaoCaoThang() {
+    const nam = document.getElementById('bcth_nam').value;
+    const thang = document.getElementById('bcth_thang').value;
+    if (!nam || !thang) { alert('Vui lòng chọn Tháng/Năm.'); return; }
+
+    ['bcth_nhapKl', 'bcth_ttGt', 'bcth_tonTienMat', 'bcth_tonCongDoan', 'bcth_comSuat', 'bcth_comTien', 'bcth_comTamUng'].forEach(function (id) {
+      document.getElementById(id).textContent = 'Đang tải...';
+    });
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        BAOCAO_THANG_DATA = res.data;
+        const d = res.data;
+
+        document.getElementById('bcth_nhapKl').textContent = formatTan(d.keo_nhap.kl) + (d.loi_keo ? ' ⚠️' : '');
+        document.getElementById('bcth_ttGt').textContent = formatMoney(d.keo_thanh_toan.gt);
+        document.getElementById('bcth_tonTienMat').textContent = formatMoney(d.ton_quy_tien_mat_cuoi_thang);
+        document.getElementById('bcth_tonCongDoan').textContent = formatMoney(d.ton_quy_cong_doan_cuoi_thang);
+        document.getElementById('bcth_comSuat').textContent = d.com_tong_suat.toLocaleString('vi-VN');
+        document.getElementById('bcth_comTien').textContent = formatMoney(d.com_thanh_tien);
+        document.getElementById('bcth_comTamUng').textContent = formatMoney(d.com_tam_ung);
+
+        if (d.loi_keo) {
+          document.getElementById('bcth_nhapKl').title = 'Lỗi lấy dữ liệu Keo: ' + d.loi_keo;
+          document.getElementById('bcth_ttGt').title = 'Lỗi lấy dữ liệu Keo: ' + d.loi_keo;
+        }
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getBaoCaoThangTongHop(nam, thang);
+  }
+
+  function exportBaoCaoThangExcel(btn) {
     const nam = document.getElementById('bcth_nam').value;
     const thang = document.getElementById('bcth_thang').value;
     if (!nam || !thang) { alert('Vui lòng chọn Tháng/Năm.'); return; }
     xuatExcelTuServer(btn, 'xuatTongHopExcel', [nam, thang]);
+  }
+
+  function guiEmailBaoCaoThang(btn) {
+    const nam = document.getElementById('bcth_nam').value;
+    const thang = document.getElementById('bcth_thang').value;
+    if (!nam || !thang) { alert('Vui lòng chọn Tháng/Năm.'); return; }
+    if (!confirm('Gửi Báo cáo tháng ' + thang + '/' + nam + ' tới email đã thiết lập trong Quản Trị?')) return;
+
+    const textCu = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang gửi...';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = textCu;
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        alert('Đã gửi báo cáo tới: ' + res.data.da_gui_toi.join(', '));
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = textCu;
+        alert('Lỗi hệ thống: ' + err.message);
+      })
+      .guiBaoCaoThangEmail(nam, thang, currentUserInfo());
   }
 
   function renderBaoCaoThuChi() {

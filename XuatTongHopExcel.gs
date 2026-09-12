@@ -75,6 +75,109 @@ function xuatTongHopExcel(nam, thang) {
   }
 }
 
+/*************************************************
+ * API: TÓM TẮT BÁO CÁO THÁNG (dùng cho màn hình xem nhanh trước khi
+ * xuất Excel / gửi email — không dựng sheet, chỉ tổng hợp số liệu)
+ *************************************************/
+function getBaoCaoThangTongHop(nam, thang) {
+  try {
+    nam = Number(nam);
+    thang = Number(thang);
+    if (!nam || !thang || thang < 1 || thang > 12) throw new Error('Vui lòng chọn Tháng/Năm hợp lệ.');
+
+    const cuoiThang = new Date(nam, thang, 0).getDate();
+    const tuNgay = nam + '-' + String(thang).padStart(2, '0') + '-01';
+    const denNgay = nam + '-' + String(thang).padStart(2, '0') + '-' + String(cuoiThang).padStart(2, '0');
+
+    const tonTienMat = _tonDauCuoiNgay(QUY_TIEN_MAT, denNgay).cuoi;
+    const tonCongDoan = _tonDauCuoiNgay(QUY_CONG_DOAN, denNgay).cuoi;
+
+    const comRes = getSoComThang(nam, thang);
+    const com = comRes.success ? comRes.data : { tong_suat: 0, tong_thanh_tien: 0, tong_tam_ung: 0 };
+
+    let keoNhapKg = 0, keoNhapGt = 0, keoTTKg = 0, keoTTGt = 0, loiKeo = '';
+    try {
+      const shPhanTich = _moSheetNgoaiTheoTen('ID_SHEET_PHANTICH_NHAP_TT', TEN_SHEET_PHANTICH_NHAP_TT);
+      _kiemTraCotBatBuoc(shPhanTich, ['Ngày', 'Loại', 'PhanLoai', 'Ten', 'KhoiLuongKg', 'GiaTri']);
+      const monthPrefix = nam + '-' + String(thang).padStart(2, '0');
+      _sheetToObjectsFromSheetObj(shPhanTich).forEach(r => {
+        if (r['PhanLoai'] !== 'TONG') return;
+        if (_ngayKeyLinhHoat(r['Ngày']).slice(0, 7) !== monthPrefix) return;
+        if (r['Loại'] === 'NHAP') { keoNhapKg += Number(r['KhoiLuongKg']) || 0; keoNhapGt += Number(r['GiaTri']) || 0; }
+        else if (r['Loại'] === 'THANHTOAN') { keoTTKg += Number(r['KhoiLuongKg']) || 0; keoTTGt += Number(r['GiaTri']) || 0; }
+      });
+    } catch (e) {
+      loiKeo = e.message;
+    }
+
+    return _jsonOk({
+      nam: nam, thang: thang, tu_ngay: tuNgay, den_ngay: denNgay,
+      ton_quy_tien_mat_cuoi_thang: tonTienMat,
+      ton_quy_cong_doan_cuoi_thang: tonCongDoan,
+      keo_nhap: { kl: _kgSangTan(keoNhapKg), gt: keoNhapGt },
+      keo_thanh_toan: { kl: _kgSangTan(keoTTKg), gt: keoTTGt },
+      loi_keo: loiKeo,
+      com_tong_suat: com.tong_suat,
+      com_thanh_tien: com.tong_thanh_tien,
+      com_tam_ung: com.tong_tam_ung
+    });
+
+  } catch (err) {
+    return _jsonErr(err);
+  }
+}
+
+/*************************************************
+ * API: GỬI BÁO CÁO THÁNG QUA EMAIL
+ * Dùng chung danh sách email nhận báo cáo với Báo cáo ngày (Keo),
+ * cấu hình ở CAU_HINH key EMAIL_BAO_CAO_NGAY (Quản Trị).
+ *************************************************/
+function guiBaoCaoThangEmail(nam, thang, currentUser) {
+  try {
+    if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN, ROLE_THU_QUY]);
+
+    const emailCauHinh = _getCauHinh('EMAIL_BAO_CAO_NGAY');
+    const danhSachEmail = String(emailCauHinh || '').split(/[,;]/).map(e => e.trim()).filter(Boolean);
+    if (danhSachEmail.length === 0) {
+      throw new Error('Chưa thiết lập email nhận báo cáo. Vào Quản Trị > "Báo cáo ngày (Keo)" để thiết lập.');
+    }
+
+    const fileRes = xuatTongHopExcel(nam, thang);
+    if (!fileRes.success) throw new Error(fileRes.message);
+
+    const blob = Utilities.newBlob(
+      Utilities.base64Decode(fileRes.data.base64),
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      fileRes.data.filename
+    );
+
+    const dataRes = getBaoCaoThangTongHop(nam, thang);
+    const d = dataRes.success ? dataRes.data : null;
+    let noiDung = 'Kính gửi Anh/Chị,\n\nHệ thống HAK_QUY gửi Báo cáo tháng ' + thang + '/' + nam + ', chi tiết xem file Excel đính kèm.';
+    if (d) {
+      noiDung += '\n\n- Tổng nhập Keo: ' + d.keo_nhap.kl.toFixed(2) + ' tấn (' + Math.round(d.keo_nhap.gt).toLocaleString('vi-VN') + ' đ)' +
+        '\n- Tổng thanh toán Keo: ' + d.keo_thanh_toan.kl.toFixed(2) + ' tấn (' + Math.round(d.keo_thanh_toan.gt).toLocaleString('vi-VN') + ' đ)' +
+        '\n- Tồn quỹ tiền mặt cuối tháng: ' + Math.round(d.ton_quy_tien_mat_cuoi_thang).toLocaleString('vi-VN') + ' đ' +
+        '\n- Tồn quỹ công đoàn cuối tháng: ' + Math.round(d.ton_quy_cong_doan_cuoi_thang).toLocaleString('vi-VN') + ' đ' +
+        '\n- Sổ cơm: ' + d.com_tong_suat.toLocaleString('vi-VN') + ' suất, thành tiền ' + Math.round(d.com_thanh_tien).toLocaleString('vi-VN') + ' đ';
+    }
+    noiDung += '\n\n(Email được gửi tự động từ hệ thống HAK_QUY)';
+
+    GmailApp.sendEmail(danhSachEmail.join(','), 'Báo cáo tháng ' + thang + '/' + nam, noiDung, {
+      attachments: [blob],
+      name: 'HAK_QUY - Báo cáo tự động'
+    });
+
+    _writeAuditLog(currentUser.full_name, 'Báo Cáo Tháng', 'Gửi Email', thang + '/' + nam, '', 'Đã gửi tới: ' + danhSachEmail.join(', '));
+
+    return _jsonOk({ da_gui_toi: danhSachEmail });
+
+  } catch (err) {
+    return _jsonErr(err);
+  }
+}
+
 /**
  * Chèn 1 dòng "Cộng phát sinh trong ngày" sau mỗi ngày (nhóm theo
  * cfg.dayKeys, cùng thứ tự với cfg.dataRows — vốn đã được sắp xếp
