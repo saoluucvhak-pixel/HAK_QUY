@@ -2,9 +2,9 @@
   let CURRENT_USER = null;
 
   const ROLE_MENUS = {
-    ADMIN: ['dashboard', 'thu', 'chi', 'soquy', 'congno', 'doituong', 'danhmuc', 'baocao', 'tracuu', 'quantri'],
-    THU_QUY: ['dashboard', 'thu', 'chi', 'soquy', 'tracuu'],
-    XEM: ['dashboard', 'soquy', 'congno', 'baocao', 'tracuu']
+    ADMIN: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'congno', 'doituong', 'danhmuc', 'baocao', 'tracuu', 'quantri'],
+    THU_QUY: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'tracuu'],
+    XEM: ['dashboard', 'soquy', 'soquycongdoan', 'socom', 'congno', 'baocao', 'tracuu']
   };
 
   function currentUserInfo() {
@@ -117,6 +117,8 @@
     thu: 'Thu Tiền',
     chi: 'Chi Tiền',
     soquy: 'Sổ Quỹ',
+    soquycongdoan: 'Sổ Quỹ Công Đoàn',
+    socom: 'Sổ Cơm',
     congno: 'Công Nợ',
     doituong: 'Đối Tượng',
     danhmuc: 'Danh Mục',
@@ -144,6 +146,10 @@
       renderChiForm();
     } else if (key === 'soquy') {
       renderSoQuy();
+    } else if (key === 'soquycongdoan') {
+      renderSoQuyCongDoan();
+    } else if (key === 'socom') {
+      renderSoCom();
     } else if (key === 'congno') {
       renderCongNo();
     } else if (key === 'baocao') {
@@ -235,6 +241,13 @@
         </div>
       </div>
 
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="card stat-card">
+          <div class="stat-label">Tồn Quỹ Công đoàn</div>
+          <div class="stat-value text-indigo-600" id="db_tonQuyCongDoan">--</div>
+        </div>
+      </div>
+
       <div class="text-xs text-gray-400 text-right" id="db_ngay"></div>
     `;
   }
@@ -255,6 +268,7 @@
         document.getElementById('db_quaHan').textContent = d.cong_no_qua_han > 0
           ? '⚠ ' + d.cong_no_qua_han + ' khoản công nợ đã quá hạn'
           : 'Không có công nợ quá hạn';
+        document.getElementById('db_tonQuyCongDoan').textContent = formatMoney(d.ton_quy_cong_doan);
         document.getElementById('db_ngay').textContent = 'Dữ liệu tính đến ngày: ' + d.date;
       })
       .withFailureHandler(function (err) {
@@ -283,6 +297,13 @@
       <div id="thuMsg" class="hidden mb-4 p-3 rounded-lg text-sm"></div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Quỹ</label>
+          <select id="thuQuy" onchange="onThuQuyChange()" class="w-full border rounded-lg px-3 py-2">
+            <option value="Quỹ tiền mặt">Quỹ tiền mặt</option>
+            <option value="Quỹ công đoàn">Quỹ công đoàn</option>
+          </select>
+        </div>
+        <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">Loại giao dịch</label>
           <select id="thuLoaiGD" onchange="onThuLoaiGDChange()" class="w-full border rounded-lg px-3 py-2">
             <option value="Thu thường">Thu thường</option>
@@ -290,7 +311,7 @@
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Ngày thu</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Ngày thu (ngày chứng từ)</label>
           <input type="date" id="thuNgay" value="${today}" class="w-full border rounded-lg px-3 py-2">
         </div>
         <div>
@@ -328,6 +349,31 @@
           <label class="block text-sm font-medium text-gray-600 mb-1">Nội dung thu</label>
           <input type="text" id="thuNoiDung" class="w-full border rounded-lg px-3 py-2">
         </div>
+
+        <div class="md:col-span-2 border-t pt-3 mt-1">
+          <div class="text-xs font-semibold text-gray-500 uppercase">Thông tin hạch toán Sổ Quỹ (tuỳ chọn)</div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Ngày hạch toán</label>
+          <input type="date" id="thuNgayHachToan" value="${today}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Tài khoản</label>
+          <input type="text" id="thuTaiKhoan" value="1111" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">TK đối ứng</label>
+          <input type="text" id="thuTkDoiUng" placeholder="vd: 7113" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Mã nhân viên</label>
+          <input type="text" id="thuMaNhanVien" placeholder="vd: 01.006.001" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Chi nhánh</label>
+          <input type="text" id="thuChiNhanh" placeholder="Chi nhánh (nếu có)" class="w-full border rounded-lg px-3 py-2">
+        </div>
+
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-600 mb-1">Chứng từ liên quan</label>
           <input type="text" id="thuChungTu" placeholder="Link ảnh / mô tả chứng từ" class="w-full border rounded-lg px-3 py-2">
@@ -351,6 +397,20 @@
       loadCongNoOptionsForThu();
     } else {
       box.classList.add('hidden');
+    }
+  }
+
+  // Quỹ Công đoàn không có nghiệp vụ Thu công nợ — ẩn bớt lựa chọn cho gọn.
+  function onThuQuyChange() {
+    const quy = document.getElementById('thuQuy').value;
+    const loaiGDSelect = document.getElementById('thuLoaiGD');
+    const congNoOption = loaiGDSelect.querySelector('option[value="Thu công nợ"]');
+    if (quy === 'Quỹ công đoàn') {
+      loaiGDSelect.value = 'Thu thường';
+      if (congNoOption) congNoOption.disabled = true;
+      document.getElementById('thuCongNoBox').classList.add('hidden');
+    } else if (congNoOption) {
+      congNoOption.disabled = false;
     }
   }
 
@@ -403,7 +463,13 @@
       so_tien: document.getElementById('thuSoTien').value,
       noi_dung_thu: document.getElementById('thuNoiDung').value.trim(),
       chung_tu_lien_quan: document.getElementById('thuChungTu').value.trim(),
-      ghi_chu: document.getElementById('thuGhiChu').value.trim()
+      ghi_chu: document.getElementById('thuGhiChu').value.trim(),
+      loai_quy: document.getElementById('thuQuy').value,
+      ngay_hach_toan: document.getElementById('thuNgayHachToan').value,
+      tai_khoan: document.getElementById('thuTaiKhoan').value.trim(),
+      tk_doi_ung: document.getElementById('thuTkDoiUng').value.trim(),
+      ma_nhan_vien: document.getElementById('thuMaNhanVien').value.trim(),
+      chi_nhanh: document.getElementById('thuChiNhanh').value.trim()
     };
 
     if (!payload.nguoi_nop_tien) return showFormMsg('thuMsg', 'Vui lòng nhập Người nộp tiền.', true);
@@ -457,6 +523,13 @@
       <div id="chiMsg" class="hidden mb-4 p-3 rounded-lg text-sm"></div>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Quỹ</label>
+          <select id="chiQuy" onchange="onChiQuyChange()" class="w-full border rounded-lg px-3 py-2">
+            <option value="Quỹ tiền mặt">Quỹ tiền mặt</option>
+            <option value="Quỹ công đoàn">Quỹ công đoàn</option>
+          </select>
+        </div>
+        <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">Loại giao dịch</label>
           <select id="chiLoaiGD" onchange="onChiLoaiGDChange()" class="w-full border rounded-lg px-3 py-2">
             <option value="Chi thường">Chi thường</option>
@@ -464,7 +537,7 @@
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Ngày chi</label>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Ngày chi (ngày chứng từ)</label>
           <input type="date" id="chiNgay" value="${today}" class="w-full border rounded-lg px-3 py-2">
         </div>
         <div>
@@ -502,6 +575,31 @@
           <label class="block text-sm font-medium text-gray-600 mb-1">Nội dung chi</label>
           <input type="text" id="chiNoiDung" class="w-full border rounded-lg px-3 py-2">
         </div>
+
+        <div class="md:col-span-2 border-t pt-3 mt-1">
+          <div class="text-xs font-semibold text-gray-500 uppercase">Thông tin hạch toán Sổ Quỹ (tuỳ chọn)</div>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Ngày hạch toán</label>
+          <input type="date" id="chiNgayHachToan" value="${today}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Tài khoản</label>
+          <input type="text" id="chiTaiKhoan" value="1111" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">TK đối ứng</label>
+          <input type="text" id="chiTkDoiUng" placeholder="vd: 6426" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Mã nhân viên</label>
+          <input type="text" id="chiMaNhanVien" placeholder="vd: 01.009.001" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Chi nhánh</label>
+          <input type="text" id="chiChiNhanh" placeholder="Chi nhánh (nếu có)" class="w-full border rounded-lg px-3 py-2">
+        </div>
+
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-600 mb-1">Chứng từ liên quan</label>
           <input type="text" id="chiChungTu" placeholder="Link ảnh / mô tả chứng từ" class="w-full border rounded-lg px-3 py-2">
@@ -525,6 +623,20 @@
       loadCongNoOptionsForChi();
     } else {
       box.classList.add('hidden');
+    }
+  }
+
+  // Quỹ Công đoàn không có nghiệp vụ Trả công nợ — ẩn bớt lựa chọn cho gọn.
+  function onChiQuyChange() {
+    const quy = document.getElementById('chiQuy').value;
+    const loaiGDSelect = document.getElementById('chiLoaiGD');
+    const congNoOption = loaiGDSelect.querySelector('option[value="Trả công nợ"]');
+    if (quy === 'Quỹ công đoàn') {
+      loaiGDSelect.value = 'Chi thường';
+      if (congNoOption) congNoOption.disabled = true;
+      document.getElementById('chiCongNoBox').classList.add('hidden');
+    } else if (congNoOption) {
+      congNoOption.disabled = false;
     }
   }
 
@@ -577,7 +689,13 @@
       so_tien: document.getElementById('chiSoTien').value,
       noi_dung_chi: document.getElementById('chiNoiDung').value.trim(),
       chung_tu_lien_quan: document.getElementById('chiChungTu').value.trim(),
-      ghi_chu: document.getElementById('chiGhiChu').value.trim()
+      ghi_chu: document.getElementById('chiGhiChu').value.trim(),
+      loai_quy: document.getElementById('chiQuy').value,
+      ngay_hach_toan: document.getElementById('chiNgayHachToan').value,
+      tai_khoan: document.getElementById('chiTaiKhoan').value.trim(),
+      tk_doi_ung: document.getElementById('chiTkDoiUng').value.trim(),
+      ma_nhan_vien: document.getElementById('chiMaNhanVien').value.trim(),
+      chi_nhanh: document.getElementById('chiChiNhanh').value.trim()
     };
 
     if (!payload.nguoi_nhan_tien) return showFormMsg('chiMsg', 'Vui lòng nhập Người nhận tiền.', true);
@@ -611,9 +729,14 @@
       .addPhieuChi(payload, currentUserInfo());
   }
 
-  /* ================= SỔ QUỸ ================= */
-  function renderSoQuy() {
+  /* ================= SỔ QUỸ (dùng chung cho Quỹ tiền mặt & Quỹ Công đoàn) ================= */
+  function renderSoQuy() { renderSoQuyGeneric('Quỹ tiền mặt'); }
+  function renderSoQuyCongDoan() { renderSoQuyGeneric('Quỹ công đoàn'); }
+
+  function renderSoQuyGeneric(loaiQuy) {
     document.getElementById('mainContent').innerHTML = `
+      <input type="hidden" id="sq_loaiQuy" value="${loaiQuy}">
+      <div class="text-sm text-gray-500 mb-3">Sổ kế toán chi tiết ${loaiQuy} — Tài khoản: 1111</div>
       <div class="card mb-4">
         <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
           <div>
@@ -646,17 +769,21 @@
         <table class="w-full text-sm">
           <thead>
             <tr class="text-left text-gray-500 border-b">
-              <th class="py-2 pr-3">Ngày</th>
-              <th class="py-2 pr-3">Số phiếu</th>
-              <th class="py-2 pr-3">Nội dung</th>
-              <th class="py-2 pr-3">Đối tượng</th>
+              <th class="py-2 pr-3">Ngày HT</th>
+              <th class="py-2 pr-3">Ngày CT</th>
+              <th class="py-2 pr-3">Số PT</th>
+              <th class="py-2 pr-3">Số PC</th>
+              <th class="py-2 pr-3">Diễn giải</th>
+              <th class="py-2 pr-3">TK</th>
+              <th class="py-2 pr-3">TK đối ứng</th>
               <th class="py-2 pr-3 text-right">Thu</th>
               <th class="py-2 pr-3 text-right">Chi</th>
               <th class="py-2 pr-3 text-right">Tồn</th>
+              <th class="py-2 pr-3">Người nhận/nộp</th>
             </tr>
           </thead>
           <tbody id="soQuyBody">
-            <tr><td colspan="7" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
+            <tr><td colspan="11" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
           </tbody>
         </table>
       </div>
@@ -672,13 +799,14 @@
 
   function loadSoQuy() {
     const filters = {
+      loaiQuy: document.getElementById('sq_loaiQuy').value,
       tuNgay: document.getElementById('sq_tuNgay').value,
       denNgay: document.getElementById('sq_denNgay').value,
       loaiGiaoDich: document.getElementById('sq_loai').value,
       nguoiLap: document.getElementById('sq_nguoiLap').value.trim()
     };
 
-    document.getElementById('soQuyBody').innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
+    document.getElementById('soQuyBody').innerHTML = '<tr><td colspan="11" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
 
     google.script.run
       .withSuccessHandler(function (res) {
@@ -692,20 +820,233 @@
   function renderSoQuyTable(list) {
     const body = document.getElementById('soQuyBody');
     if (!list || list.length === 0) {
-      body.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">Không có giao dịch trong khoảng lọc.</td></tr>';
+      body.innerHTML = '<tr><td colspan="11" class="py-6 text-center text-gray-400">Không có giao dịch trong khoảng lọc.</td></tr>';
       return;
     }
     body.innerHTML = list.map(t => `
       <tr class="border-b hover:bg-gray-50">
+        <td class="py-2 pr-3 whitespace-nowrap">${t.ngay_hach_toan || t.ngay}</td>
         <td class="py-2 pr-3 whitespace-nowrap">${t.ngay}</td>
-        <td class="py-2 pr-3 font-medium">${t.so_phieu}</td>
+        <td class="py-2 pr-3 font-medium">${t.so_phieu_thu || ''}</td>
+        <td class="py-2 pr-3 font-medium">${t.so_phieu_chi || ''}</td>
         <td class="py-2 pr-3">${t.noi_dung || ''}</td>
-        <td class="py-2 pr-3">${t.doi_tuong || ''}</td>
+        <td class="py-2 pr-3">${t.tai_khoan || ''}</td>
+        <td class="py-2 pr-3">${t.tk_doi_ung || ''}</td>
         <td class="py-2 pr-3 text-right text-green-700">${t.thu ? formatMoney(t.thu) : ''}</td>
         <td class="py-2 pr-3 text-right text-red-700">${t.chi ? formatMoney(t.chi) : ''}</td>
         <td class="py-2 pr-3 text-right font-semibold">${formatMoney(t.ton)}</td>
+        <td class="py-2 pr-3">${t.nguoi_nhan_nop || ''}</td>
       </tr>
     `).join('');
+  }
+
+  /* ================= SỔ CƠM ================= */
+  let SOCOM_ROWS_CACHE = [];
+
+  function renderSoCom() {
+    const now = new Date();
+    document.getElementById('mainContent').innerHTML = `
+      <div class="card mb-4">
+        <h2 class="text-lg font-semibold mb-3 text-gray-700">Nhập / Sửa Sổ Cơm theo ngày</h2>
+        <div id="comMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Ngày</label>
+            <input type="date" id="com_ngay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Suất Trưa</label>
+            <input type="number" min="0" id="com_trua" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Suất Tối</label>
+            <input type="number" min="0" id="com_toi" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Đơn giá</label>
+            <input type="number" min="0" step="500" id="com_dongia" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Ngày tạm ứng</label>
+            <input type="date" id="com_ngayTamUng" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Số tiền tạm ứng</label>
+            <input type="number" min="0" step="1000" id="com_soTienTamUng" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+        </div>
+        <div class="mt-3">
+          <label class="block text-xs text-gray-500 mb-1">Ghi chú</label>
+          <input type="text" id="com_ghiChu" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+        </div>
+        <div class="flex justify-end gap-2 mt-3">
+          <button onclick="resetSoComForm()" class="px-4 py-2 rounded-lg border text-gray-600 hover:bg-gray-50 text-sm">Nhập ngày mới</button>
+          <button id="btnSaveCom" onclick="saveSoCom()" class="px-5 py-2 rounded-lg bg-amber-600 text-white font-medium hover:bg-amber-700">💾 Lưu ngày này</button>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 items-end">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Tháng</label>
+            <select id="com_thangXem" class="w-full border rounded-lg px-2 py-1.5 text-sm"></select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Năm</label>
+            <input type="number" id="com_namXem" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <button onclick="loadSoCom()" class="px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Xem</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div class="card stat-card"><div class="stat-label">Tổng suất ăn</div><div class="stat-value text-gray-800" id="com_tongSuat">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tổng thành tiền</div><div class="stat-value text-red-600" id="com_tongThanhTien">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tổng tạm ứng</div><div class="stat-value text-green-600" id="com_tongTamUng">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tồn quỹ cơm hiện tại</div><div class="stat-value text-blue-700" id="com_tonHienTai">--</div></div>
+      </div>
+
+      <div class="card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Ngày</th>
+              <th class="py-2 pr-3 text-right">Trưa</th>
+              <th class="py-2 pr-3 text-right">Tối</th>
+              <th class="py-2 pr-3 text-right">Tổng suất</th>
+              <th class="py-2 pr-3 text-right">Đơn giá</th>
+              <th class="py-2 pr-3 text-right">Thành tiền</th>
+              <th class="py-2 pr-3">Ngày tạm ứng</th>
+              <th class="py-2 pr-3 text-right">Số tiền tạm ứng</th>
+              <th class="py-2 pr-3 text-right">Tồn</th>
+              <th class="py-2 pr-3"></th>
+            </tr>
+          </thead>
+          <tbody id="comTableBody">
+            <tr><td colspan="10" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    const thangSelect = document.getElementById('com_thangXem');
+    for (let m = 1; m <= 12; m++) {
+      const opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = 'Tháng ' + m;
+      thangSelect.appendChild(opt);
+    }
+    thangSelect.value = now.getMonth() + 1;
+    document.getElementById('com_namXem').value = now.getFullYear();
+    document.getElementById('com_ngay').value = now.toISOString().slice(0, 10);
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (res.success) document.getElementById('com_dongia').value = res.data.don_gia;
+      })
+      .getDonGiaComMacDinh();
+
+    loadSoCom();
+  }
+
+  function resetSoComForm() {
+    document.getElementById('com_ngay').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('com_trua').value = '';
+    document.getElementById('com_toi').value = '';
+    document.getElementById('com_ngayTamUng').value = '';
+    document.getElementById('com_soTienTamUng').value = '';
+    document.getElementById('com_ghiChu').value = '';
+    document.getElementById('comMsg').classList.add('hidden');
+  }
+
+  function loadSoCom() {
+    const thang = document.getElementById('com_thangXem').value;
+    const nam = document.getElementById('com_namXem').value;
+
+    document.getElementById('comTableBody').innerHTML = '<tr><td colspan="10" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        renderSoComTable(res.data);
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getSoComThang(nam, thang);
+  }
+
+  function renderSoComTable(data) {
+    document.getElementById('com_tongSuat').textContent = data.tong_suat;
+    document.getElementById('com_tongThanhTien').textContent = formatMoney(data.tong_thanh_tien);
+    document.getElementById('com_tongTamUng').textContent = formatMoney(data.tong_tam_ung);
+    document.getElementById('com_tonHienTai').textContent = formatMoney(data.ton_hien_tai);
+
+    SOCOM_ROWS_CACHE = data.rows || [];
+    const body = document.getElementById('comTableBody');
+    if (SOCOM_ROWS_CACHE.length === 0) {
+      body.innerHTML = '<tr><td colspan="10" class="py-6 text-center text-gray-400">Chưa có dữ liệu tháng này.</td></tr>';
+      return;
+    }
+    body.innerHTML = SOCOM_ROWS_CACHE.map((r, idx) => `
+      <tr class="border-b hover:bg-gray-50">
+        <td class="py-2 pr-3 whitespace-nowrap">${r.ngay}</td>
+        <td class="py-2 pr-3 text-right">${r.buoi_trua || ''}</td>
+        <td class="py-2 pr-3 text-right">${r.buoi_toi || ''}</td>
+        <td class="py-2 pr-3 text-right">${r.tong_suat || ''}</td>
+        <td class="py-2 pr-3 text-right">${formatMoney(r.don_gia)}</td>
+        <td class="py-2 pr-3 text-right">${formatMoney(r.thanh_tien)}</td>
+        <td class="py-2 pr-3 whitespace-nowrap">${r.ngay_tam_ung || ''}</td>
+        <td class="py-2 pr-3 text-right">${r.so_tien_tam_ung ? formatMoney(r.so_tien_tam_ung) : ''}</td>
+        <td class="py-2 pr-3 text-right font-semibold">${formatMoney(r.ton)}</td>
+        <td class="py-2 pr-3"><button onclick="suaSoCom(${idx})" class="text-blue-600 text-xs hover:underline">Sửa</button></td>
+      </tr>
+    `).join('');
+  }
+
+  function suaSoCom(idx) {
+    const r = SOCOM_ROWS_CACHE[idx];
+    if (!r) return;
+    document.getElementById('com_ngay').value = r.ngay;
+    document.getElementById('com_trua').value = r.buoi_trua || '';
+    document.getElementById('com_toi').value = r.buoi_toi || '';
+    document.getElementById('com_dongia').value = r.don_gia || '';
+    document.getElementById('com_ngayTamUng').value = r.ngay_tam_ung || '';
+    document.getElementById('com_soTienTamUng').value = r.so_tien_tam_ung || '';
+    document.getElementById('com_ghiChu').value = r.ghi_chu || '';
+    document.getElementById('comMsg').classList.add('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function saveSoCom() {
+    const payload = {
+      ngay: document.getElementById('com_ngay').value,
+      buoi_trua: document.getElementById('com_trua').value,
+      buoi_toi: document.getElementById('com_toi').value,
+      don_gia: document.getElementById('com_dongia').value,
+      ngay_tam_ung: document.getElementById('com_ngayTamUng').value,
+      so_tien_tam_ung: document.getElementById('com_soTienTamUng').value,
+      ghi_chu: document.getElementById('com_ghiChu').value.trim()
+    };
+
+    if (!payload.ngay) return showFormMsg('comMsg', 'Vui lòng chọn Ngày.', true);
+
+    const btn = document.getElementById('btnSaveCom');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang lưu...';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = '💾 Lưu ngày này';
+        if (!res.success) { showFormMsg('comMsg', res.message, true); return; }
+        showFormMsg('comMsg', 'Đã lưu dữ liệu ngày ' + res.data.ngay + '.', false);
+        loadSoCom();
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = '💾 Lưu ngày này';
+        showFormMsg('comMsg', 'Lỗi hệ thống: ' + err.message, true);
+      })
+      .upsertSoComNgay(payload, currentUserInfo());
   }
 
   /* ================= CÔNG NỢ ================= */
@@ -2078,6 +2419,8 @@
         html += '<div><span class="text-gray-400">Số tiền:</span> <b>' + formatMoney(p.so_tien) + '</b></div>';
         html += '<div><span class="text-gray-400">' + (p.loai === 'Thu' ? 'Người nộp' : 'Người nhận') + ':</span> ' + (p.nguoi_nop_nhan || '') + '</div>';
         html += '<div><span class="text-gray-400">Đối tượng:</span> ' + (p.doi_tuong || '') + '</div>';
+        html += '<div><span class="text-gray-400">Quỹ:</span> ' + (p.loai_quy || 'Quỹ tiền mặt') + '</div>';
+        html += '<div><span class="text-gray-400">TK / TK đối ứng:</span> ' + (p.tai_khoan || '1111') + (p.tk_doi_ung ? ' / ' + p.tk_doi_ung : '') + '</div>';
         html += '<div class="md:col-span-2"><span class="text-gray-400">Nội dung:</span> ' + (p.noi_dung || '') + '</div>';
         html += '<div class="md:col-span-2"><span class="text-gray-400">Chứng từ liên quan:</span> ' + (p.chung_tu || '') + '</div>';
         html += '<div class="md:col-span-2"><span class="text-gray-400">Ghi chú:</span> ' + (p.ghi_chu || '') + '</div>';

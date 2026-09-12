@@ -18,6 +18,14 @@ const SHEET_KIEM_KE_QUY          = 'KIEM_KE_QUY';
 const SHEET_KHOA_SO              = 'KHOA_SO';
 const SHEET_AUDIT_LOG            = 'AUDIT_LOG';
 const SHEET_CAU_HINH             = 'CAU_HINH';
+const SHEET_SO_COM                = 'SO_COM';
+
+// ----- Loại quỹ (dùng cho cột loai_quy ở PHIEU_THU/PHIEU_CHI) -----
+// Cho phép 1 bộ Phiếu Thu/Phiếu Chi phục vụ nhiều Sổ Quỹ khác nhau
+// (Quỹ tiền mặt chính và Quỹ Công đoàn), mỗi quỹ có tồn quỹ riêng,
+// không ảnh hưởng lẫn nhau.
+const QUY_TIEN_MAT  = 'Quỹ tiền mặt';
+const QUY_CONG_DOAN = 'Quỹ công đoàn';
 
 // ----- Vai trò người dùng -----
 const ROLE_ADMIN   = 'ADMIN';

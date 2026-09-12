@@ -34,16 +34,31 @@ function getFormOptions() {
 }
 
 /**
- * Duyệt TOÀN BỘ lịch sử giao dịch hợp lệ (kể cả giao dịch giả định mới,
- * nếu truyền vào), tính tồn quỹ lũy kế theo đúng thứ tự thời gian,
- * trả về giá trị tồn THẤP NHẤT từng xuất hiện trong toàn bộ dòng thời gian.
+ * Chuẩn hóa loai_quy: dữ liệu cũ (trước khi có cột này) coi như
+ * thuộc Quỹ tiền mặt để đảm bảo tương thích ngược.
  */
-function _timTonThapNhat(giaoDichGiaDinh) {
-  const soDuKhoiTao = Number(_getCauHinh('SO_DU_QUY_KHOI_TAO')) || 0;
+function _chuanHoaLoaiQuy(loaiQuy) {
+  return loaiQuy === QUY_CONG_DOAN ? QUY_CONG_DOAN : QUY_TIEN_MAT;
+}
+
+function _cauHinhSoDuKhoiTaoTheoQuy(loaiQuy) {
+  return loaiQuy === QUY_CONG_DOAN ? 'SO_DU_QUY_CONG_DOAN_KHOI_TAO' : 'SO_DU_QUY_KHOI_TAO';
+}
+
+/**
+ * Duyệt TOÀN BỘ lịch sử giao dịch hợp lệ CỦA CÙNG 1 QUỸ (kể cả giao dịch
+ * giả định mới, nếu truyền vào), tính tồn quỹ lũy kế theo đúng thứ tự
+ * thời gian, trả về giá trị tồn THẤP NHẤT từng xuất hiện trong toàn bộ
+ * dòng thời gian. Mỗi quỹ (Quỹ tiền mặt / Quỹ Công đoàn) có tồn riêng,
+ * không ảnh hưởng lẫn nhau.
+ */
+function _timTonThapNhat(giaoDichGiaDinh, loaiQuy) {
+  loaiQuy = _chuanHoaLoaiQuy(loaiQuy);
+  const soDuKhoiTao = Number(_getCauHinh(_cauHinhSoDuKhoiTaoTheoQuy(loaiQuy))) || 0;
   const list = [];
 
   _sheetToObjects(SHEET_PHIEU_THU).forEach(p => {
-    if (p.trang_thai === TRANG_THAI_HOP_LE) {
+    if (p.trang_thai === TRANG_THAI_HOP_LE && _chuanHoaLoaiQuy(p.loai_quy) === loaiQuy) {
       list.push({
         ngay: _fmtDate(p.ngay_thu), gio: p.gio_thu || '00:00',
         thoiGianLap: p.thoi_gian_lap, soTien: Number(p.so_tien) || 0, loai: 'Thu'
@@ -51,7 +66,7 @@ function _timTonThapNhat(giaoDichGiaDinh) {
     }
   });
   _sheetToObjects(SHEET_PHIEU_CHI).forEach(p => {
-    if (p.trang_thai === TRANG_THAI_HOP_LE) {
+    if (p.trang_thai === TRANG_THAI_HOP_LE && _chuanHoaLoaiQuy(p.loai_quy) === loaiQuy) {
       list.push({
         ngay: _fmtDate(p.ngay_chi), gio: p.gio_chi || '00:00',
         thoiGianLap: p.thoi_gian_lap, soTien: Number(p.so_tien) || 0, loai: 'Chi'
@@ -86,6 +101,24 @@ function _timTonThapNhat(giaoDichGiaDinh) {
   return min;
 }
 
+/**
+ * Tồn quỹ HIỆN TẠI (không phải mức thấp nhất lịch sử) của 1 quỹ,
+ * dùng cho Dashboard / các chỗ chỉ cần biết số dư mới nhất.
+ */
+function _tonQuyHienTai(loaiQuy) {
+  loaiQuy = _chuanHoaLoaiQuy(loaiQuy);
+  let total = Number(_getCauHinh(_cauHinhSoDuKhoiTaoTheoQuy(loaiQuy))) || 0;
+
+  _sheetToObjects(SHEET_PHIEU_THU).forEach(p => {
+    if (p.trang_thai === TRANG_THAI_HOP_LE && _chuanHoaLoaiQuy(p.loai_quy) === loaiQuy) total += Number(p.so_tien) || 0;
+  });
+  _sheetToObjects(SHEET_PHIEU_CHI).forEach(p => {
+    if (p.trang_thai === TRANG_THAI_HOP_LE && _chuanHoaLoaiQuy(p.loai_quy) === loaiQuy) total -= Number(p.so_tien) || 0;
+  });
+
+  return total;
+}
+
 /*************************************************
  * API: THÊM PHIẾU THU
  * currentUser = { username, full_name }
@@ -103,6 +136,10 @@ function addPhieuThu(payload, currentUser) {
 
     const ngayKey = Utilities.formatDate(new Date(payload.ngay_thu), Session.getScriptTimeZone(), 'yyyy-MM-dd');
     if (_isDateLocked(ngayKey)) throw new Error('Ngày ' + ngayKey + ' đã bị khóa sổ, không thể thêm phiếu.');
+
+    const loaiQuy = _chuanHoaLoaiQuy(payload.loai_quy);
+    const taiKhoan = String(payload.tai_khoan || '1111').trim() || '1111';
+    const ngayHachToan = payload.ngay_hach_toan ? new Date(payload.ngay_hach_toan) : new Date(payload.ngay_thu);
 
     const loaiGiaoDich = payload.loai_giao_dich || 'Thu thường';
     if (loaiGiaoDich !== 'Thu thường' && loaiGiaoDich !== 'Thu công nợ') {
@@ -141,7 +178,9 @@ function addPhieuThu(payload, currentUser) {
       loaiGiaoDich, payload.nguoi_nop_tien, payload.ma_doi_tuong || '',
       payload.noi_dung_thu || '', payload.ma_loai_thu, soTien,
       payload.chung_tu_lien_quan || '', payload.ghi_chu || '',
-      nguoiLap, now, '', '', TRANG_THAI_HOP_LE, ''
+      nguoiLap, now, '', '', TRANG_THAI_HOP_LE, '',
+      loaiQuy, ngayHachToan, taiKhoan, payload.tk_doi_ung || '',
+      payload.ma_nhan_vien || '', payload.chi_nhanh || ''
     ]);
 
     _writeAuditLog(nguoiLap, 'Phiếu Thu', 'Thêm', soPhieuThu, '',
@@ -180,6 +219,10 @@ function addPhieuChi(payload, currentUser) {
     const ngayKey = Utilities.formatDate(new Date(payload.ngay_chi), Session.getScriptTimeZone(), 'yyyy-MM-dd');
     if (_isDateLocked(ngayKey)) throw new Error('Ngày ' + ngayKey + ' đã bị khóa sổ, không thể thêm phiếu.');
 
+    const loaiQuy = _chuanHoaLoaiQuy(payload.loai_quy);
+    const taiKhoan = String(payload.tai_khoan || '1111').trim() || '1111';
+    const ngayHachToan = payload.ngay_hach_toan ? new Date(payload.ngay_hach_toan) : new Date(payload.ngay_chi);
+
     const loaiGiaoDich = payload.loai_giao_dich || 'Chi thường';
     if (loaiGiaoDich !== 'Chi thường' && loaiGiaoDich !== 'Trả công nợ') {
       throw new Error('Loại giao dịch không hợp lệ.');
@@ -207,7 +250,7 @@ function addPhieuChi(payload, currentUser) {
       }
     }
 
-    const tonThapNhatNeuChi = _timTonThapNhat({ ngay: ngayKey, soTien: soTien, loai: 'Chi' });
+    const tonThapNhatNeuChi = _timTonThapNhat({ ngay: ngayKey, soTien: soTien, loai: 'Chi' }, loaiQuy);
     if (tonThapNhatNeuChi < 0) {
       throw new Error(
         'Không thể lưu: giao dịch này sẽ khiến tồn quỹ bị ÂM tại một thời điểm nào đó ' +
@@ -226,7 +269,9 @@ function addPhieuChi(payload, currentUser) {
       loaiGiaoDich, payload.nguoi_nhan_tien, payload.ma_doi_tuong || '',
       payload.noi_dung_chi || '', payload.ma_loai_chi, soTien,
       payload.chung_tu_lien_quan || '', payload.ghi_chu || '',
-      nguoiLap, now, '', '', TRANG_THAI_HOP_LE, ''
+      nguoiLap, now, '', '', TRANG_THAI_HOP_LE, '',
+      loaiQuy, ngayHachToan, taiKhoan, payload.tk_doi_ung || '',
+      payload.ma_nhan_vien || '', payload.chi_nhanh || ''
     ]);
 
     _writeAuditLog(nguoiLap, 'Phiếu Chi', 'Thêm', soPhieuChi, '',
@@ -249,11 +294,19 @@ function addPhieuChi(payload, currentUser) {
 
 /*************************************************
  * API: SỔ QUỸ (tính động, có lọc) — không giới hạn quyền xem
+ *
+ * filters.loaiQuy chọn quỹ cần xem: 'Quỹ tiền mặt' (mặc định) hoặc
+ * 'Quỹ công đoàn' — mỗi quỹ có số dư đầu kỳ và tồn lũy kế RIÊNG,
+ * dùng chung cho cả Sổ Quỹ và Sổ Quỹ Công Đoàn ở giao diện.
+ * Các cột trả về đầy đủ theo mẫu sổ kế toán chi tiết quỹ tiền mặt:
+ * ngày hạch toán, ngày chứng từ, số phiếu thu/chi riêng cột, tài
+ * khoản, tài khoản đối ứng, người nhận/nộp, mã nhân viên, chi nhánh.
  *************************************************/
 function getSoQuy(filters) {
   try {
     filters = filters || {};
-    const soDuKhoiTao = Number(_getCauHinh('SO_DU_QUY_KHOI_TAO')) || 0;
+    const loaiQuy = _chuanHoaLoaiQuy(filters.loaiQuy);
+    const soDuKhoiTao = Number(_getCauHinh(_cauHinhSoDuKhoiTaoTheoQuy(loaiQuy))) || 0;
 
     const doiTuongMap = {};
     _sheetToObjects(SHEET_DOITUONG).forEach(d => doiTuongMap[d.ma_doi_tuong] = d.ten_doi_tuong);
@@ -262,24 +315,36 @@ function getSoQuy(filters) {
 
     _sheetToObjects(SHEET_PHIEU_THU).forEach(p => {
       if (p.trang_thai !== TRANG_THAI_HOP_LE) return;
+      if (_chuanHoaLoaiQuy(p.loai_quy) !== loaiQuy) return;
       list.push({
         ngay: _fmtDate(p.ngay_thu), gio: p.gio_thu || '00:00',
-        so_phieu: p.so_phieu_thu, noi_dung: p.noi_dung_thu,
+        ngay_hach_toan: p.ngay_hach_toan ? _fmtDate(p.ngay_hach_toan) : _fmtDate(p.ngay_thu),
+        so_phieu_thu: p.so_phieu_thu, so_phieu_chi: '', so_phieu: p.so_phieu_thu,
+        noi_dung: p.noi_dung_thu,
+        tai_khoan: p.tai_khoan || '1111', tk_doi_ung: p.tk_doi_ung || '',
         ma_doi_tuong: p.ma_doi_tuong,
         doi_tuong: doiTuongMap[p.ma_doi_tuong] || p.ma_doi_tuong || '',
         thu: Number(p.so_tien) || 0, chi: 0, loai: 'Thu',
+        nguoi_nhan_nop: p.nguoi_nop_tien || '',
+        ma_nhan_vien: p.ma_nhan_vien || '', chi_nhanh: p.chi_nhanh || '',
         nguoi_lap: p.nguoi_lap, thoi_gian_lap: p.thoi_gian_lap
       });
     });
 
     _sheetToObjects(SHEET_PHIEU_CHI).forEach(p => {
       if (p.trang_thai !== TRANG_THAI_HOP_LE) return;
+      if (_chuanHoaLoaiQuy(p.loai_quy) !== loaiQuy) return;
       list.push({
         ngay: _fmtDate(p.ngay_chi), gio: p.gio_chi || '00:00',
-        so_phieu: p.so_phieu_chi, noi_dung: p.noi_dung_chi,
+        ngay_hach_toan: p.ngay_hach_toan ? _fmtDate(p.ngay_hach_toan) : _fmtDate(p.ngay_chi),
+        so_phieu_thu: '', so_phieu_chi: p.so_phieu_chi, so_phieu: p.so_phieu_chi,
+        noi_dung: p.noi_dung_chi,
+        tai_khoan: p.tai_khoan || '1111', tk_doi_ung: p.tk_doi_ung || '',
         ma_doi_tuong: p.ma_doi_tuong,
         doi_tuong: doiTuongMap[p.ma_doi_tuong] || p.ma_doi_tuong || '',
         thu: 0, chi: Number(p.so_tien) || 0, loai: 'Chi',
+        nguoi_nhan_nop: p.nguoi_nhan_tien || '',
+        ma_nhan_vien: p.ma_nhan_vien || '', chi_nhanh: p.chi_nhanh || '',
         nguoi_lap: p.nguoi_lap, thoi_gian_lap: p.thoi_gian_lap
       });
     });
