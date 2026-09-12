@@ -16,9 +16,9 @@
   }
 
   const ROLE_MENUS = {
-    ADMIN: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'congno', 'doituong', 'danhmuc', 'baocao', 'tracuu', 'quantri'],
-    THU_QUY: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'tracuu'],
-    XEM: ['dashboard', 'soquy', 'soquycongdoan', 'socom', 'congno', 'baocao', 'tracuu']
+    ADMIN: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'congno', 'doituong', 'danhmuc', 'baocao', 'tracuu', 'quantri', 'huongdan'],
+    THU_QUY: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'tracuu', 'huongdan'],
+    XEM: ['dashboard', 'soquy', 'soquycongdoan', 'socom', 'congno', 'baocao', 'tracuu', 'huongdan']
   };
 
   function currentUserInfo() {
@@ -138,7 +138,8 @@
     danhmuc: 'Danh Mục',
     baocao: 'Báo Cáo',
     tracuu: 'Tra Cứu',
-    quantri: 'Quản Trị'
+    quantri: 'Quản Trị',
+    huongdan: 'Hướng Dẫn Sử Dụng'
   };
 
   function switchMenu(key) {
@@ -176,6 +177,8 @@
       renderDanhMuc();
     } else if (key === 'tracuu') {
       renderTraCuu();
+    } else if (key === 'huongdan') {
+      renderHuongDan();
     } else {
       renderComingSoon(MENU_TITLES[key]);
     }
@@ -2895,4 +2898,197 @@
       });
     call[tenHamServer].apply(call, thamSo || []);
   }
+
+  /* ================= HƯỚNG DẪN SỬ DỤNG ================= */
+  const HD_TABS = [
+    { id: 'tongquan', label: 'Tổng quan' },
+    { id: 'thuchi', label: 'Thu - Chi - Hủy phiếu' },
+    { id: 'congno', label: 'Công Nợ' },
+    { id: 'soquycom', label: 'Sổ Quỹ - Sổ Cơm' },
+    { id: 'baocao', label: 'Báo Cáo' },
+    { id: 'khoaso', label: 'Khóa Sổ - Quản Trị' },
+    { id: 'phanquyen', label: 'Phân quyền' },
+    { id: 'suco', label: 'Xử lý sự cố' }
+  ];
+
+  function renderHuongDan() {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="flex gap-2 mb-4 flex-wrap no-print">
+        ${HD_TABS.map(t => '<button onclick="switchHuongDanTab(\'' + t.id + '\')" id="hdTab_' + t.id + '" class="px-3 py-1.5 rounded-lg text-sm font-medium border">' + t.label + '</button>').join('')}
+      </div>
+      <div id="huongDanBody" class="card prose-hd"></div>
+    `;
+    switchHuongDanTab('tongquan');
+  }
+
+  function switchHuongDanTab(tab) {
+    HD_TABS.forEach(function (t) {
+      document.getElementById('hdTab_' + t.id).classList.remove('bg-gray-800', 'text-white');
+    });
+    document.getElementById('hdTab_' + tab).classList.add('bg-gray-800', 'text-white');
+    document.getElementById('huongDanBody').innerHTML = HD_CONTENT[tab] || '';
+    document.getElementById('huongDanBody').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function _hdH(text) {
+    return '<h3 class="text-base font-semibold text-gray-800 mt-5 mb-2">' + text + '</h3>';
+  }
+  function _hdP(text) {
+    return '<p class="text-sm text-gray-600 mb-2">' + text + '</p>';
+  }
+  function _hdOl(items) {
+    return '<ol class="list-decimal ml-5 space-y-1 text-sm text-gray-700 mb-3">' + items.map(i => '<li>' + i + '</li>').join('') + '</ol>';
+  }
+  function _hdUl(items) {
+    return '<ul class="list-disc ml-5 space-y-1 text-sm text-gray-700 mb-3">' + items.map(i => '<li>' + i + '</li>').join('') + '</ul>';
+  }
+  function _hdNote(text) {
+    return '<div class="bg-amber-50 border-l-4 border-amber-400 text-sm text-amber-800 rounded-r-lg px-3 py-2 mb-3"><b>Lưu ý:</b> ' + text + '</div>';
+  }
+
+  const HD_CONTENT = {
+
+    tongquan:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-1">Giới thiệu hệ thống HAK_QUY</h2>' +
+      _hdP('HAK_QUY dùng để quản lý thu – chi tiền mặt, sổ quỹ, công nợ, sổ cơm, quỹ công đoàn và các báo cáo thu mua Keo, thay cho việc ghi chép thủ công trên Excel/sổ giấy.') +
+      _hdH('3 vai trò sử dụng') +
+      _hdUl([
+        '<b>ADMIN</b> (Quản trị viên): toàn quyền — lập/hủy phiếu, quản lý công nợ, quản lý người dùng, khóa sổ, xem nhật ký hệ thống, cấu hình báo cáo Keo.',
+        '<b>THU_QUY</b> (Thủ quỹ): lập Phiếu Thu/Chi, hủy phiếu (nếu chưa khóa sổ), xem Sổ Quỹ/Sổ Cơm, tra cứu — không tạo được khoản công nợ mới, không vào Quản Trị.',
+        '<b>XEM</b>: chỉ xem Dashboard, Sổ Quỹ, Sổ Quỹ Công Đoàn, Sổ Cơm, Công Nợ, Báo Cáo, Tra Cứu — không lập/sửa/hủy được gì.'
+      ]) +
+      _hdNote('Hệ thống luôn tra đúng vai trò thật của tài khoản để phân quyền, không phụ thuộc giao diện hiển thị gì.') +
+      _hdH('Tổng quan giao diện') +
+      _hdUl([
+        '📊 Dashboard — tổng quan số liệu hôm nay (tồn quỹ, thu/chi, công nợ, số phiếu).',
+        '💵 Thu Tiền / 💸 Chi Tiền — lập phiếu.',
+        '📒 Sổ Quỹ / 🎌 Sổ Quỹ Công Đoàn — sổ kế toán chi tiết từng quỹ.',
+        '🍚 Sổ Cơm — theo dõi suất ăn hàng ngày.',
+        '🤝 Công Nợ — quản lý khoản phải thu/phải trả.',
+        '👥 Đối Tượng / 🏷️ Danh Mục — danh mục dùng khi lập phiếu.',
+        '📈 Báo Cáo — báo cáo tổng hợp, xuất Excel, gửi email.',
+        '🔍 Tra Cứu — tìm/xem chi tiết phiếu, hủy phiếu.',
+        '⚙️ Quản Trị — chỉ ADMIN.'
+      ]),
+
+    thuchi:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-1">Quy trình Thu - Chi - Hủy phiếu</h2>' +
+      _hdH('1. Lập Phiếu Thu') +
+      _hdOl([
+        'Vào menu "Thu Tiền".',
+        'Chọn Quỹ: "Quỹ tiền mặt" hoặc "Quỹ công đoàn".',
+        'Chọn Loại giao dịch: "Thu thường" hoặc "Thu công nợ" (thu tiền khách trả nợ cũ).',
+        'Nếu chọn "Thu công nợ": chọn Đối tượng trước — hệ thống hiện các khoản công nợ "Còn nợ" của đối tượng đó để chọn.',
+        'Nhập Ngày thu, Người nộp tiền, Đối tượng, Loại thu, Số tiền, Nội dung thu.',
+        '(Tùy chọn) Mở phần "Thông tin hạch toán Sổ Quỹ" để nhập Ngày hạch toán / Tài khoản / TK đối ứng / Mã nhân viên / Chi nhánh — bỏ trống thì lấy mặc định (TK 1111).',
+        'Bấm "💾 Lưu Phiếu Thu".'
+      ]) +
+      _hdP('Hệ thống tự sinh Số phiếu thu (PT000001…), cộng vào Sổ Quỹ tương ứng, và tự trừ vào khoản công nợ đã chọn nếu là "Thu công nợ".') +
+      _hdH('2. Lập Phiếu Chi') +
+      _hdP('Tương tự Phiếu Thu, tại menu "Chi Tiền": chọn Quỹ, Loại giao dịch ("Chi thường"/"Trả công nợ"), Người nhận tiền, Đối tượng, Loại chi, Số tiền, Nội dung chi → "💾 Lưu Phiếu Chi". Số phiếu chi sinh tự động dạng PC000001…') +
+      _hdH('3. Hủy Phiếu (khi lập sai)') +
+      _hdNote('Hệ thống KHÔNG cho sửa/xóa phiếu đã lập — mọi chứng từ sai phải HỦY (giữ nguyên lịch sử) rồi lập lại phiếu mới nếu cần.') +
+      _hdOl([
+        'Vào menu "Tra Cứu".',
+        'Tìm phiếu cần hủy: nhập Số phiếu hoặc lọc theo ngày/Đối tượng/Nội dung/Người lập, bấm "Tìm kiếm".',
+        'Bấm "Xem" ở cuối dòng phiếu để mở Chi tiết.',
+        'Nếu phiếu đang "Hợp lệ" và bạn là ADMIN/THU_QUY, sẽ hiện nút đỏ "🗑️ Hủy phiếu này".',
+        'Bấm vào, nhập Lý do hủy (bắt buộc), xác nhận.'
+      ]) +
+      _hdP('Sau khi hủy: phiếu chuyển "Đã hủy" kèm lý do, bị loại khỏi Sổ Quỹ; nếu là Thu/Trả công nợ thì khoản nợ liên quan được tự hoàn tác. Mọi thao tác được ghi vào Nhật ký hệ thống.') +
+      _hdNote('Không hủy được nếu phiếu đã "Đã hủy" từ trước, hoặc ngày của phiếu đã bị Khóa Sổ — phải Mở khóa ngày đó trước (xem tab "Khóa Sổ - Quản Trị").'),
+
+    congno:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-1">Quy trình quản lý Công Nợ</h2>' +
+      _hdOl([
+        '(Chỉ ADMIN) Vào "Công Nợ" > bấm "+ Thêm khoản Công Nợ".',
+        'Chọn Đối tượng, Loại ("Phải thu"/"Phải trả"), nhập Ngày phát sinh, Số tiền phát sinh, Hạn thanh toán (nếu có), Nội dung, rồi Lưu.',
+        'Khi phát sinh thu/trả tiền cho khoản nợ đó: lập Phiếu Thu ("Thu công nợ") hoặc Phiếu Chi ("Trả công nợ"), nhớ chọn đúng khoản công nợ trong danh sách hiện ra.',
+        'Theo dõi tại trang "Công Nợ": lọc theo Loại / Trạng thái ("Còn nợ"/"Đã tất toán").',
+        'Cuối kỳ, vào "Báo Cáo" > "Công nợ tổng hợp" (đối chiếu theo đối tượng, theo kỳ) hoặc "Công nợ quá hạn" (tự động liệt kê khoản quá hạn tính đến hôm nay).'
+      ]),
+
+    soquycom:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-1">Sổ Quỹ / Sổ Quỹ Công Đoàn / Sổ Cơm</h2>' +
+      _hdH('Theo dõi Sổ Quỹ') +
+      _hdOl([
+        'Vào "Sổ Quỹ" (quỹ tiền mặt) hoặc "Sổ Quỹ Công Đoàn".',
+        'Lọc theo khoảng ngày, Loại giao dịch, hoặc Người lập nếu cần.',
+        'Xem danh sách kèm cột Tồn lũy kế sau mỗi dòng.',
+        'Bấm "⬇ Xuất Excel" để tải file .xlsx đúng khuôn sổ kế toán chi tiết (dòng Tồn đầu kỳ, cột Nợ/Có, kẻ khung).'
+      ]) +
+      _hdH('Nhập Sổ Cơm hàng ngày') +
+      _hdOl([
+        'Vào "Sổ Cơm", chọn Ngày, nhập Số suất Trưa/Tối (đơn giá tự lấy mặc định, có thể sửa).',
+        'Nếu ngày đó có tạm ứng tiền cơm: nhập thêm Ngày tạm ứng + Số tiền tạm ứng.',
+        'Lưu — nếu ngày đó đã có dữ liệu, hệ thống tự cập nhật lại (không tạo trùng).'
+      ]) +
+      _hdP('Bảng Sổ Cơm theo tháng hiển thị Tổng suất, Thành tiền từng ngày và cột Tồn quỹ cơm tính lũy kế tự động.'),
+
+    baocao:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-1">Báo Cáo</h2>' +
+      _hdUl([
+        '<b>Thu - Chi</b>: chọn khoảng ngày (+ lọc Loại/Người lập) → xem Tồn đầu kỳ – Tổng Thu – Tổng Chi – Tồn cuối kỳ và chi tiết → Xuất Excel hoặc In/Xuất PDF.',
+        '<b>Công nợ tổng hợp</b>: chọn Loại công nợ + khoảng ngày → xem Đầu kỳ/Phát sinh/Đã thu-trả/Cuối kỳ theo từng đối tượng → Xuất Excel.',
+        '<b>Công nợ quá hạn</b>: danh sách tự động các khoản quá hạn tính đến hôm nay.',
+        '<b>Báo cáo ngày (Keo)</b>: chọn 1 ngày → xem Nhập/Thanh toán Keo trong ngày (theo Nguồn gốc, theo Đại lý DT/QT/KL), chi tiết phiếu cân, tồn quỹ tiền mặt đầu/cuối ngày → Xuất Excel hoặc Gửi Email.',
+        '<b>Báo cáo tháng</b>: chọn Tháng/Năm → xem tổng quan Keo trong tháng, tồn quỹ tiền mặt & công đoàn cuối tháng, Sổ Cơm trong tháng → Xuất Excel (1 file gồm 5 sheet: Quy_TamUng, KEO_NHAP, CK_KEO, COM, QUY_CongDoan) hoặc Gửi Email.'
+      ]) +
+      _hdNote('Nút "Gửi Email" gửi tới đúng danh sách email đã cấu hình ở Quản Trị > "Báo cáo ngày (Keo)".'),
+
+    khoaso:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-1">Khóa Sổ và Quản Trị (chỉ ADMIN)</h2>' +
+      _hdH('Khóa Sổ cuối kỳ') +
+      _hdOl([
+        'Vào "Quản Trị" > tab "Khóa Sổ".',
+        'Chọn Ngày cần khóa (sau khi đã đối chiếu số liệu ngày đó chính xác), bấm Khóa.',
+        'Sau khi khóa: không ai (kể cả ADMIN) lập/sửa/hủy được Phiếu Thu/Chi vào đúng ngày đó.',
+        'Nếu cần sửa lại: bấm "Mở khóa", bắt buộc nhập Lý do mở khóa (lưu vào lịch sử để truy vết).'
+      ]) +
+      _hdH('Người dùng') +
+      _hdP('Bấm "+ Thêm người dùng" để tạo tài khoản (Tên đăng nhập, Mật khẩu ≥ 6 ký tự, Họ tên, Vai trò). Có thể Khóa/Mở khóa từng tài khoản (trừ tài khoản đang đăng nhập).') +
+      _hdH('Nhật ký hệ thống') +
+      _hdP('Ghi lại MỌI thao tác Thêm/Sửa/Hủy quan trọng (ai làm, lúc nào, dữ liệu trước/sau) — lọc theo Chức năng/Người thao tác/Mã chứng từ để tra soát khi có sai lệch.') +
+      _hdH('Cấu hình Báo cáo ngày (Keo)') +
+      _hdOl([
+        'Nhập (hoặc dán nguyên link) ID 2 Google Sheet nguồn: "PhanTichNhapTT_DRAFT" và "PhieuCan_DN".',
+        'Nhập danh sách Email nhận báo cáo, nhiều email cách nhau bởi dấu phẩy.',
+        'Bấm "💾 Lưu cấu hình".'
+      ]) +
+      _hdNote('Tài khoản Google đứng tên deploy web app phải có quyền Xem (Viewer) trên cả 2 Google Sheet nguồn thì mới đọc được dữ liệu.'),
+
+    phanquyen:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-3">Bảng phân quyền theo chức năng</h2>' +
+      '<div class="overflow-x-auto"><table class="w-full text-sm border-collapse">' +
+      '<thead><tr class="bg-gray-800 text-white text-left">' +
+      '<th class="px-3 py-2">Chức năng</th><th class="px-3 py-2 text-center">ADMIN</th><th class="px-3 py-2 text-center">THU_QUY</th><th class="px-3 py-2 text-center">XEM</th>' +
+      '</tr></thead><tbody>' +
+      [
+        ['Xem Dashboard, Sổ Quỹ, Sổ Quỹ Công Đoàn, Sổ Cơm, Tra Cứu', '✔', '✔', '✔'],
+        ['Lập Phiếu Thu / Phiếu Chi', '✔', '✔', '✘'],
+        ['Hủy Phiếu Thu / Chi', '✔', '✔', '✘'],
+        ['Nhập / sửa Sổ Cơm', '✔', '✔', '✘'],
+        ['Xem trang Công Nợ', '✔', '✘', '✔'],
+        ['Tạo khoản Công Nợ mới', '✔', '✘', '✘'],
+        ['Xem trang Báo Cáo + Xuất Excel', '✔', '✘', '✔'],
+        ['Gửi Email báo cáo (ngày/tháng)', '✔', '✘', '✘'],
+        ['Xem/Thêm/Sửa Đối Tượng, Danh Mục', '✔', '✘', '✘'],
+        ['Quản Trị (Người dùng, Khóa Sổ, Nhật ký, Cấu hình báo cáo Keo)', '✔', '✘', '✘']
+      ].map(r => '<tr class="border-b"><td class="px-3 py-2">' + r[0] + '</td><td class="px-3 py-2 text-center">' + r[1] + '</td><td class="px-3 py-2 text-center">' + r[2] + '</td><td class="px-3 py-2 text-center">' + r[3] + '</td></tr>').join('') +
+      '</tbody></table></div>' +
+      _hdNote('THU_QUY không có mục "Công Nợ" và "Báo Cáo" trên menu; XEM xem được nhưng không sửa/lập được gì. "Gửi Email" chỉ ADMIN dùng được.'),
+
+    suco:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-1">Xử lý sự cố thường gặp</h2>' +
+      _hdH('Trang cứ hiện "Đang tải..." mãi không lên số liệu') +
+      _hdP('Tải lại trang (F5) và kiểm tra kết nối mạng. Nếu vẫn lỗi ở đúng 1 màn hình cụ thể, báo lại chính xác màn hình đó.') +
+      _hdH('Lỗi "You do not have permission to call UrlFetchApp.fetch"') +
+      _hdP('ADMIN vào Apps Script Editor, chọn 1 hàm bất kỳ liên quan xuất Excel/gửi email ở ô chọn hàm trên cùng, bấm Run, và bấm "Cho phép" khi Google hỏi cấp quyền — chỉ cần làm 1 lần.') +
+      _hdH('Lỗi "Illegal spreadsheet id or key"') +
+      _hdP('ID Google Sheet nguồn trong Quản Trị > "Báo cáo ngày (Keo)" chưa đúng — dán lại nguyên đường link Google Sheet, hệ thống tự tách lấy ID.') +
+      _hdH('Không lập/hủy được phiếu, báo "Ngày ... đã bị khóa sổ"') +
+      _hdP('Ngày đó đã bị ADMIN khóa sổ — vào Quản Trị > Khóa Sổ, Mở khóa ngày đó (nhập lý do) rồi thao tác lại.') +
+      _hdH('Không thấy nút "Hủy phiếu này"') +
+      _hdP('Kiểm tra: phiếu đã "Đã hủy" từ trước (không hủy lại được), hoặc tài khoản đang đăng nhập là vai trò XEM (không có quyền hủy).')
+  };
 </script>
