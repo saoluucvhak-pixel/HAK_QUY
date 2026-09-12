@@ -53,19 +53,34 @@ function _jsonErr(err) {
   return { success: false, message: (err && err.message) ? err.message : String(err) };
 }
 
+/**
+ * Kiểm tra 1 giá trị có phải Date object HỢP LỆ hay không (loại trừ
+ * "Invalid Date" — trường hợp Google Sheets không parse được 1 ô text
+ * tưởng là ngày, ví dụ do lệch định dạng ngôn ngữ/khu vực lúc dán dữ
+ * liệu). Utilities.formatDate() trên 1 Invalid Date sẽ ném lỗi, và một
+ * Date không hợp lệ lọt vào phản hồi trả về trình duyệt có thể khiến
+ * google.script.run âm thầm hỏng, khiến client nhận về null dù server
+ * chạy thành công.
+ */
+function _isValidDate(d) {
+  return Object.prototype.toString.call(d) === '[object Date]' && !isNaN(d.getTime());
+}
+
 function _fmtDate(d) {
   if (!d) return '';
-  if (Object.prototype.toString.call(d) === '[object Date]') {
+  if (_isValidDate(d)) {
     return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   }
+  if (Object.prototype.toString.call(d) === '[object Date]') return ''; // Invalid Date
   return String(d);
 }
 
 function _fmtDateTime(d) {
   if (!d) return '';
-  if (Object.prototype.toString.call(d) === '[object Date]') {
+  if (_isValidDate(d)) {
     return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
   }
+  if (Object.prototype.toString.call(d) === '[object Date]') return ''; // Invalid Date
   return String(d);
 }
 

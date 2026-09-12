@@ -371,7 +371,17 @@ function getSoQuy(filters) {
     if (filters.nguoiLap) filtered = filtered.filter(t => String(t.nguoi_lap).toLowerCase().includes(String(filters.nguoiLap).toLowerCase()));
     if (filters.maDoiTuong) filtered = filtered.filter(t => t.ma_doi_tuong === filters.maDoiTuong);
 
-    return _jsonOk(filtered);
+    // Bỏ trường thoi_gian_lap (Date object thô, chỉ dùng để sắp xếp ở
+    // trên) trước khi trả về client — 1 Date không hợp lệ lọt vào đây
+    // có thể khiến phản hồi google.script.run bị hỏng ngầm (client
+    // nhận về null dù server chạy đúng).
+    const ketQua = filtered.map(t => {
+      const o = Object.assign({}, t);
+      delete o.thoi_gian_lap;
+      return o;
+    });
+
+    return _jsonOk(ketQua);
 
   } catch (err) {
     return _jsonErr(err);
