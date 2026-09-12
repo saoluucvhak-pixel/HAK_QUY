@@ -14,6 +14,18 @@ function _sheet(name) {
 }
 
 /**
+ * Loại bỏ các ký tự điều khiển/line-separator ẩn (đặc biệt U+2028, U+2029)
+ * hay lọt vào dữ liệu khi copy/paste từ Excel, Word, PDF... Các ký tự này
+ * không hiện ra khi nhìn ô tính, nhưng có thể khiến phản hồi của
+ * google.script.run bị hỏng ngầm trong lúc truyền về trình duyệt — server
+ * chạy đúng và trả dữ liệu đúng, nhưng client lại nhận về null.
+ */
+function _cleanCell(v) {
+  if (typeof v !== 'string') return v;
+  return v.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u2028\u2029]/g, ' ');
+}
+
+/**
  * Đọc toàn bộ 1 sheet, trả về mảng object (key = tên cột ở dòng header).
  * __row = vị trí dòng thật trên sheet (1-based), dùng khi cần sửa lại dòng đó.
  */
@@ -27,7 +39,7 @@ function _sheetToObjects(sheetName) {
     const row = values[i];
     if (row.every(c => c === '' || c === null)) continue; // bỏ dòng trống
     const obj = {};
-    headers.forEach((h, idx) => obj[h] = row[idx]);
+    headers.forEach((h, idx) => obj[h] = _cleanCell(row[idx]));
     obj.__row = i + 1;
     rows.push(obj);
   }
