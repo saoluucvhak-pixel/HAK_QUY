@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <title>Quản lý Thu - Chi - Tồn Quỹ Tiền Mặt</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <?!= include('CSS'); ?>
+</head>
+<body>
+
+  <!-- ===================== MÀN HÌNH ĐĂNG NHẬP ===================== -->
+  <div id="loginScreen">
+    <div id="loginBox">
+      <div class="text-center mb-6">
+        <div class="text-3xl mb-2">💰</div>
+        <div class="text-xl font-bold text-gray-800">Quản lý Thu - Chi - Tồn Quỹ</div>
+        <div class="text-sm text-gray-500">Đăng nhập để tiếp tục</div>
+      </div>
+
+      <div id="loginError" class="hidden mb-4 p-3 rounded-lg text-sm bg-red-50 text-red-700 border border-red-200"></div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-gray-600 mb-1">Tên đăng nhập</label>
+        <input type="text" id="loginUsername" placeholder="vd: admin" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+      </div>
+      <div class="mb-6">
+        <label class="block text-sm font-medium text-gray-600 mb-1">Mật khẩu</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" class="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400">
+      </div>
+
+      <button id="btnLogin" class="w-full py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">Đăng nhập</button>
+
+      <div class="text-xs text-gray-400 text-center mt-4">
+        Tài khoản mẫu: admin / admin123
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== KHUNG CHÍNH SAU KHI ĐĂNG NHẬP ===================== -->
+  <div id="appShell" class="flex">
+
+    <!-- SIDEBAR -->
+    <div id="sidebar">
+      <div class="px-5 py-5 text-white font-bold text-lg border-b border-gray-700">
+        💰 Quản lý Quỹ
+      </div>
+      <div class="py-2">
+        <div class="menu-item active" data-menu="dashboard" onclick="switchMenu('dashboard')">📊 Dashboard</div>
+        <div class="menu-item" data-menu="thu" onclick="switchMenu('thu')">💵 Thu Tiền</div>
+        <div class="menu-item" data-menu="chi" onclick="switchMenu('chi')">💸 Chi Tiền</div>
+        <div class="menu-item" data-menu="soquy" onclick="switchMenu('soquy')">📒 Sổ Quỹ</div>
+        <div class="menu-item" data-menu="congno" onclick="switchMenu('congno')">🤝 Công Nợ</div>
+        <div class="menu-item" data-menu="doituong" onclick="switchMenu('doituong')">👥 Đối Tượng</div>
+        <div class="menu-item" data-menu="danhmuc" onclick="switchMenu('danhmuc')">🏷️ Danh Mục</div>
+        <div class="menu-item" data-menu="baocao" onclick="switchMenu('baocao')">📈 Báo Cáo</div>
+        <div class="menu-item" data-menu="tracuu" onclick="switchMenu('tracuu')">🔍 Tra Cứu</div>
+        <div class="menu-item" data-menu="quantri" onclick="switchMenu('quantri')">⚙️ Quản Trị</div>
+      </div>
+    </div>
+
+    <!-- NỘI DUNG CHÍNH -->
+    <div class="flex-1 flex flex-col min-w-0">
+
+      <!-- Thanh trên cùng -->
+      <div class="bg-white shadow-sm px-5 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <button class="md:hidden text-xl" onclick="toggleSidebar()">☰</button>
+          <div class="font-semibold text-gray-700" id="pageTitle">Dashboard</div>
+        </div>
+        <div class="flex items-center gap-3 text-sm">
+          <div class="text-right">
+            <div class="font-medium text-gray-700" id="userFullName">--</div>
+            <div class="text-xs text-gray-400" id="userRole">--</div>
+          </div>
+          <button onclick="doLogout()" class="px-3 py-1.5 rounded-lg border text-gray-600 hover:bg-gray-50 text-xs">Đăng xuất</button>
+        </div>
+      </div>
+
+      <!-- Vùng nội dung động theo menu -->
+      <div id="mainContent" class="p-5"></div>
+    </div>
+  </div>
+
+  <?!= include('JS'); ?>
+</body>
+</html>

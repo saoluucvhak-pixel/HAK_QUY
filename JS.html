@@ -1,0 +1,2136 @@
+<script>
+  let CURRENT_USER = null;
+
+  const ROLE_MENUS = {
+    ADMIN: ['dashboard', 'thu', 'chi', 'soquy', 'congno', 'doituong', 'danhmuc', 'baocao', 'tracuu', 'quantri'],
+    THU_QUY: ['dashboard', 'thu', 'chi', 'soquy', 'tracuu'],
+    XEM: ['dashboard', 'soquy', 'congno', 'baocao', 'tracuu']
+  };
+
+  function currentUserInfo() {
+    return { username: CURRENT_USER.username, full_name: CURRENT_USER.full_name };
+  }
+
+  /* ================= CACHE DANH MỤC PHÍA TRÌNH DUYỆT ================= */
+  let CACHED_FORM_OPTIONS = null;
+  let CACHED_FORM_OPTIONS_TIME = 0;
+  const FORM_OPTIONS_CACHE_MS = 60000;
+
+  function getFormOptionsCached(onSuccess, forceRefresh) {
+    const now = Date.now();
+    if (!forceRefresh && CACHED_FORM_OPTIONS && (now - CACHED_FORM_OPTIONS_TIME) < FORM_OPTIONS_CACHE_MS) {
+      onSuccess(CACHED_FORM_OPTIONS);
+      return;
+    }
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        CACHED_FORM_OPTIONS = res.data;
+        CACHED_FORM_OPTIONS_TIME = Date.now();
+        onSuccess(res.data);
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getFormOptions();
+  }
+
+  /* ================= ĐĂNG NHẬP ================= */
+  document.addEventListener('DOMContentLoaded', function () {
+    const saved = sessionStorage.getItem('current_user');
+    if (saved) {
+      CURRENT_USER = JSON.parse(saved);
+      showApp();
+    }
+
+    document.getElementById('btnLogin').addEventListener('click', doLogin);
+    document.getElementById('loginPassword').addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') doLogin();
+    });
+  });
+
+  function doLogin() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errBox = document.getElementById('loginError');
+    errBox.classList.add('hidden');
+
+    if (!username || !password) {
+      errBox.textContent = 'Vui lòng nhập đầy đủ Tên đăng nhập và Mật khẩu.';
+      errBox.classList.remove('hidden');
+      return;
+    }
+
+    const btn = document.getElementById('btnLogin');
+    btn.disabled = true;
+    btn.textContent = 'Đang kiểm tra...';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = 'Đăng nhập';
+        if (!res.success) {
+          errBox.textContent = res.message;
+          errBox.classList.remove('hidden');
+          return;
+        }
+        CURRENT_USER = res.data;
+        sessionStorage.setItem('current_user', JSON.stringify(CURRENT_USER));
+        showApp();
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = 'Đăng nhập';
+        errBox.textContent = 'Lỗi hệ thống: ' + err.message;
+        errBox.classList.remove('hidden');
+      })
+      .loginUser(username, password);
+  }
+
+  function doLogout() {
+    sessionStorage.removeItem('current_user');
+    CURRENT_USER = null;
+    CACHED_FORM_OPTIONS = null;
+    document.getElementById('appShell').style.display = 'none';
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('loginUsername').value = '';
+    document.getElementById('loginPassword').value = '';
+  }
+
+  function showApp() {
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appShell').style.display = 'flex';
+    document.getElementById('userFullName').textContent = CURRENT_USER.full_name;
+    document.getElementById('userRole').textContent = CURRENT_USER.role;
+    applyRoleMenuVisibility();
+    switchMenu('dashboard');
+  }
+
+  function applyRoleMenuVisibility() {
+    const allowed = ROLE_MENUS[CURRENT_USER.role] || ROLE_MENUS['XEM'];
+    document.querySelectorAll('.menu-item').forEach(function (el) {
+      el.style.display = allowed.indexOf(el.dataset.menu) === -1 ? 'none' : '';
+    });
+  }
+
+  /* ================= MENU / ĐIỀU HƯỚNG ================= */
+  const MENU_TITLES = {
+    dashboard: 'Dashboard',
+    thu: 'Thu Tiền',
+    chi: 'Chi Tiền',
+    soquy: 'Sổ Quỹ',
+    congno: 'Công Nợ',
+    doituong: 'Đối Tượng',
+    danhmuc: 'Danh Mục',
+    baocao: 'Báo Cáo',
+    tracuu: 'Tra Cứu',
+    quantri: 'Quản Trị'
+  };
+
+  function switchMenu(key) {
+    const allowed = ROLE_MENUS[CURRENT_USER.role] || ROLE_MENUS['XEM'];
+    if (allowed.indexOf(key) === -1) {
+      alert('Tài khoản "' + CURRENT_USER.role + '" không có quyền truy cập chức năng này.');
+      key = 'dashboard';
+    }
+
+    document.querySelectorAll('.menu-item').forEach(el => el.classList.toggle('active', el.dataset.menu === key));
+    document.getElementById('pageTitle').textContent = MENU_TITLES[key] || key;
+
+    if (key === 'dashboard') {
+      renderDashboardPlaceholder();
+      loadDashboard();
+    } else if (key === 'thu') {
+      renderThuForm();
+    } else if (key === 'chi') {
+      renderChiForm();
+    } else if (key === 'soquy') {
+      renderSoQuy();
+    } else if (key === 'congno') {
+      renderCongNo();
+    } else if (key === 'baocao') {
+      renderBaoCao();
+    } else if (key === 'quantri') {
+      renderQuanTri();
+    } else if (key === 'doituong') {
+      renderDoiTuong();
+    } else if (key === 'danhmuc') {
+      renderDanhMuc();
+    } else if (key === 'tracuu') {
+      renderTraCuu();
+    } else {
+      renderComingSoon(MENU_TITLES[key]);
+    }
+
+    closeSidebarMobile();
+  }
+
+  function toggleSidebar() {
+    document.getElementById('sidebar').classList.toggle('open');
+    document.getElementById('sidebarBackdrop').classList.toggle('hidden');
+  }
+
+  function closeSidebarMobile() {
+    document.getElementById('sidebar').classList.remove('open');
+    document.getElementById('sidebarBackdrop').classList.add('hidden');
+  }
+
+  function renderComingSoon(title) {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="card text-center text-gray-400 py-16">
+        <div class="text-4xl mb-3">🚧</div>
+        <div class="font-medium text-gray-600">Chức năng "${title}" sẽ có ở giai đoạn tiếp theo</div>
+      </div>
+    `;
+  }
+
+  /* ================= DASHBOARD ================= */
+  function renderDashboardPlaceholder() {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="card stat-card">
+          <div class="stat-label">Tồn đầu ngày</div>
+          <div class="stat-value text-gray-800" id="db_tonDau">--</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-label">Tổng Thu hôm nay</div>
+          <div class="stat-value text-green-600" id="db_thu">--</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-label">Tổng Chi hôm nay</div>
+          <div class="stat-value text-red-600" id="db_chi">--</div>
+        </div>
+        <div class="card stat-card">
+          <div class="stat-label">Tồn cuối ngày</div>
+          <div class="stat-value text-blue-700" id="db_tonCuoi">--</div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div class="card">
+          <div class="text-sm font-semibold text-gray-600 mb-3">Công nợ</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="stat-card">
+              <div class="stat-label">Tổng phải thu</div>
+              <div class="stat-value text-emerald-600" id="db_phaiThu">--</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Tổng phải trả</div>
+              <div class="stat-value text-orange-600" id="db_phaiTra">--</div>
+            </div>
+          </div>
+          <div class="text-xs text-gray-400 mt-3" id="db_quaHan"></div>
+        </div>
+
+        <div class="card">
+          <div class="text-sm font-semibold text-gray-600 mb-3">Giao dịch hôm nay</div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="stat-card">
+              <div class="stat-label">Số phiếu Thu</div>
+              <div class="stat-value text-green-600" id="db_soPhieuThu">--</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Số phiếu Chi</div>
+              <div class="stat-value text-red-600" id="db_soPhieuChi">--</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="text-xs text-gray-400 text-right" id="db_ngay"></div>
+    `;
+  }
+
+  function loadDashboard() {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi tải Dashboard: ' + res.message); return; }
+        const d = res.data;
+        document.getElementById('db_tonDau').textContent = formatMoney(d.ton_dau_ngay);
+        document.getElementById('db_thu').textContent = formatMoney(d.tong_thu_hom_nay);
+        document.getElementById('db_chi').textContent = formatMoney(d.tong_chi_hom_nay);
+        document.getElementById('db_tonCuoi').textContent = formatMoney(d.ton_cuoi_ngay);
+        document.getElementById('db_phaiThu').textContent = formatMoney(d.tong_phai_thu);
+        document.getElementById('db_phaiTra').textContent = formatMoney(d.tong_phai_tra);
+        document.getElementById('db_soPhieuThu').textContent = d.so_phieu_thu_hom_nay;
+        document.getElementById('db_soPhieuChi').textContent = d.so_phieu_chi_hom_nay;
+        document.getElementById('db_quaHan').textContent = d.cong_no_qua_han > 0
+          ? '⚠ ' + d.cong_no_qua_han + ' khoản công nợ đã quá hạn'
+          : 'Không có công nợ quá hạn';
+        document.getElementById('db_ngay').textContent = 'Dữ liệu tính đến ngày: ' + d.date;
+      })
+      .withFailureHandler(function (err) {
+        alert('Lỗi hệ thống: ' + err.message);
+      })
+      .getDashboardData();
+  }
+
+  /* ================= PHIẾU THU ================= */
+  function renderThuForm() {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="card max-w-2xl">
+        <h2 class="text-lg font-semibold mb-4 text-gray-700">Lập Phiếu Thu</h2>
+        <div id="thuFormBody" class="text-gray-400 text-sm">Đang tải danh mục...</div>
+      </div>
+    `;
+    getFormOptionsCached(function (data) { renderThuFormBody(data); });
+  }
+
+  function renderThuFormBody(opts) {
+    const today = new Date().toISOString().slice(0, 10);
+    const doiTuongOpts = opts.doiTuong.map(d => `<option value="${d.ma}">${d.ten}</option>`).join('');
+    const loaiThuOpts = opts.loaiThu.map(l => `<option value="${l.ma}">${l.ten}</option>`).join('');
+
+    document.getElementById('thuFormBody').innerHTML = `
+      <div id="thuMsg" class="hidden mb-4 p-3 rounded-lg text-sm"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Loại giao dịch</label>
+          <select id="thuLoaiGD" onchange="onThuLoaiGDChange()" class="w-full border rounded-lg px-3 py-2">
+            <option value="Thu thường">Thu thường</option>
+            <option value="Thu công nợ">Thu công nợ</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Ngày thu</label>
+          <input type="date" id="thuNgay" value="${today}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Người nộp tiền</label>
+          <input type="text" id="thuNguoiNop" placeholder="Tên người nộp tiền" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Đối tượng</label>
+          <select id="thuDoiTuong" onchange="onThuDoiTuongChange()" class="w-full border rounded-lg px-3 py-2">
+            <option value="">-- Không chọn --</option>
+            ${doiTuongOpts}
+          </select>
+        </div>
+
+        <div class="md:col-span-2 hidden" id="thuCongNoBox">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Khoản công nợ cần thu</label>
+          <select id="thuCongNo" class="w-full border rounded-lg px-3 py-2">
+            <option value="">-- Chọn Đối tượng trước --</option>
+          </select>
+          <div class="text-xs text-gray-400 mt-1" id="thuCongNoHint"></div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Loại thu</label>
+          <select id="thuLoai" class="w-full border rounded-lg px-3 py-2">
+            <option value="">-- Chọn loại thu --</option>
+            ${loaiThuOpts}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Số tiền</label>
+          <input type="number" id="thuSoTien" min="0" step="1000" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Nội dung thu</label>
+          <input type="text" id="thuNoiDung" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Chứng từ liên quan</label>
+          <input type="text" id="thuChungTu" placeholder="Link ảnh / mô tả chứng từ" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Ghi chú</label>
+          <textarea id="thuGhiChu" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
+        </div>
+      </div>
+      <div class="flex justify-end mt-4">
+        <button id="btnSaveThu" onclick="saveThu()" class="px-5 py-2 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700">💾 Lưu Phiếu Thu</button>
+      </div>
+    `;
+  }
+
+  function onThuLoaiGDChange() {
+    const loai = document.getElementById('thuLoaiGD').value;
+    const box = document.getElementById('thuCongNoBox');
+    if (loai === 'Thu công nợ') {
+      box.classList.remove('hidden');
+      loadCongNoOptionsForThu();
+    } else {
+      box.classList.add('hidden');
+    }
+  }
+
+  function onThuDoiTuongChange() {
+    if (document.getElementById('thuLoaiGD').value === 'Thu công nợ') {
+      loadCongNoOptionsForThu();
+    }
+  }
+
+  function loadCongNoOptionsForThu() {
+    const maDoiTuong = document.getElementById('thuDoiTuong').value;
+    const select = document.getElementById('thuCongNo');
+    const hint = document.getElementById('thuCongNoHint');
+    hint.textContent = '';
+
+    if (!maDoiTuong) {
+      select.innerHTML = '<option value="">-- Chọn Đối tượng trước --</option>';
+      return;
+    }
+    select.innerHTML = '<option value="">-- Đang tải --</option>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { select.innerHTML = '<option value="">Lỗi tải danh sách</option>'; return; }
+        if (res.data.length === 0) {
+          select.innerHTML = '<option value="">-- Đối tượng này không có công nợ phải thu --</option>';
+          return;
+        }
+        select.innerHTML = '<option value="">-- Chọn khoản công nợ --</option>' +
+          res.data.map(c => `<option value="${c.ma_cong_no}" data-conlai="${c.con_lai}">${c.ma_cong_no} - ${c.noi_dung} (còn ${formatMoney(c.con_lai)})</option>`).join('');
+        select.onchange = function () {
+          const opt = select.options[select.selectedIndex];
+          const conLai = opt.getAttribute('data-conlai');
+          hint.textContent = conLai ? 'Còn lại: ' + formatMoney(conLai) : '';
+        };
+      })
+      .withFailureHandler(function () { select.innerHTML = '<option value="">Lỗi hệ thống</option>'; })
+      .getCongNoMoOptions(maDoiTuong, 'Phải thu');
+  }
+
+  function saveThu() {
+    const loaiGD = document.getElementById('thuLoaiGD').value;
+    const payload = {
+      loai_giao_dich: loaiGD,
+      ngay_thu: document.getElementById('thuNgay').value,
+      nguoi_nop_tien: document.getElementById('thuNguoiNop').value.trim(),
+      ma_doi_tuong: document.getElementById('thuDoiTuong').value,
+      ma_cong_no: document.getElementById('thuCongNo').value,
+      ma_loai_thu: document.getElementById('thuLoai').value,
+      so_tien: document.getElementById('thuSoTien').value,
+      noi_dung_thu: document.getElementById('thuNoiDung').value.trim(),
+      chung_tu_lien_quan: document.getElementById('thuChungTu').value.trim(),
+      ghi_chu: document.getElementById('thuGhiChu').value.trim()
+    };
+
+    if (!payload.nguoi_nop_tien) return showFormMsg('thuMsg', 'Vui lòng nhập Người nộp tiền.', true);
+    if (!payload.ma_loai_thu) return showFormMsg('thuMsg', 'Vui lòng chọn Loại thu.', true);
+    if (!payload.so_tien || Number(payload.so_tien) <= 0) return showFormMsg('thuMsg', 'Số tiền không hợp lệ.', true);
+    if (loaiGD === 'Thu công nợ') {
+      if (!payload.ma_doi_tuong) return showFormMsg('thuMsg', 'Vui lòng chọn Đối tượng khi Thu công nợ.', true);
+      if (!payload.ma_cong_no) return showFormMsg('thuMsg', 'Vui lòng chọn Khoản công nợ cần thu.', true);
+    }
+
+    const btn = document.getElementById('btnSaveThu');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang lưu...';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = '💾 Lưu Phiếu Thu';
+        if (!res.success) { showFormMsg('thuMsg', res.message, true); return; }
+        const soPhieu = res.data.so_phieu_thu;
+        renderThuForm();
+        setTimeout(function () {
+          if (document.getElementById('thuMsg')) showFormMsg('thuMsg', 'Đã lưu phiếu thu ' + soPhieu + ' thành công!', false);
+        }, 300);
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = '💾 Lưu Phiếu Thu';
+        showFormMsg('thuMsg', 'Lỗi hệ thống: ' + err.message, true);
+      })
+      .addPhieuThu(payload, currentUserInfo());
+  }
+
+  /* ================= PHIẾU CHI ================= */
+  function renderChiForm() {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="card max-w-2xl">
+        <h2 class="text-lg font-semibold mb-4 text-gray-700">Lập Phiếu Chi</h2>
+        <div id="chiFormBody" class="text-gray-400 text-sm">Đang tải danh mục...</div>
+      </div>
+    `;
+    getFormOptionsCached(function (data) { renderChiFormBody(data); });
+  }
+
+  function renderChiFormBody(opts) {
+    const today = new Date().toISOString().slice(0, 10);
+    const doiTuongOpts = opts.doiTuong.map(d => `<option value="${d.ma}">${d.ten}</option>`).join('');
+    const loaiChiOpts = opts.loaiChi.map(l => `<option value="${l.ma}">${l.ten}</option>`).join('');
+
+    document.getElementById('chiFormBody').innerHTML = `
+      <div id="chiMsg" class="hidden mb-4 p-3 rounded-lg text-sm"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Loại giao dịch</label>
+          <select id="chiLoaiGD" onchange="onChiLoaiGDChange()" class="w-full border rounded-lg px-3 py-2">
+            <option value="Chi thường">Chi thường</option>
+            <option value="Trả công nợ">Trả công nợ</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Ngày chi</label>
+          <input type="date" id="chiNgay" value="${today}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Người nhận tiền</label>
+          <input type="text" id="chiNguoiNhan" placeholder="Tên người nhận tiền" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Đối tượng</label>
+          <select id="chiDoiTuong" onchange="onChiDoiTuongChange()" class="w-full border rounded-lg px-3 py-2">
+            <option value="">-- Không chọn --</option>
+            ${doiTuongOpts}
+          </select>
+        </div>
+
+        <div class="md:col-span-2 hidden" id="chiCongNoBox">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Khoản công nợ cần trả</label>
+          <select id="chiCongNo" class="w-full border rounded-lg px-3 py-2">
+            <option value="">-- Chọn Đối tượng trước --</option>
+          </select>
+          <div class="text-xs text-gray-400 mt-1" id="chiCongNoHint"></div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Loại chi</label>
+          <select id="chiLoai" class="w-full border rounded-lg px-3 py-2">
+            <option value="">-- Chọn loại chi --</option>
+            ${loaiChiOpts}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Số tiền</label>
+          <input type="number" id="chiSoTien" min="0" step="1000" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Nội dung chi</label>
+          <input type="text" id="chiNoiDung" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Chứng từ liên quan</label>
+          <input type="text" id="chiChungTu" placeholder="Link ảnh / mô tả chứng từ" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Ghi chú</label>
+          <textarea id="chiGhiChu" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
+        </div>
+      </div>
+      <div class="flex justify-end mt-4">
+        <button id="btnSaveChi" onclick="saveChi()" class="px-5 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700">💾 Lưu Phiếu Chi</button>
+      </div>
+    `;
+  }
+
+  function onChiLoaiGDChange() {
+    const loai = document.getElementById('chiLoaiGD').value;
+    const box = document.getElementById('chiCongNoBox');
+    if (loai === 'Trả công nợ') {
+      box.classList.remove('hidden');
+      loadCongNoOptionsForChi();
+    } else {
+      box.classList.add('hidden');
+    }
+  }
+
+  function onChiDoiTuongChange() {
+    if (document.getElementById('chiLoaiGD').value === 'Trả công nợ') {
+      loadCongNoOptionsForChi();
+    }
+  }
+
+  function loadCongNoOptionsForChi() {
+    const maDoiTuong = document.getElementById('chiDoiTuong').value;
+    const select = document.getElementById('chiCongNo');
+    const hint = document.getElementById('chiCongNoHint');
+    hint.textContent = '';
+
+    if (!maDoiTuong) {
+      select.innerHTML = '<option value="">-- Chọn Đối tượng trước --</option>';
+      return;
+    }
+    select.innerHTML = '<option value="">-- Đang tải --</option>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { select.innerHTML = '<option value="">Lỗi tải danh sách</option>'; return; }
+        if (res.data.length === 0) {
+          select.innerHTML = '<option value="">-- Đối tượng này không có công nợ phải trả --</option>';
+          return;
+        }
+        select.innerHTML = '<option value="">-- Chọn khoản công nợ --</option>' +
+          res.data.map(c => `<option value="${c.ma_cong_no}" data-conlai="${c.con_lai}">${c.ma_cong_no} - ${c.noi_dung} (còn ${formatMoney(c.con_lai)})</option>`).join('');
+        select.onchange = function () {
+          const opt = select.options[select.selectedIndex];
+          const conLai = opt.getAttribute('data-conlai');
+          hint.textContent = conLai ? 'Còn lại: ' + formatMoney(conLai) : '';
+        };
+      })
+      .withFailureHandler(function () { select.innerHTML = '<option value="">Lỗi hệ thống</option>'; })
+      .getCongNoMoOptions(maDoiTuong, 'Phải trả');
+  }
+
+  function saveChi() {
+    const loaiGD = document.getElementById('chiLoaiGD').value;
+    const payload = {
+      loai_giao_dich: loaiGD,
+      ngay_chi: document.getElementById('chiNgay').value,
+      nguoi_nhan_tien: document.getElementById('chiNguoiNhan').value.trim(),
+      ma_doi_tuong: document.getElementById('chiDoiTuong').value,
+      ma_cong_no: document.getElementById('chiCongNo').value,
+      ma_loai_chi: document.getElementById('chiLoai').value,
+      so_tien: document.getElementById('chiSoTien').value,
+      noi_dung_chi: document.getElementById('chiNoiDung').value.trim(),
+      chung_tu_lien_quan: document.getElementById('chiChungTu').value.trim(),
+      ghi_chu: document.getElementById('chiGhiChu').value.trim()
+    };
+
+    if (!payload.nguoi_nhan_tien) return showFormMsg('chiMsg', 'Vui lòng nhập Người nhận tiền.', true);
+    if (!payload.ma_loai_chi) return showFormMsg('chiMsg', 'Vui lòng chọn Loại chi.', true);
+    if (!payload.so_tien || Number(payload.so_tien) <= 0) return showFormMsg('chiMsg', 'Số tiền không hợp lệ.', true);
+    if (loaiGD === 'Trả công nợ') {
+      if (!payload.ma_doi_tuong) return showFormMsg('chiMsg', 'Vui lòng chọn Đối tượng khi Trả công nợ.', true);
+      if (!payload.ma_cong_no) return showFormMsg('chiMsg', 'Vui lòng chọn Khoản công nợ cần trả.', true);
+    }
+
+    const btn = document.getElementById('btnSaveChi');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang lưu...';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = '💾 Lưu Phiếu Chi';
+        if (!res.success) { showFormMsg('chiMsg', res.message, true); return; }
+        const soPhieu = res.data.so_phieu_chi;
+        renderChiForm();
+        setTimeout(function () {
+          if (document.getElementById('chiMsg')) showFormMsg('chiMsg', 'Đã lưu phiếu chi ' + soPhieu + ' thành công!', false);
+        }, 300);
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = '💾 Lưu Phiếu Chi';
+        showFormMsg('chiMsg', 'Lỗi hệ thống: ' + err.message, true);
+      })
+      .addPhieuChi(payload, currentUserInfo());
+  }
+
+  /* ================= SỔ QUỸ ================= */
+  function renderSoQuy() {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="card mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Từ ngày</label>
+            <input type="date" id="sq_tuNgay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Đến ngày</label>
+            <input type="date" id="sq_denNgay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Loại giao dịch</label>
+            <select id="sq_loai" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Tất cả</option>
+              <option value="Thu">Thu</option>
+              <option value="Chi">Chi</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Người lập</label>
+            <input type="text" id="sq_nguoiLap" placeholder="Tên người lập" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div class="flex items-end">
+            <button onclick="loadSoQuy()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Lọc</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Ngày</th>
+              <th class="py-2 pr-3">Số phiếu</th>
+              <th class="py-2 pr-3">Nội dung</th>
+              <th class="py-2 pr-3">Đối tượng</th>
+              <th class="py-2 pr-3 text-right">Thu</th>
+              <th class="py-2 pr-3 text-right">Chi</th>
+              <th class="py-2 pr-3 text-right">Tồn</th>
+            </tr>
+          </thead>
+          <tbody id="soQuyBody">
+            <tr><td colspan="7" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    document.getElementById('sq_tuNgay').value = firstDay.toISOString().slice(0, 10);
+    document.getElementById('sq_denNgay').value = now.toISOString().slice(0, 10);
+
+    loadSoQuy();
+  }
+
+  function loadSoQuy() {
+    const filters = {
+      tuNgay: document.getElementById('sq_tuNgay').value,
+      denNgay: document.getElementById('sq_denNgay').value,
+      loaiGiaoDich: document.getElementById('sq_loai').value,
+      nguoiLap: document.getElementById('sq_nguoiLap').value.trim()
+    };
+
+    document.getElementById('soQuyBody').innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        renderSoQuyTable(res.data);
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getSoQuy(filters);
+  }
+
+  function renderSoQuyTable(list) {
+    const body = document.getElementById('soQuyBody');
+    if (!list || list.length === 0) {
+      body.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">Không có giao dịch trong khoảng lọc.</td></tr>';
+      return;
+    }
+    body.innerHTML = list.map(t => `
+      <tr class="border-b hover:bg-gray-50">
+        <td class="py-2 pr-3 whitespace-nowrap">${t.ngay}</td>
+        <td class="py-2 pr-3 font-medium">${t.so_phieu}</td>
+        <td class="py-2 pr-3">${t.noi_dung || ''}</td>
+        <td class="py-2 pr-3">${t.doi_tuong || ''}</td>
+        <td class="py-2 pr-3 text-right text-green-700">${t.thu ? formatMoney(t.thu) : ''}</td>
+        <td class="py-2 pr-3 text-right text-red-700">${t.chi ? formatMoney(t.chi) : ''}</td>
+        <td class="py-2 pr-3 text-right font-semibold">${formatMoney(t.ton)}</td>
+      </tr>
+    `).join('');
+  }
+
+  /* ================= CÔNG NỢ ================= */
+  function renderCongNo() {
+    const isAdmin = CURRENT_USER.role === 'ADMIN';
+    document.getElementById('mainContent').innerHTML = `
+      <div class="flex justify-between items-center mb-4">
+        <div class="text-sm text-gray-500">Quản lý công nợ Phải thu / Phải trả bằng tiền mặt</div>
+        ${isAdmin ? '<button onclick="toggleCongNoForm()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">+ Thêm khoản Công Nợ</button>' : ''}
+      </div>
+
+      <div id="congNoFormWrap" class="card mb-4 hidden">
+        <h3 class="font-semibold text-gray-700 mb-3">Thêm khoản Công Nợ mới</h3>
+        <div id="congNoFormMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+        <div id="congNoFormBody" class="text-gray-400 text-sm">Đang tải...</div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Loại công nợ</label>
+            <select id="cn_loai" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Tất cả</option>
+              <option value="Phải thu">Phải thu</option>
+              <option value="Phải trả">Phải trả</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Trạng thái</label>
+            <select id="cn_trangThai" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Tất cả</option>
+              <option value="Còn nợ">Còn nợ</option>
+              <option value="Đã tất toán">Đã tất toán</option>
+            </select>
+          </div>
+          <div class="md:col-span-2 flex items-end">
+            <button onclick="loadCongNoList()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Lọc</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Mã CN</th>
+              <th class="py-2 pr-3">Ngày</th>
+              <th class="py-2 pr-3">Đối tượng</th>
+              <th class="py-2 pr-3">Loại</th>
+              <th class="py-2 pr-3">Nội dung</th>
+              <th class="py-2 pr-3 text-right">Phát sinh</th>
+              <th class="py-2 pr-3 text-right">Đã TT</th>
+              <th class="py-2 pr-3 text-right">Còn lại</th>
+              <th class="py-2 pr-3">Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody id="congNoBody">
+            <tr><td colspan="9" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+    loadCongNoList();
+  }
+
+  function toggleCongNoForm() {
+    const wrap = document.getElementById('congNoFormWrap');
+    wrap.classList.toggle('hidden');
+    const body = document.getElementById('congNoFormBody');
+    if (!wrap.classList.contains('hidden') && body.dataset.loaded !== '1') {
+      getFormOptionsCached(function (data) {
+        renderCongNoFormBody(data);
+        body.dataset.loaded = '1';
+      });
+    }
+  }
+
+  function renderCongNoFormBody(opts) {
+    const today = new Date().toISOString().slice(0, 10);
+    const doiTuongOpts = opts.doiTuong.map(d => `<option value="${d.ma}">${d.ten}</option>`).join('');
+
+    document.getElementById('congNoFormBody').innerHTML = `
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Loại công nợ</label>
+          <select id="cnLoai" class="w-full border rounded-lg px-3 py-2">
+            <option value="Phải thu">Phải thu (khách hàng nợ mình)</option>
+            <option value="Phải trả">Phải trả (mình nợ đối tác)</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Đối tượng</label>
+          <select id="cnDoiTuong" class="w-full border rounded-lg px-3 py-2">
+            <option value="">-- Chọn đối tượng --</option>
+            ${doiTuongOpts}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Ngày phát sinh</label>
+          <input type="date" id="cnNgay" value="${today}" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Hạn thanh toán (nếu có)</label>
+          <input type="date" id="cnHan" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Số tiền phát sinh</label>
+          <input type="number" id="cnSoTien" min="0" step="1000" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div class="md:col-span-2">
+          <label class="block text-sm font-medium text-gray-600 mb-1">Nội dung</label>
+          <input type="text" id="cnNoiDung" placeholder="vd: Bán hàng chưa thu tiền" class="w-full border rounded-lg px-3 py-2">
+        </div>
+      </div>
+      <div class="flex justify-end mt-4">
+        <button id="btnSaveCongNo" onclick="saveCongNo()" class="px-5 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">💾 Lưu Công Nợ</button>
+      </div>
+    `;
+  }
+
+  function saveCongNo() {
+    const payload = {
+      loai_cong_no: document.getElementById('cnLoai').value,
+      ma_doi_tuong: document.getElementById('cnDoiTuong').value,
+      ngay_phat_sinh: document.getElementById('cnNgay').value,
+      han_thanh_toan: document.getElementById('cnHan').value,
+      so_tien_phat_sinh: document.getElementById('cnSoTien').value,
+      noi_dung: document.getElementById('cnNoiDung').value.trim()
+    };
+
+    if (!payload.ma_doi_tuong) return showFormMsg('congNoFormMsg', 'Vui lòng chọn Đối tượng.', true);
+    if (!payload.so_tien_phat_sinh || Number(payload.so_tien_phat_sinh) <= 0) return showFormMsg('congNoFormMsg', 'Số tiền không hợp lệ.', true);
+
+    const btn = document.getElementById('btnSaveCongNo');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang lưu...';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = '💾 Lưu Công Nợ';
+        if (!res.success) { showFormMsg('congNoFormMsg', res.message, true); return; }
+        showFormMsg('congNoFormMsg', 'Đã tạo khoản công nợ ' + res.data.ma_cong_no + '!', false);
+        loadCongNoList();
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = '💾 Lưu Công Nợ';
+        showFormMsg('congNoFormMsg', 'Lỗi hệ thống: ' + err.message, true);
+      })
+      .addCongNo(payload, currentUserInfo());
+  }
+
+  function loadCongNoList() {
+    const filters = {
+      loaiCongNo: document.getElementById('cn_loai') ? document.getElementById('cn_loai').value : '',
+      trangThai: document.getElementById('cn_trangThai') ? document.getElementById('cn_trangThai').value : ''
+    };
+    const body = document.getElementById('congNoBody');
+    if (body) body.innerHTML = '<tr><td colspan="9" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        renderCongNoTable(res.data);
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getCongNoList(filters);
+  }
+
+  function renderCongNoTable(list) {
+    const body = document.getElementById('congNoBody');
+    if (!body) return;
+    if (!list || list.length === 0) {
+      body.innerHTML = '<tr><td colspan="9" class="py-6 text-center text-gray-400">Không có dữ liệu.</td></tr>';
+      return;
+    }
+    body.innerHTML = list.map(c => `
+      <tr class="border-b hover:bg-gray-50">
+        <td class="py-2 pr-3 font-medium">${c.ma_cong_no}</td>
+        <td class="py-2 pr-3 whitespace-nowrap">${c.ngay_phat_sinh}</td>
+        <td class="py-2 pr-3">${c.doi_tuong}</td>
+        <td class="py-2 pr-3">
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium ${c.loai_cong_no === 'Phải thu' ? 'bg-emerald-100 text-emerald-700' : 'bg-orange-100 text-orange-700'}">${c.loai_cong_no}</span>
+        </td>
+        <td class="py-2 pr-3">${c.noi_dung || ''}</td>
+        <td class="py-2 pr-3 text-right">${formatMoney(c.so_tien_phat_sinh)}</td>
+        <td class="py-2 pr-3 text-right">${formatMoney(c.da_thanh_toan)}</td>
+        <td class="py-2 pr-3 text-right font-semibold">${formatMoney(c.con_lai)}</td>
+        <td class="py-2 pr-3">
+          <span class="px-2 py-0.5 rounded-full text-xs font-medium ${c.trang_thai === 'Đã tất toán' ? 'bg-gray-100 text-gray-500' : 'bg-yellow-100 text-yellow-700'}">${c.trang_thai}</span>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  /* ================= BÁO CÁO ================= */
+  let BAOCAO_THUCHI_DATA = null;
+  let BAOCAO_CONGNO_DATA = null;
+  let BAOCAO_QUAHAN_DATA = null;
+
+  function renderBaoCao() {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="flex gap-2 mb-4 no-print">
+        <button onclick="switchBaoCaoTab('thuchi')" id="bcTabThuChi" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Thu - Chi</button>
+        <button onclick="switchBaoCaoTab('congno')" id="bcTabCongNo" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Công nợ tổng hợp</button>
+        <button onclick="switchBaoCaoTab('quahan')" id="bcTabQuaHan" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Công nợ quá hạn</button>
+      </div>
+      <div id="baoCaoBody"></div>
+    `;
+    switchBaoCaoTab('thuchi');
+  }
+
+  function switchBaoCaoTab(tab) {
+    ['bcTabThuChi', 'bcTabCongNo', 'bcTabQuaHan'].forEach(function (id) {
+      document.getElementById(id).classList.remove('bg-gray-800', 'text-white');
+    });
+    const activeMap = { thuchi: 'bcTabThuChi', congno: 'bcTabCongNo', quahan: 'bcTabQuaHan' };
+    document.getElementById(activeMap[tab]).classList.add('bg-gray-800', 'text-white');
+
+    if (tab === 'thuchi') renderBaoCaoThuChi();
+    else if (tab === 'congno') renderBaoCaoCongNoTongHop();
+    else renderBaoCaoQuaHan();
+  }
+
+  function renderBaoCaoThuChi() {
+    document.getElementById('baoCaoBody').innerHTML = `
+      <div class="card mb-4 no-print">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Từ ngày</label>
+            <input type="date" id="bc_tuNgay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Đến ngày</label>
+            <input type="date" id="bc_denNgay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Loại</label>
+            <select id="bc_loai" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Tất cả</option>
+              <option value="Thu">Thu</option>
+              <option value="Chi">Chi</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Người lập</label>
+            <input type="text" id="bc_nguoiLap" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div class="flex items-end">
+            <button onclick="loadBaoCaoThuChi()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Xem báo cáo</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="card stat-card"><div class="stat-label">Tồn đầu kỳ</div><div class="stat-value text-gray-800" id="bc_tonDau">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tổng Thu</div><div class="stat-value text-green-600" id="bc_tongThu">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tổng Chi</div><div class="stat-value text-red-600" id="bc_tongChi">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tồn cuối kỳ</div><div class="stat-value text-blue-700" id="bc_tonCuoi">--</div></div>
+      </div>
+
+      <div class="flex justify-end gap-2 mb-3 no-print">
+        <button onclick="exportBaoCaoThuChiCSV()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel (CSV)</button>
+        <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
+      </div>
+
+      <div class="card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Ngày</th>
+              <th class="py-2 pr-3">Số phiếu</th>
+              <th class="py-2 pr-3">Loại</th>
+              <th class="py-2 pr-3">Nội dung</th>
+              <th class="py-2 pr-3">Đối tượng</th>
+              <th class="py-2 pr-3">Người lập</th>
+              <th class="py-2 pr-3 text-right">Thu</th>
+              <th class="py-2 pr-3 text-right">Chi</th>
+            </tr>
+          </thead>
+          <tbody id="bcThuChiBody">
+            <tr><td colspan="8" class="py-6 text-center text-gray-400">Chọn khoảng ngày và bấm "Xem báo cáo"</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    document.getElementById('bc_tuNgay').value = firstDay.toISOString().slice(0, 10);
+    document.getElementById('bc_denNgay').value = now.toISOString().slice(0, 10);
+
+    loadBaoCaoThuChi();
+  }
+
+  function loadBaoCaoThuChi() {
+    const filters = {
+      tuNgay: document.getElementById('bc_tuNgay').value,
+      denNgay: document.getElementById('bc_denNgay').value,
+      loaiGiaoDich: document.getElementById('bc_loai').value,
+      nguoiLap: document.getElementById('bc_nguoiLap').value.trim()
+    };
+    document.getElementById('bcThuChiBody').innerHTML = '<tr><td colspan="8" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        BAOCAO_THUCHI_DATA = res.data;
+        document.getElementById('bc_tonDau').textContent = formatMoney(res.data.ton_dau_ky);
+        document.getElementById('bc_tongThu').textContent = formatMoney(res.data.tong_thu);
+        document.getElementById('bc_tongChi').textContent = formatMoney(res.data.tong_chi);
+        document.getElementById('bc_tonCuoi').textContent = formatMoney(res.data.ton_cuoi_ky);
+
+        const body = document.getElementById('bcThuChiBody');
+        if (!res.data.chi_tiet || res.data.chi_tiet.length === 0) {
+          body.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-gray-400">Không có giao dịch trong khoảng lọc.</td></tr>';
+          return;
+        }
+        body.innerHTML = res.data.chi_tiet.map(function (t) {
+          return '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="py-2 pr-3 whitespace-nowrap">' + t.ngay + '</td>' +
+            '<td class="py-2 pr-3 font-medium">' + t.so_phieu + '</td>' +
+            '<td class="py-2 pr-3">' + t.loai + '</td>' +
+            '<td class="py-2 pr-3">' + (t.noi_dung || '') + '</td>' +
+            '<td class="py-2 pr-3">' + (t.doi_tuong || '') + '</td>' +
+            '<td class="py-2 pr-3">' + (t.nguoi_lap || '') + '</td>' +
+            '<td class="py-2 pr-3 text-right text-green-700">' + (t.thu ? formatMoney(t.thu) : '') + '</td>' +
+            '<td class="py-2 pr-3 text-right text-red-700">' + (t.chi ? formatMoney(t.chi) : '') + '</td>' +
+          '</tr>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getBaoCaoThuChi(filters);
+  }
+
+  function exportBaoCaoThuChiCSV() {
+    if (!BAOCAO_THUCHI_DATA || !BAOCAO_THUCHI_DATA.chi_tiet) { alert('Chưa có dữ liệu để xuất.'); return; }
+    const headers = ['Ngày', 'Số phiếu', 'Loại', 'Nội dung', 'Đối tượng', 'Người lập', 'Thu', 'Chi'];
+    const rows = BAOCAO_THUCHI_DATA.chi_tiet.map(function (t) {
+      return [t.ngay, t.so_phieu, t.loai, t.noi_dung || '', t.doi_tuong || '', t.nguoi_lap || '', t.thu || 0, t.chi || 0];
+    });
+    downloadCSV('BaoCaoThuChi_' + BAOCAO_THUCHI_DATA.tu_ngay + '_' + BAOCAO_THUCHI_DATA.den_ngay + '.csv', headers, rows);
+  }
+
+  function renderBaoCaoCongNoTongHop() {
+    document.getElementById('baoCaoBody').innerHTML = `
+      <div class="card mb-4 no-print">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Loại công nợ</label>
+            <select id="bccn_loai" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+              <option value="Phải thu">Phải thu</option>
+              <option value="Phải trả">Phải trả</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Từ ngày</label>
+            <input type="date" id="bccn_tuNgay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Đến ngày</label>
+            <input type="date" id="bccn_denNgay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div class="flex items-end">
+            <button onclick="loadBaoCaoCongNoTongHop()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Xem báo cáo</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 mb-3 no-print">
+        <button onclick="exportBaoCaoCongNoCSV()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel (CSV)</button>
+        <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
+      </div>
+
+      <div class="card overflow-x-auto mb-4">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Đối tượng</th>
+              <th class="py-2 pr-3 text-right">Đầu kỳ</th>
+              <th class="py-2 pr-3 text-right">Phát sinh</th>
+              <th class="py-2 pr-3 text-right">Đã thu/trả</th>
+              <th class="py-2 pr-3 text-right">Cuối kỳ</th>
+              <th class="py-2 pr-3 no-print"></th>
+            </tr>
+          </thead>
+          <tbody id="bccnBody">
+            <tr><td colspan="6" class="py-6 text-center text-gray-400">Chọn khoảng ngày và bấm "Xem báo cáo"</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="bccnChiTietWrap" class="card hidden">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-semibold text-gray-700" id="bccnChiTietTitle">Chi tiết</h3>
+          <button onclick="document.getElementById('bccnChiTietWrap').classList.add('hidden')" class="text-sm text-gray-400 hover:text-gray-600 no-print">Đóng ✕</button>
+        </div>
+        <div id="bccnChiTietBody" class="text-sm text-gray-400">--</div>
+      </div>
+    `;
+
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    document.getElementById('bccn_tuNgay').value = firstDay.toISOString().slice(0, 10);
+    document.getElementById('bccn_denNgay').value = now.toISOString().slice(0, 10);
+
+    loadBaoCaoCongNoTongHop();
+  }
+
+  function loadBaoCaoCongNoTongHop() {
+    const loai = document.getElementById('bccn_loai').value;
+    const tuNgay = document.getElementById('bccn_tuNgay').value;
+    const denNgay = document.getElementById('bccn_denNgay').value;
+
+    document.getElementById('bccnBody').innerHTML = '<tr><td colspan="6" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        BAOCAO_CONGNO_DATA = { loai: loai, tuNgay: tuNgay, denNgay: denNgay, list: res.data };
+        const body = document.getElementById('bccnBody');
+        if (!res.data || res.data.length === 0) {
+          body.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-gray-400">Không có công nợ trong kỳ.</td></tr>';
+          return;
+        }
+        body.innerHTML = res.data.map(function (r) {
+          return '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="py-2 pr-3 font-medium">' + r.doi_tuong + '</td>' +
+            '<td class="py-2 pr-3 text-right">' + formatMoney(r.dau_ky) + '</td>' +
+            '<td class="py-2 pr-3 text-right">' + formatMoney(r.phat_sinh) + '</td>' +
+            '<td class="py-2 pr-3 text-right">' + formatMoney(r.da_thu_tra) + '</td>' +
+            '<td class="py-2 pr-3 text-right font-semibold">' + formatMoney(r.cuoi_ky) + '</td>' +
+            '<td class="py-2 pr-3 no-print"><button onclick="xemChiTietCongNo(\'' + r.ma_doi_tuong + '\')" class="text-blue-600 text-xs hover:underline">Xem chi tiết</button></td>' +
+          '</tr>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getBaoCaoCongNoTongHop(loai, tuNgay, denNgay);
+  }
+
+  function xemChiTietCongNo(maDoiTuong) {
+    if (!BAOCAO_CONGNO_DATA) return;
+    const rowInfo = BAOCAO_CONGNO_DATA.list.find(function (r) { return r.ma_doi_tuong === maDoiTuong; });
+    const tenDoiTuong = rowInfo ? rowInfo.doi_tuong : maDoiTuong;
+
+    const wrap = document.getElementById('bccnChiTietWrap');
+    const title = document.getElementById('bccnChiTietTitle');
+    const body = document.getElementById('bccnChiTietBody');
+    title.textContent = 'Chi tiết công nợ - ' + tenDoiTuong;
+    body.textContent = 'Đang tải...';
+    wrap.classList.remove('hidden');
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { body.textContent = 'Lỗi: ' + res.message; return; }
+        const d = res.data;
+        let html = '<div class="mb-3 text-sm">Đầu kỳ: <b>' + formatMoney(d.dau_ky) + '</b> &nbsp;|&nbsp; Cuối kỳ: <b>' + formatMoney(d.cuoi_ky) + '</b></div>';
+
+        html += '<div class="font-medium text-gray-600 text-sm mb-1">Phát sinh trong kỳ</div>';
+        if (d.phat_sinh.length === 0) {
+          html += '<div class="text-xs text-gray-400 mb-3">Không có</div>';
+        } else {
+          html += '<table class="w-full text-xs mb-3"><tbody>' + d.phat_sinh.map(function (x) {
+            return '<tr class="border-b"><td class="py-1 pr-2">' + x.ngay + '</td><td class="py-1 pr-2">' + x.ma_cong_no + '</td><td class="py-1 pr-2">' + (x.noi_dung || '') + '</td><td class="py-1 text-right">' + formatMoney(x.so_tien) + '</td></tr>';
+          }).join('') + '</tbody></table>';
+        }
+
+        html += '<div class="font-medium text-gray-600 text-sm mb-1">Thanh toán trong kỳ</div>';
+        if (d.thanh_toan.length === 0) {
+          html += '<div class="text-xs text-gray-400">Không có</div>';
+        } else {
+          html += '<table class="w-full text-xs"><tbody>' + d.thanh_toan.map(function (x) {
+            return '<tr class="border-b"><td class="py-1 pr-2">' + x.ngay + '</td><td class="py-1 pr-2">' + x.loai + ' - ' + x.so_phieu + '</td><td class="py-1 text-right">' + formatMoney(x.so_tien) + '</td></tr>';
+          }).join('') + '</tbody></table>';
+        }
+
+        body.innerHTML = html;
+      })
+      .withFailureHandler(function (err) { body.textContent = 'Lỗi hệ thống: ' + err.message; })
+      .getBaoCaoCongNoChiTiet(maDoiTuong, BAOCAO_CONGNO_DATA.loai, BAOCAO_CONGNO_DATA.tuNgay, BAOCAO_CONGNO_DATA.denNgay);
+  }
+
+  function exportBaoCaoCongNoCSV() {
+    if (!BAOCAO_CONGNO_DATA || !BAOCAO_CONGNO_DATA.list) { alert('Chưa có dữ liệu để xuất.'); return; }
+    const headers = ['Đối tượng', 'Đầu kỳ', 'Phát sinh', 'Đã thu/trả', 'Cuối kỳ'];
+    const rows = BAOCAO_CONGNO_DATA.list.map(function (r) {
+      return [r.doi_tuong, r.dau_ky, r.phat_sinh, r.da_thu_tra, r.cuoi_ky];
+    });
+    downloadCSV('BaoCaoCongNo_' + BAOCAO_CONGNO_DATA.loai + '_' + BAOCAO_CONGNO_DATA.tuNgay + '.csv', headers, rows);
+  }
+
+  function renderBaoCaoQuaHan() {
+    document.getElementById('baoCaoBody').innerHTML = `
+      <div class="flex justify-end gap-2 mb-3 no-print">
+        <button onclick="exportBaoCaoQuaHanCSV()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel (CSV)</button>
+        <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
+      </div>
+      <div class="card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Mã CN</th>
+              <th class="py-2 pr-3">Đối tượng</th>
+              <th class="py-2 pr-3">Loại</th>
+              <th class="py-2 pr-3">Ngày phát sinh</th>
+              <th class="py-2 pr-3">Hạn thanh toán</th>
+              <th class="py-2 pr-3 text-right">Số ngày quá hạn</th>
+              <th class="py-2 pr-3 text-right">Còn nợ</th>
+            </tr>
+          </thead>
+          <tbody id="bcQuaHanBody">
+            <tr><td colspan="7" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        BAOCAO_QUAHAN_DATA = res.data;
+        const body = document.getElementById('bcQuaHanBody');
+        if (!res.data || res.data.length === 0) {
+          body.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">Không có công nợ quá hạn 🎉</td></tr>';
+          return;
+        }
+        body.innerHTML = res.data.map(function (r) {
+          return '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="py-2 pr-3 font-medium">' + r.ma_cong_no + '</td>' +
+            '<td class="py-2 pr-3">' + r.doi_tuong + '</td>' +
+            '<td class="py-2 pr-3">' + r.loai_cong_no + '</td>' +
+            '<td class="py-2 pr-3">' + r.ngay_phat_sinh + '</td>' +
+            '<td class="py-2 pr-3">' + r.han_thanh_toan + '</td>' +
+            '<td class="py-2 pr-3 text-right text-red-600 font-semibold">' + r.so_ngay_qua_han + ' ngày</td>' +
+            '<td class="py-2 pr-3 text-right font-semibold">' + formatMoney(r.con_lai) + '</td>' +
+          '</tr>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getBaoCaoCongNoQuaHan();
+  }
+
+  function exportBaoCaoQuaHanCSV() {
+    if (!BAOCAO_QUAHAN_DATA) { alert('Chưa có dữ liệu để xuất.'); return; }
+    const headers = ['Mã CN', 'Đối tượng', 'Loại', 'Ngày phát sinh', 'Hạn thanh toán', 'Số ngày quá hạn', 'Còn nợ'];
+    const rows = BAOCAO_QUAHAN_DATA.map(function (r) {
+      return [r.ma_cong_no, r.doi_tuong, r.loai_cong_no, r.ngay_phat_sinh, r.han_thanh_toan, r.so_ngay_qua_han, r.con_lai];
+    });
+    downloadCSV('BaoCaoCongNoQuaHan.csv', headers, rows);
+  }
+
+  /* ================= QUẢN TRỊ ================= */
+  function renderQuanTri() {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="flex gap-2 mb-4">
+        <button onclick="switchQuanTriTab('users')" id="qtTabUsers" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Người dùng</button>
+        <button onclick="switchQuanTriTab('khoaso')" id="qtTabKhoaSo" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Khóa Sổ</button>
+        <button onclick="switchQuanTriTab('auditlog')" id="qtTabAuditLog" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Nhật ký hệ thống</button>
+      </div>
+      <div id="quanTriBody"></div>
+    `;
+    switchQuanTriTab('users');
+  }
+
+  function switchQuanTriTab(tab) {
+    ['qtTabUsers', 'qtTabKhoaSo', 'qtTabAuditLog'].forEach(function (id) {
+      document.getElementById(id).classList.remove('bg-gray-800', 'text-white');
+    });
+    const map = { users: 'qtTabUsers', khoaso: 'qtTabKhoaSo', auditlog: 'qtTabAuditLog' };
+    document.getElementById(map[tab]).classList.add('bg-gray-800', 'text-white');
+
+    if (tab === 'users') renderQuanTriUsers();
+    else if (tab === 'khoaso') renderQuanTriKhoaSo();
+    else renderQuanTriAuditLog();
+  }
+
+  function renderQuanTriUsers() {
+    document.getElementById('quanTriBody').innerHTML = `
+      <div class="flex justify-between items-center mb-4">
+        <div class="text-sm text-gray-500">Quản lý tài khoản đăng nhập</div>
+        <button onclick="toggleAddUserForm()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">+ Thêm người dùng</button>
+      </div>
+
+      <div id="addUserFormWrap" class="card mb-4 hidden">
+        <h3 class="font-semibold text-gray-700 mb-3">Thêm người dùng mới</h3>
+        <div id="addUserMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Tên đăng nhập</label>
+            <input type="text" id="nuUsername" class="w-full border rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Mật khẩu</label>
+            <input type="password" id="nuPassword" placeholder="Tối thiểu 6 ký tự" class="w-full border rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Họ tên</label>
+            <input type="text" id="nuFullName" class="w-full border rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Vai trò</label>
+            <select id="nuRole" class="w-full border rounded-lg px-3 py-2">
+              <option value="THU_QUY">THỦ QUỸ</option>
+              <option value="XEM">XEM</option>
+              <option value="ADMIN">ADMIN</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end mt-4">
+          <button id="btnAddUser" onclick="addUser()" class="px-5 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">💾 Tạo tài khoản</button>
+        </div>
+      </div>
+
+      <div class="card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Tên đăng nhập</th>
+              <th class="py-2 pr-3">Họ tên</th>
+              <th class="py-2 pr-3">Vai trò</th>
+              <th class="py-2 pr-3">Trạng thái</th>
+              <th class="py-2 pr-3"></th>
+            </tr>
+          </thead>
+          <tbody id="userListBody">
+            <tr><td colspan="5" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+    loadUserList();
+  }
+
+  function toggleAddUserForm() {
+    document.getElementById('addUserFormWrap').classList.toggle('hidden');
+  }
+
+  function addUser() {
+    const payload = {
+      username: document.getElementById('nuUsername').value.trim(),
+      password: document.getElementById('nuPassword').value,
+      full_name: document.getElementById('nuFullName').value.trim(),
+      role: document.getElementById('nuRole').value
+    };
+
+    if (!payload.username) return showFormMsg('addUserMsg', 'Vui lòng nhập Tên đăng nhập.', true);
+    if (!payload.password || payload.password.length < 6) return showFormMsg('addUserMsg', 'Mật khẩu tối thiểu 6 ký tự.', true);
+    if (!payload.full_name) return showFormMsg('addUserMsg', 'Vui lòng nhập Họ tên.', true);
+
+    const btn = document.getElementById('btnAddUser');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang tạo...';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = '💾 Tạo tài khoản';
+        if (!res.success) { showFormMsg('addUserMsg', res.message, true); return; }
+        showFormMsg('addUserMsg', 'Đã tạo tài khoản ' + payload.username + '!', false);
+        loadUserList();
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = '💾 Tạo tài khoản';
+        showFormMsg('addUserMsg', 'Lỗi hệ thống: ' + err.message, true);
+      })
+      .addUserByAdmin(payload, currentUserInfo());
+  }
+
+  function loadUserList() {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        const body = document.getElementById('userListBody');
+        body.innerHTML = res.data.map(function (u) {
+          const isSelf = u.username === CURRENT_USER.username;
+          return '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="py-2 pr-3 font-medium">' + u.username + (isSelf ? ' <span class="text-xs text-gray-400">(bạn)</span>' : '') + '</td>' +
+            '<td class="py-2 pr-3">' + u.full_name + '</td>' +
+            '<td class="py-2 pr-3">' + u.role + '</td>' +
+            '<td class="py-2 pr-3"><span class="px-2 py-0.5 rounded-full text-xs font-medium ' + (u.status === 'Hoạt động' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500') + '">' + u.status + '</span></td>' +
+            '<td class="py-2 pr-3">' + (isSelf ? '' : '<button onclick="toggleUserStatus(\'' + u.username + '\')" class="text-blue-600 text-xs hover:underline">' + (u.status === 'Hoạt động' ? 'Khóa' : 'Mở khóa') + '</button>') + '</td>' +
+          '</tr>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getUserList(currentUserInfo());
+  }
+
+  function toggleUserStatus(targetUsername) {
+    if (!confirm('Xác nhận đổi trạng thái tài khoản "' + targetUsername + '"?')) return;
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        loadUserList();
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .toggleUserStatus(targetUsername, currentUserInfo());
+  }
+
+  function renderQuanTriKhoaSo() {
+    document.getElementById('quanTriBody').innerHTML = `
+      <div class="card mb-4">
+        <h3 class="font-semibold text-gray-700 mb-3">Khóa sổ theo ngày</h3>
+        <div id="khoaSoMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+        <div class="flex flex-col md:flex-row gap-3 items-end">
+          <div class="flex-1">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Ngày cần khóa</label>
+            <input type="date" id="ksNgay" class="w-full border rounded-lg px-3 py-2">
+          </div>
+          <button onclick="khoaSo()" class="px-5 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 whitespace-nowrap">🔒 Khóa sổ ngày này</button>
+        </div>
+      </div>
+
+      <div class="card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Ngày khóa</th>
+              <th class="py-2 pr-3">Người khóa</th>
+              <th class="py-2 pr-3">Thời gian khóa</th>
+              <th class="py-2 pr-3">Trạng thái</th>
+              <th class="py-2 pr-3">Người mở khóa</th>
+              <th class="py-2 pr-3"></th>
+            </tr>
+          </thead>
+          <tbody id="khoaSoBody">
+            <tr><td colspan="6" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    document.getElementById('ksNgay').value = new Date().toISOString().slice(0, 10);
+    loadKhoaSoList();
+  }
+
+  function khoaSo() {
+    const ngay = document.getElementById('ksNgay').value;
+    if (!ngay) return showFormMsg('khoaSoMsg', 'Vui lòng chọn ngày cần khóa.', true);
+    if (!confirm('Xác nhận KHÓA SỔ ngày ' + ngay + '? Sau khi khóa sẽ không thể thêm/sửa phiếu vào ngày này.')) return;
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { showFormMsg('khoaSoMsg', res.message, true); return; }
+        showFormMsg('khoaSoMsg', 'Đã khóa sổ ngày ' + ngay + '.', false);
+        loadKhoaSoList();
+      })
+      .withFailureHandler(function (err) { showFormMsg('khoaSoMsg', 'Lỗi hệ thống: ' + err.message, true); })
+      .khoaSo(ngay, currentUserInfo());
+  }
+
+  function loadKhoaSoList() {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        const body = document.getElementById('khoaSoBody');
+        if (!res.data || res.data.length === 0) {
+          body.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-gray-400">Chưa khóa sổ ngày nào.</td></tr>';
+          return;
+        }
+        body.innerHTML = res.data.map(function (k) {
+          return '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="py-2 pr-3 font-medium">' + k.ngay_khoa + '</td>' +
+            '<td class="py-2 pr-3">' + k.nguoi_khoa + '</td>' +
+            '<td class="py-2 pr-3">' + k.thoi_gian_khoa + '</td>' +
+            '<td class="py-2 pr-3"><span class="px-2 py-0.5 rounded-full text-xs font-medium ' + (k.trang_thai === 'Đã khóa' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-500') + '">' + k.trang_thai + '</span></td>' +
+            '<td class="py-2 pr-3">' + (k.nguoi_mo_khoa || '') + '</td>' +
+            '<td class="py-2 pr-3">' + (k.trang_thai === 'Đã khóa' ? '<button onclick="moKhoaSo(\'' + k.ngay_khoa + '\')" class="text-blue-600 text-xs hover:underline">Mở khóa</button>' : '') + '</td>' +
+          '</tr>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getDanhSachKhoaSo(currentUserInfo());
+  }
+
+  function moKhoaSo(ngay) {
+    const lyDo = prompt('Nhập lý do mở khóa sổ ngày ' + ngay + ':');
+    if (lyDo === null) return;
+    if (!lyDo.trim()) { alert('Vui lòng nhập lý do mở khóa.'); return; }
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        loadKhoaSoList();
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .moKhoaSo(ngay, lyDo.trim(), currentUserInfo());
+  }
+
+  function renderQuanTriAuditLog() {
+    document.getElementById('quanTriBody').innerHTML = `
+      <div class="card mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Chức năng</label>
+            <input type="text" id="al_chucNang" placeholder="vd: Phiếu Thu" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Người thao tác</label>
+            <input type="text" id="al_nguoiThaoTac" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Mã chứng từ</label>
+            <input type="text" id="al_maChungTu" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div class="flex items-end">
+            <button onclick="loadAuditLog()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Lọc</button>
+          </div>
+        </div>
+      </div>
+      <div class="text-xs text-gray-400 mb-2">Hiển thị 200 nhật ký gần nhất khớp điều kiện lọc.</div>
+      <div class="card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Thời gian</th>
+              <th class="py-2 pr-3">Người thao tác</th>
+              <th class="py-2 pr-3">Chức năng</th>
+              <th class="py-2 pr-3">Loại</th>
+              <th class="py-2 pr-3">Mã chứng từ</th>
+              <th class="py-2 pr-3">Dữ liệu trước</th>
+              <th class="py-2 pr-3">Dữ liệu sau</th>
+            </tr>
+          </thead>
+          <tbody id="auditLogBody">
+            <tr><td colspan="7" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+    loadAuditLog();
+  }
+
+  function loadAuditLog() {
+    const filters = {
+      chucNang: document.getElementById('al_chucNang').value.trim(),
+      nguoiThaoTac: document.getElementById('al_nguoiThaoTac').value.trim(),
+      maChungTu: document.getElementById('al_maChungTu').value.trim()
+    };
+    document.getElementById('auditLogBody').innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        const body = document.getElementById('auditLogBody');
+        if (!res.data || res.data.length === 0) {
+          body.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">Không có nhật ký khớp điều kiện.</td></tr>';
+          return;
+        }
+        body.innerHTML = res.data.map(function (l) {
+          return '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="py-2 pr-3 whitespace-nowrap">' + l.thoi_gian + '</td>' +
+            '<td class="py-2 pr-3">' + l.nguoi_thao_tac + '</td>' +
+            '<td class="py-2 pr-3">' + l.chuc_nang + '</td>' +
+            '<td class="py-2 pr-3">' + l.loai_thao_tac + '</td>' +
+            '<td class="py-2 pr-3 font-medium">' + l.ma_chung_tu + '</td>' +
+            '<td class="py-2 pr-3 text-xs text-gray-500">' + (l.du_lieu_truoc || '') + '</td>' +
+            '<td class="py-2 pr-3 text-xs text-gray-500">' + (l.du_lieu_sau || '') + '</td>' +
+          '</tr>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getAuditLogList(filters, currentUserInfo());
+  }
+
+  /* ================= ĐỐI TƯỢNG ================= */
+  function renderDoiTuong() {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="flex justify-between items-center mb-4">
+        <div class="text-sm text-gray-500">Quản lý danh mục Khách hàng / Nhà cung cấp / Nhân viên</div>
+        <button onclick="toggleDoiTuongForm()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">+ Thêm Đối Tượng</button>
+      </div>
+
+      <div id="doiTuongFormWrap" class="card mb-4 hidden">
+        <h3 class="font-semibold text-gray-700 mb-3" id="dtFormTitle">Thêm Đối Tượng mới</h3>
+        <div id="dtMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+        <input type="hidden" id="dtMaDoiTuong">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Tên đối tượng</label>
+            <input type="text" id="dtTen" class="w-full border rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Loại đối tượng</label>
+            <select id="dtLoai" class="w-full border rounded-lg px-3 py-2">
+              <option value="Khách hàng">Khách hàng</option>
+              <option value="Nhà cung cấp">Nhà cung cấp</option>
+              <option value="Nhân viên">Nhân viên</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Số điện thoại</label>
+            <input type="text" id="dtSdt" class="w-full border rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Mã số thuế</label>
+            <input type="text" id="dtMst" class="w-full border rounded-lg px-3 py-2">
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Địa chỉ</label>
+            <input type="text" id="dtDiaChi" class="w-full border rounded-lg px-3 py-2">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Người liên hệ</label>
+            <input type="text" id="dtNguoiLienHe" class="w-full border rounded-lg px-3 py-2">
+          </div>
+          <div id="dtTrangThaiBox" class="hidden">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Trạng thái</label>
+            <select id="dtTrangThai" class="w-full border rounded-lg px-3 py-2">
+              <option value="Hoạt động">Hoạt động</option>
+              <option value="Ngừng hoạt động">Ngừng hoạt động</option>
+            </select>
+          </div>
+          <div class="md:col-span-2">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Ghi chú</label>
+            <textarea id="dtGhiChu" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+          <button onclick="huyDoiTuongForm()" class="px-4 py-2 rounded-lg border text-gray-600 hover:bg-gray-50">Hủy</button>
+          <button id="btnSaveDoiTuong" onclick="saveDoiTuong()" class="px-5 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">💾 Lưu</button>
+        </div>
+      </div>
+
+      <div class="card mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Loại</label>
+            <select id="dt_loai" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Tất cả</option>
+              <option value="Khách hàng">Khách hàng</option>
+              <option value="Nhà cung cấp">Nhà cung cấp</option>
+              <option value="Nhân viên">Nhân viên</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Trạng thái</label>
+            <select id="dt_trangThai" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Tất cả</option>
+              <option value="Hoạt động">Hoạt động</option>
+              <option value="Ngừng hoạt động">Ngừng hoạt động</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Tìm theo tên/mã</label>
+            <input type="text" id="dt_tuKhoa" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div class="flex items-end">
+            <button onclick="loadDoiTuongList()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Lọc</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Mã</th>
+              <th class="py-2 pr-3">Tên</th>
+              <th class="py-2 pr-3">Loại</th>
+              <th class="py-2 pr-3">SĐT</th>
+              <th class="py-2 pr-3">Trạng thái</th>
+              <th class="py-2 pr-3"></th>
+            </tr>
+          </thead>
+          <tbody id="doiTuongBody">
+            <tr><td colspan="6" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+    loadDoiTuongList();
+  }
+
+  function toggleDoiTuongForm() {
+    resetDoiTuongForm();
+    document.getElementById('doiTuongFormWrap').classList.toggle('hidden');
+  }
+
+  function resetDoiTuongForm() {
+    document.getElementById('dtFormTitle').textContent = 'Thêm Đối Tượng mới';
+    document.getElementById('dtMaDoiTuong').value = '';
+    document.getElementById('dtTen').value = '';
+    document.getElementById('dtLoai').value = 'Khách hàng';
+    document.getElementById('dtSdt').value = '';
+    document.getElementById('dtMst').value = '';
+    document.getElementById('dtDiaChi').value = '';
+    document.getElementById('dtNguoiLienHe').value = '';
+    document.getElementById('dtGhiChu').value = '';
+    document.getElementById('dtTrangThaiBox').classList.add('hidden');
+    document.getElementById('dtMsg').classList.add('hidden');
+  }
+
+  function huyDoiTuongForm() {
+    document.getElementById('doiTuongFormWrap').classList.add('hidden');
+  }
+
+  function suaDoiTuong(ma, ten, loai, sdt, mst, diaChi, nguoiLienHe, ghiChu, trangThai) {
+    document.getElementById('doiTuongFormWrap').classList.remove('hidden');
+    document.getElementById('dtFormTitle').textContent = 'Sửa Đối Tượng: ' + ma;
+    document.getElementById('dtMaDoiTuong').value = ma;
+    document.getElementById('dtTen').value = ten;
+    document.getElementById('dtLoai').value = loai;
+    document.getElementById('dtSdt').value = sdt || '';
+    document.getElementById('dtMst').value = mst || '';
+    document.getElementById('dtDiaChi').value = diaChi || '';
+    document.getElementById('dtNguoiLienHe').value = nguoiLienHe || '';
+    document.getElementById('dtGhiChu').value = ghiChu || '';
+    document.getElementById('dtTrangThaiBox').classList.remove('hidden');
+    document.getElementById('dtTrangThai').value = trangThai || 'Hoạt động';
+    document.getElementById('dtMsg').classList.add('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function saveDoiTuong() {
+    const maDoiTuong = document.getElementById('dtMaDoiTuong').value;
+    const isEdit = !!maDoiTuong;
+
+    const payload = {
+      ma_doi_tuong: maDoiTuong,
+      ten_doi_tuong: document.getElementById('dtTen').value.trim(),
+      loai_doi_tuong: document.getElementById('dtLoai').value,
+      so_dien_thoai: document.getElementById('dtSdt').value.trim(),
+      mst: document.getElementById('dtMst').value.trim(),
+      dia_chi: document.getElementById('dtDiaChi').value.trim(),
+      nguoi_lien_he: document.getElementById('dtNguoiLienHe').value.trim(),
+      ghi_chu: document.getElementById('dtGhiChu').value.trim(),
+      trang_thai: document.getElementById('dtTrangThai').value
+    };
+
+    if (!payload.ten_doi_tuong) return showFormMsg('dtMsg', 'Vui lòng nhập Tên đối tượng.', true);
+
+    const btn = document.getElementById('btnSaveDoiTuong');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang lưu...';
+
+    const callback = function (res) {
+      btn.disabled = false;
+      btn.textContent = '💾 Lưu';
+      if (!res.success) { showFormMsg('dtMsg', res.message, true); return; }
+      huyDoiTuongForm();
+      loadDoiTuongList();
+      CACHED_FORM_OPTIONS = null; // buộc tải lại danh mục vì vừa có thay đổi
+    };
+    const failCallback = function (err) {
+      btn.disabled = false;
+      btn.textContent = '💾 Lưu';
+      showFormMsg('dtMsg', 'Lỗi hệ thống: ' + err.message, true);
+    };
+
+    if (isEdit) {
+      google.script.run.withSuccessHandler(callback).withFailureHandler(failCallback).updateDoiTuong(payload, currentUserInfo());
+    } else {
+      google.script.run.withSuccessHandler(callback).withFailureHandler(failCallback).addDoiTuong(payload, currentUserInfo());
+    }
+  }
+
+  function loadDoiTuongList() {
+    const filters = {
+      loaiDoiTuong: document.getElementById('dt_loai') ? document.getElementById('dt_loai').value : '',
+      trangThai: document.getElementById('dt_trangThai') ? document.getElementById('dt_trangThai').value : '',
+      tuKhoa: document.getElementById('dt_tuKhoa') ? document.getElementById('dt_tuKhoa').value.trim() : ''
+    };
+    document.getElementById('doiTuongBody').innerHTML = '<tr><td colspan="6" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        const body = document.getElementById('doiTuongBody');
+        if (!res.data || res.data.length === 0) {
+          body.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-gray-400">Không có dữ liệu.</td></tr>';
+          return;
+        }
+        body.innerHTML = res.data.map(function (d) {
+          const argStr = "'" + d.ma_doi_tuong + "','" + escStr(d.ten_doi_tuong) + "','" + d.loai_doi_tuong + "','" +
+            escStr(d.so_dien_thoai) + "','" + escStr(d.mst) + "','" + escStr(d.dia_chi) + "','" +
+            escStr(d.nguoi_lien_he) + "','" + escStr(d.ghi_chu) + "','" + d.trang_thai + "'";
+          return '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="py-2 pr-3 font-medium">' + d.ma_doi_tuong + '</td>' +
+            '<td class="py-2 pr-3">' + d.ten_doi_tuong + '</td>' +
+            '<td class="py-2 pr-3">' + d.loai_doi_tuong + '</td>' +
+            '<td class="py-2 pr-3">' + (d.so_dien_thoai || '') + '</td>' +
+            '<td class="py-2 pr-3"><span class="px-2 py-0.5 rounded-full text-xs font-medium ' + (d.trang_thai === 'Hoạt động' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500') + '">' + d.trang_thai + '</span></td>' +
+            '<td class="py-2 pr-3"><button onclick="suaDoiTuong(' + argStr + ')" class="text-blue-600 text-xs hover:underline">Sửa</button></td>' +
+          '</tr>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getDoiTuongList(filters);
+  }
+
+  function escStr(s) {
+    return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  }
+
+  /* ================= DANH MỤC ================= */
+  let DANHMUC_TAB = 'Thu';
+
+  function renderDanhMuc() {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="flex gap-2 mb-4">
+        <button onclick="switchDanhMucTab('Thu')" id="dmTabThu" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Loại Thu</button>
+        <button onclick="switchDanhMucTab('Chi')" id="dmTabChi" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Loại Chi</button>
+      </div>
+      <div id="danhMucBody"></div>
+    `;
+    switchDanhMucTab('Thu');
+  }
+
+  function switchDanhMucTab(loai) {
+    DANHMUC_TAB = loai;
+    document.getElementById('dmTabThu').classList.toggle('bg-gray-800', loai === 'Thu');
+    document.getElementById('dmTabThu').classList.toggle('text-white', loai === 'Thu');
+    document.getElementById('dmTabChi').classList.toggle('bg-gray-800', loai === 'Chi');
+    document.getElementById('dmTabChi').classList.toggle('text-white', loai === 'Chi');
+
+    document.getElementById('danhMucBody').innerHTML = `
+      <div class="flex justify-between items-center mb-4">
+        <div class="text-sm text-gray-500">Danh mục ${loai === 'Thu' ? 'Loại Thu' : 'Loại Chi'}</div>
+        <button onclick="toggleDanhMucForm()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">+ Thêm mới</button>
+      </div>
+
+      <div id="dmFormWrap" class="card mb-4 hidden">
+        <h3 class="font-semibold text-gray-700 mb-3" id="dmFormTitle">Thêm danh mục mới</h3>
+        <div id="dmMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+        <input type="hidden" id="dmMa">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Tên danh mục</label>
+            <input type="text" id="dmTen" class="w-full border rounded-lg px-3 py-2">
+          </div>
+          <div id="dmTrangThaiBox" class="hidden">
+            <label class="block text-sm font-medium text-gray-600 mb-1">Trạng thái</label>
+            <select id="dmTrangThai" class="w-full border rounded-lg px-3 py-2">
+              <option value="Hoạt động">Hoạt động</option>
+              <option value="Ngừng hoạt động">Ngừng hoạt động</option>
+            </select>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-4">
+          <button onclick="document.getElementById('dmFormWrap').classList.add('hidden')" class="px-4 py-2 rounded-lg border text-gray-600 hover:bg-gray-50">Hủy</button>
+          <button id="btnSaveDanhMuc" onclick="saveDanhMuc()" class="px-5 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">💾 Lưu</button>
+        </div>
+      </div>
+
+      <div class="card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Mã</th>
+              <th class="py-2 pr-3">Tên</th>
+              <th class="py-2 pr-3">Trạng thái</th>
+              <th class="py-2 pr-3"></th>
+            </tr>
+          </thead>
+          <tbody id="danhMucTableBody">
+            <tr><td colspan="4" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+    loadDanhMucList();
+  }
+
+  function toggleDanhMucForm() {
+    document.getElementById('dmMa').value = '';
+    document.getElementById('dmTen').value = '';
+    document.getElementById('dmTrangThaiBox').classList.add('hidden');
+    document.getElementById('dmFormTitle').textContent = 'Thêm danh mục mới';
+    document.getElementById('dmMsg').classList.add('hidden');
+    document.getElementById('dmFormWrap').classList.toggle('hidden');
+  }
+
+  function suaDanhMuc(ma, ten, trangThai) {
+    document.getElementById('dmFormWrap').classList.remove('hidden');
+    document.getElementById('dmFormTitle').textContent = 'Sửa danh mục: ' + ma;
+    document.getElementById('dmMa').value = ma;
+    document.getElementById('dmTen').value = ten;
+    document.getElementById('dmTrangThaiBox').classList.remove('hidden');
+    document.getElementById('dmTrangThai').value = trangThai;
+    document.getElementById('dmMsg').classList.add('hidden');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function saveDanhMuc() {
+    const ma = document.getElementById('dmMa').value;
+    const ten = document.getElementById('dmTen').value.trim();
+    const trangThai = document.getElementById('dmTrangThai').value;
+
+    if (!ten) return showFormMsg('dmMsg', 'Vui lòng nhập Tên danh mục.', true);
+
+    const btn = document.getElementById('btnSaveDanhMuc');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang lưu...';
+
+    const callback = function (res) {
+      btn.disabled = false;
+      btn.textContent = '💾 Lưu';
+      if (!res.success) { showFormMsg('dmMsg', res.message, true); return; }
+      document.getElementById('dmFormWrap').classList.add('hidden');
+      loadDanhMucList();
+      CACHED_FORM_OPTIONS = null;
+    };
+    const failCallback = function (err) {
+      btn.disabled = false;
+      btn.textContent = '💾 Lưu';
+      showFormMsg('dmMsg', 'Lỗi hệ thống: ' + err.message, true);
+    };
+
+    if (ma) {
+      google.script.run.withSuccessHandler(callback).withFailureHandler(failCallback).updateDanhMuc(DANHMUC_TAB, ma, ten, trangThai, currentUserInfo());
+    } else {
+      google.script.run.withSuccessHandler(callback).withFailureHandler(failCallback).addDanhMuc(DANHMUC_TAB, ten, currentUserInfo());
+    }
+  }
+
+  function loadDanhMucList() {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        const body = document.getElementById('danhMucTableBody');
+        if (!res.data || res.data.length === 0) {
+          body.innerHTML = '<tr><td colspan="4" class="py-6 text-center text-gray-400">Không có dữ liệu.</td></tr>';
+          return;
+        }
+        body.innerHTML = res.data.map(function (d) {
+          return '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="py-2 pr-3 font-medium">' + d.ma + '</td>' +
+            '<td class="py-2 pr-3">' + d.ten + '</td>' +
+            '<td class="py-2 pr-3"><span class="px-2 py-0.5 rounded-full text-xs font-medium ' + (d.trang_thai === 'Hoạt động' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500') + '">' + d.trang_thai + '</span></td>' +
+            '<td class="py-2 pr-3"><button onclick="suaDanhMuc(\'' + d.ma + '\',\'' + escStr(d.ten) + '\',\'' + d.trang_thai + '\')" class="text-blue-600 text-xs hover:underline">Sửa</button></td>' +
+          '</tr>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getDanhMucList(DANHMUC_TAB);
+  }
+
+  /* ================= TRA CỨU ================= */
+  function renderTraCuu() {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="card mb-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Số phiếu</label>
+            <input type="text" id="tc_soPhieu" placeholder="vd: PT000012" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Từ ngày</label>
+            <input type="date" id="tc_tuNgay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Đến ngày</label>
+            <input type="date" id="tc_denNgay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Nội dung</label>
+            <input type="text" id="tc_noiDung" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Số tiền (chính xác)</label>
+            <input type="number" id="tc_soTien" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Người lập</label>
+            <input type="text" id="tc_nguoiLap" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+        </div>
+        <button onclick="loadTraCuu()" class="px-4 py-2 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Tìm kiếm</button>
+      </div>
+
+      <div class="text-xs text-gray-400 mb-2" id="tc_tongSo"></div>
+
+      <div class="card overflow-x-auto mb-4">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Ngày</th>
+              <th class="py-2 pr-3">Số phiếu</th>
+              <th class="py-2 pr-3">Loại</th>
+              <th class="py-2 pr-3">Nội dung</th>
+              <th class="py-2 pr-3">Đối tượng</th>
+              <th class="py-2 pr-3 text-right">Số tiền</th>
+              <th class="py-2 pr-3">Người lập</th>
+              <th class="py-2 pr-3">Trạng thái</th>
+              <th class="py-2 pr-3"></th>
+            </tr>
+          </thead>
+          <tbody id="traCuuBody">
+            <tr><td colspan="9" class="py-6 text-center text-gray-400">Nhập điều kiện và bấm "Tìm kiếm"</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="tcChiTietWrap" class="card hidden">
+        <div class="flex justify-between items-center mb-3">
+          <h3 class="font-semibold text-gray-700">Chi tiết giao dịch</h3>
+          <button onclick="document.getElementById('tcChiTietWrap').classList.add('hidden')" class="text-sm text-gray-400 hover:text-gray-600">Đóng ✕</button>
+        </div>
+        <div id="tcChiTietBody" class="text-sm text-gray-400">--</div>
+      </div>
+    `;
+  }
+
+  function loadTraCuu() {
+    const filters = {
+      soPhieu: document.getElementById('tc_soPhieu').value.trim(),
+      tuNgay: document.getElementById('tc_tuNgay').value,
+      denNgay: document.getElementById('tc_denNgay').value,
+      noiDung: document.getElementById('tc_noiDung').value.trim(),
+      soTien: document.getElementById('tc_soTien').value,
+      nguoiLap: document.getElementById('tc_nguoiLap').value.trim()
+    };
+
+    document.getElementById('traCuuBody').innerHTML = '<tr><td colspan="9" class="py-6 text-center text-gray-400">Đang tìm...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        const body = document.getElementById('traCuuBody');
+        const tongSoEl = document.getElementById('tc_tongSo');
+
+        if (!res.data.ket_qua || res.data.ket_qua.length === 0) {
+          body.innerHTML = '<tr><td colspan="9" class="py-6 text-center text-gray-400">Không tìm thấy giao dịch nào.</td></tr>';
+          tongSoEl.textContent = '';
+          return;
+        }
+
+        tongSoEl.textContent = 'Tìm thấy ' + res.data.tong_so + ' kết quả' + (res.data.tong_so > 100 ? ' (chỉ hiển thị 100 kết quả đầu, hãy thu hẹp điều kiện tìm kiếm)' : '') + '.';
+
+        body.innerHTML = res.data.ket_qua.map(function (t) {
+          return '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="py-2 pr-3 whitespace-nowrap">' + t.ngay + '</td>' +
+            '<td class="py-2 pr-3 font-medium">' + t.so_phieu + '</td>' +
+            '<td class="py-2 pr-3">' + t.loai + '</td>' +
+            '<td class="py-2 pr-3">' + (t.noi_dung || '') + '</td>' +
+            '<td class="py-2 pr-3">' + (t.doi_tuong || '') + '</td>' +
+            '<td class="py-2 pr-3 text-right">' + formatMoney(t.so_tien) + '</td>' +
+            '<td class="py-2 pr-3">' + (t.nguoi_lap || '') + '</td>' +
+            '<td class="py-2 pr-3"><span class="px-2 py-0.5 rounded-full text-xs font-medium ' + (t.trang_thai === 'Hợp lệ' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') + '">' + t.trang_thai + '</span></td>' +
+            '<td class="py-2 pr-3"><button onclick="xemChiTietGiaoDich(\'' + t.so_phieu + '\',\'' + t.loai + '\')" class="text-blue-600 text-xs hover:underline">Xem</button></td>' +
+          '</tr>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .traCuuGiaoDich(filters);
+  }
+
+  function xemChiTietGiaoDich(soPhieu, loai) {
+    const wrap = document.getElementById('tcChiTietWrap');
+    const body = document.getElementById('tcChiTietBody');
+    body.textContent = 'Đang tải...';
+    wrap.classList.remove('hidden');
+    wrap.scrollIntoView({ behavior: 'smooth' });
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { body.textContent = 'Lỗi: ' + res.message; return; }
+        const p = res.data.phieu;
+        const lichSu = res.data.lich_su;
+
+        let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 text-sm">';
+        html += '<div><span class="text-gray-400">Số phiếu:</span> <b>' + p.so_phieu + '</b></div>';
+        html += '<div><span class="text-gray-400">Loại giao dịch:</span> ' + p.loai_giao_dich + '</div>';
+        html += '<div><span class="text-gray-400">Ngày:</span> ' + p.ngay + ' ' + (p.gio || '') + '</div>';
+        html += '<div><span class="text-gray-400">Số tiền:</span> <b>' + formatMoney(p.so_tien) + '</b></div>';
+        html += '<div><span class="text-gray-400">' + (p.loai === 'Thu' ? 'Người nộp' : 'Người nhận') + ':</span> ' + (p.nguoi_nop_nhan || '') + '</div>';
+        html += '<div><span class="text-gray-400">Đối tượng:</span> ' + (p.doi_tuong || '') + '</div>';
+        html += '<div class="md:col-span-2"><span class="text-gray-400">Nội dung:</span> ' + (p.noi_dung || '') + '</div>';
+        html += '<div class="md:col-span-2"><span class="text-gray-400">Chứng từ liên quan:</span> ' + (p.chung_tu || '') + '</div>';
+        html += '<div class="md:col-span-2"><span class="text-gray-400">Ghi chú:</span> ' + (p.ghi_chu || '') + '</div>';
+        html += '<div><span class="text-gray-400">Người lập:</span> ' + p.nguoi_lap + '</div>';
+        html += '<div><span class="text-gray-400">Thời gian lập:</span> ' + p.thoi_gian_lap + '</div>';
+        html += '<div><span class="text-gray-400">Trạng thái:</span> <span class="px-2 py-0.5 rounded-full text-xs font-medium ' + (p.trang_thai === 'Hợp lệ' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') + '">' + p.trang_thai + '</span></div>';
+        if (p.ly_do_huy) html += '<div class="md:col-span-2"><span class="text-gray-400">Lý do hủy:</span> ' + p.ly_do_huy + '</div>';
+        html += '</div>';
+
+        html += '<div class="font-medium text-gray-600 text-sm mb-2">Lịch sử thao tác</div>';
+        if (!lichSu || lichSu.length === 0) {
+          html += '<div class="text-xs text-gray-400">Chưa có lịch sử ghi nhận.</div>';
+        } else {
+          html += '<table class="w-full text-xs"><tbody>' + lichSu.map(function (l) {
+            return '<tr class="border-b"><td class="py-1 pr-2 whitespace-nowrap">' + l.thoi_gian + '</td><td class="py-1 pr-2">' + l.nguoi_thao_tac + '</td><td class="py-1 pr-2">' + l.loai_thao_tac + '</td><td class="py-1 text-gray-500">' + (l.du_lieu_sau || '') + '</td></tr>';
+          }).join('') + '</tbody></table>';
+        }
+
+        body.innerHTML = html;
+      })
+      .withFailureHandler(function (err) { body.textContent = 'Lỗi hệ thống: ' + err.message; })
+      .getChiTietGiaoDich(soPhieu, loai);
+  }
+
+  /* ================= TIỆN ÍCH ================= */
+  function formatMoney(n) {
+    n = Number(n) || 0;
+    return n.toLocaleString('vi-VN') + ' đ';
+  }
+
+  function showFormMsg(boxId, text, isError) {
+    const box = document.getElementById(boxId);
+    if (!box) return;
+    box.textContent = text;
+    box.className = 'mb-4 p-3 rounded-lg text-sm ' +
+      (isError ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200');
+    box.classList.remove('hidden');
+  }
+
+  function downloadCSV(filename, headers, rows) {
+    let csv = '\uFEFF' + headers.join(',') + '\n';
+    rows.forEach(function (row) {
+      csv += row.map(function (cell) {
+        const s = String(cell === null || cell === undefined ? '' : cell).replace(/"/g, '""');
+        return '"' + s + '"';
+      }).join(',') + '\n';
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+</script>

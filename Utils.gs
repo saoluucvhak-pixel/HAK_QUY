@@ -1,0 +1,169 @@
+/*************************************************
+ * UTILS.GS
+ * Các hàm tiện ích dùng chung cho toàn bộ hệ thống.
+ *************************************************/
+
+function _ss() {
+  return SpreadsheetApp.getActiveSpreadsheet();
+}
+
+function _sheet(name) {
+  const sh = _ss().getSheetByName(name);
+  if (!sh) throw new Error('Không tìm thấy sheet: ' + name);
+  return sh;
+}
+
+/**
+ * Đọc toàn bộ 1 sheet, trả về mảng object (key = tên cột ở dòng header).
+ * __row = vị trí dòng thật trên sheet (1-based), dùng khi cần sửa lại dòng đó.
+ */
+function _sheetToObjects(sheetName) {
+  const sh = _sheet(sheetName);
+  const values = sh.getDataRange().getValues();
+  if (values.length < 2) return [];
+  const headers = values[0].map(h => String(h).trim());
+  const rows = [];
+  for (let i = 1; i < values.length; i++) {
+    const row = values[i];
+    if (row.every(c => c === '' || c === null)) continue; // bỏ dòng trống
+    const obj = {};
+    headers.forEach((h, idx) => obj[h] = row[idx]);
+    obj.__row = i + 1;
+    rows.push(obj);
+  }
+  return rows;
+}
+
+function _jsonOk(data) {
+  return { success: true, data: data };
+}
+function _jsonErr(err) {
+  return { success: false, message: (err && err.message) ? err.message : String(err) };
+}
+
+function _fmtDate(d) {
+  if (!d) return '';
+  if (Object.prototype.toString.call(d) === '[object Date]') {
+    return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  return String(d);
+}
+
+function _fmtDateTime(d) {
+  if (!d) return '';
+  if (Object.prototype.toString.call(d) === '[object Date]') {
+    return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  }
+  return String(d);
+}
+
+/**
+ * Băm mật khẩu bằng SHA-256 (KHÔNG lưu mật khẩu dạng thô trong Sheet).
+ */
+function _hashPassword(password) {
+  const rawHash = Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, password, Utilities.Charset.UTF_8);
+  return rawHash.map(b => (b < 0 ? b + 256 : b).toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Lấy giá trị cấu hình từ sheet CAU_HINH theo key.
+ */
+function _getCauHinh(key) {
+  const list = _sheetToObjects(SHEET_CAU_HINH);
+  const found = list.find(c => String(c.key) === String(key));
+  return found ? found.value : null;
+}
+
+/**
+ * Cập nhật hoặc tạo mới 1 dòng cấu hình trong CAU_HINH.
+ */
+function _setCauHinh(key, value) {
+  const sh = _sheet(SHEET_CAU_HINH);
+  const data = sh.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (String(data[i][0]) === String(key)) {
+      sh.getRange(i + 1, 2).setValue(value);
+      return;
+    }
+  }
+  sh.appendRow([key, value, '']);
+}
+
+/**
+ * Sinh số phiếu tự động dạng PT000001 / PC000001...
+ */
+function _generateNextNumber(configKey, prefix) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  try {
+    let current = Number(_getCauHinh(configKey));
+    if (!current || isNaN(current)) current = 1;
+    const soPhieu = prefix + String(current).padStart(6, '0');
+    _setCauHinh(configKey, current + 1);
+    return soPhieu;
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
+ * Ghi Audit Log cho mọi thao tác quan trọng (Thêm/Sửa/Hủy).
+ */
+function _writeAuditLog(nguoiThaoTac, chucNang, loaiThaoTac, maChungTu, duLieuTruoc, duLieuSau) {
+  try {
+    const sh = _sheet(SHEET_AUDIT_LOG);
+    sh.appendRow([
+      'LOG' + new Date().getTime(),
+      new Date(),
+      nguoiThaoTac || 'N/A',
+      chucNang || '',
+      loaiThaoTac || '',
+      maChungTu || '',
+      duLieuTruoc || '',
+      duLieuSau || ''
+    ]);
+  } catch (err) {
+    Logger.log('Lỗi ghi Audit Log: ' + err.message);
+  }
+}
+
+/**
+ * Kiểm tra 1 ngày đã bị khóa sổ hay chưa.
+ */
+function _isDateLocked(dateKey) {
+  const list = _sheetToObjects(SHEET_KHOA_SO);
+  const found = list.find(k => _fmtDate(k.ngay_khoa) === dateKey);
+  return found ? found.trang_thai === KHOA_SO_DA_KHOA : false;
+}
+
+/*************************************************
+ * PHÂN QUYỀN
+ * Luôn tra cứu vai trò THẬT của user từ sheet USERS
+ * (không tin trực tiếp giá trị role do client gửi lên),
+ * để đảm bảo phân quyền có hiệu lực thật sự chứ không
+ * chỉ ẩn/hiện trên giao diện.
+ *************************************************/
+
+/**
+ * @param {string} username
+ * @param {string[]} allowedRoles - ví dụ [ROLE_ADMIN, ROLE_THU_QUY]
+ * @returns {boolean}
+ */
+function _laVaiTroHopLe(username, allowedRoles) {
+  if (!username) return false;
+  const users = _sheetToObjects(SHEET_USERS);
+  const user = users.find(u => String(u.username).toLowerCase() === String(username).toLowerCase());
+  if (!user) return false;
+  if (user.status !== USER_STATUS_ACTIVE) return false;
+  return allowedRoles.indexOf(user.role) !== -1;
+}
+
+/**
+ * Chặn thao tác nếu user không đủ quyền. Ném lỗi rõ ràng để
+ * hiển thị cho người dùng biết vì sao bị từ chối.
+ */
+function _yeuCauQuyen(username, allowedRoles) {
+  if (!_laVaiTroHopLe(username, allowedRoles)) {
+    throw new Error('Bạn không có quyền thực hiện thao tác này.');
+  }
+}
