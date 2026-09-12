@@ -47,6 +47,24 @@ function _moSheetNgoaiTheoTen(cauHinhKey, tenSheet) {
 }
 
 /**
+ * Kiểm tra 1 sheet ngoài có đầy đủ các cột bắt buộc hay không, ném lỗi
+ * rõ ràng nếu thiếu — thay vì để lọt qua rồi âm thầm đọc ra undefined/0
+ * cho từng dòng (rất khó phát hiện, dễ làm sai số liệu báo cáo mà
+ * không ai nhận ra). Sheet nguồn là sheet "nháp" người dùng tự chỉnh
+ * sửa nên cấu trúc cột có thể thay đổi theo thời gian.
+ */
+function _kiemTraCotBatBuoc(sh, cacCotCanCo) {
+  const lastCol = sh.getLastColumn();
+  if (lastCol === 0) throw new Error('Sheet "' + sh.getName() + '" trống, không có dữ liệu.');
+  const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
+  const thieu = cacCotCanCo.filter(c => headers.indexOf(c) === -1);
+  if (thieu.length > 0) {
+    throw new Error('Sheet "' + sh.getName() + '" thiếu cột: ' + thieu.join(', ') +
+      '. Kiểm tra lại cấu trúc sheet nguồn (có thể tên cột đã bị đổi).');
+  }
+}
+
+/**
  * Tồn quỹ đầu ngày / cuối ngày của 1 loại quỹ, tính trên TOÀN BỘ
  * lịch sử giao dịch (không phụ thuộc bộ lọc), để luôn đúng kể cả
  * những ngày không phát sinh giao dịch nào.
@@ -77,6 +95,7 @@ function getBaoCaoNgayKeo(ngay) {
     if (!ngay) throw new Error('Vui lòng chọn ngày báo cáo.');
 
     const shPhanTich = _moSheetNgoaiTheoTen('ID_SHEET_PHANTICH_NHAP_TT', TEN_SHEET_PHANTICH_NHAP_TT);
+    _kiemTraCotBatBuoc(shPhanTich, ['Ngày', 'Loại', 'PhanLoai', 'Ten', 'KhoiLuongKg', 'GiaTri']);
     const rowsPhanTich = _sheetToObjectsFromSheetObj(shPhanTich)
       .filter(r => _ngayKeyLinhHoat(r['Ngày']) === ngay);
 
@@ -95,6 +114,7 @@ function getBaoCaoNgayKeo(ngay) {
     const thanhToan = { theo_nguon_goc: gomNhom('THANHTOAN', 'NG'), theo_dai_ly: gomNhom('THANHTOAN', 'DL'), tong: tongCua('THANHTOAN') };
 
     const shPhieuCan = _moSheetNgoaiTheoTen('ID_SHEET_PHIEU_CAN_DN', TEN_SHEET_PHIEU_CAN_DN);
+    _kiemTraCotBatBuoc(shPhieuCan, ['Số phiếu', 'Ngày cân 1', 'Biển số 1', 'Khách hàng', 'ĐL', 'NG', 'KL hàng (KG)', 'Đơn giá_TC', 'Thành tiền', 'Trạng thái']);
     const chiTietPhieuCan = _sheetToObjectsFromSheetObj(shPhieuCan)
       .filter(r => _ngayKeyLinhHoat(r['Ngày cân 1']) === ngay)
       .map(r => ({
