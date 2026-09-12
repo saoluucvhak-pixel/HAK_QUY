@@ -6,6 +6,14 @@
  * lại, giống Sổ Quỹ, dành cho cả ADMIN/THU_QUY/XEM.
  *************************************************/
 
+function _getPhieuThuData() {
+  return _sheetToObjects(SHEET_PHIEU_THU);
+}
+
+function _getPhieuChiData() {
+  return _sheetToObjects(SHEET_PHIEU_CHI);
+}
+
 function traCuuGiaoDich(filters) {
   try {
     filters = filters || {};
