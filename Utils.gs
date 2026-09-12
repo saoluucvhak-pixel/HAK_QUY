@@ -70,7 +70,7 @@ function _datDoRongCotTheoTieuDe(sh, headers, cotBatDau) {
     if (label === '') w = 24;
     else if (/diễn giải|nội dung/i.test(label)) w = 340;
     else if (/người|khách hàng|đối tượng|biển số/i.test(label)) w = 170;
-    else if (/^nợ$|^có$/i.test(label)) w = 130;
+    else if (/^nợ$|^có$/i.test(label)) w = 170;
     else if (/ngày/i.test(label)) w = 100;
     else if (/tồn|thành tiền|giá trị|^thu$|^chi$/i.test(label)) w = 115;
     else if (/số phiếu/i.test(label)) w = 100;
