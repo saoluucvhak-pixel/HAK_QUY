@@ -1,13 +1,14 @@
 /*************************************************
  * XUATTONGHOPEXCEL.GS
  * Xuất 1 file Excel TỔNG HỢP theo đúng bố cục các sheet trong file
- * Excel mẫu gốc (QUỸ TIỀN MẶT...xlsx) mà người dùng cung cấp:
- *   - "Quỹ tổng"   : Sổ kế toán chi tiết Quỹ tiền mặt, theo THÁNG
- *   - "Keo nhập"   : bảng lịch theo ngày (1 dòng/ngày) — bên trái
+ * Excel mẫu gốc (QUỸ TIỀN MẶT...xlsx) mà người dùng cung cấp, đặt
+ * tên sheet theo yêu cầu riêng của người dùng:
+ *   - "Quy_TamUng"  : Sổ kế toán chi tiết Quỹ tiền mặt, theo THÁNG
+ *   - "KEO_NHAP"    : bảng lịch theo ngày (1 dòng/ngày) — bên trái
  *                    theo Đại lý (DT/QT/KL), bên phải theo Nguồn gốc
- *   - "CK KEO"     : như "Keo nhập" nhưng cho phần Thanh toán (Chi)
- *   - "cơm"        : Sổ Cơm theo THÁNG
- *   - "Công đoàn"  : Sổ kế toán chi tiết Quỹ Công đoàn, theo CẢ NĂM
+ *   - "CK_KEO"      : như "KEO_NHAP" nhưng cho phần Thanh toán (Chi)
+ *   - "COM"         : Sổ Cơm theo THÁNG
+ *   - "QUY_CongDoan": Sổ kế toán chi tiết Quỹ Công đoàn, theo CẢ NĂM
  *                    (đúng như file mẫu gốc lấy cả năm cho sheet này)
  *
  * KHÔNG có sheet "NHân viên" (theo yêu cầu) và "Kangatang" (sheet
@@ -48,8 +49,8 @@ function xuatTongHopExcel(nam, thang) {
     }
 
     _veSheetQuyTong(ss, 0, nam, thang);
-    _veSheetKeoCalendar(ss, 1, 'Keo nhập', 'NHAP', nam, thang, rowsPhanTich, loiNguonKeo);
-    _veSheetKeoCalendar(ss, 2, 'CK KEO', 'THANHTOAN', nam, thang, rowsPhanTich, loiNguonKeo);
+    _veSheetKeoCalendar(ss, 1, 'KEO_NHAP', 'NHAP', nam, thang, rowsPhanTich, loiNguonKeo);
+    _veSheetKeoCalendar(ss, 2, 'CK_KEO', 'THANHTOAN', nam, thang, rowsPhanTich, loiNguonKeo);
     _veSheetCom(ss, 3, nam, thang);
     _veSheetCongDoanNam(ss, 4, nam);
 
@@ -123,7 +124,7 @@ function _veSheetQuyTong(ss, idx, nam, thang) {
     t.tai_khoan, t.tk_doi_ung, t.thu || '', t.chi || '', t.ton, t.nguoi_nhan_nop, t.ma_nhan_vien]);
 
   _veSheetSoKeToan(ss, idx, {
-    tenSheet: 'Quỹ tổng',
+    tenSheet: 'Quy_TamUng',
     tieuDe: 'SỔ KẾ TOÁN CHI TIẾT QUỸ TIỀN MẶT',
     phuDe: 'Loại tiền: Tổng hợp; Tài khoản: 1111; Từ ngày ' + _ddmmyyyy(tuNgay) + ' đến ngày ' + _ddmmyyyy(denNgay),
     headers: headers,
@@ -150,7 +151,7 @@ function _veSheetCongDoanNam(ss, idx, nam) {
     t.thu || '', t.chi || '', t.ton, t.nguoi_nhan_nop, t.chi_nhanh]);
 
   _veSheetSoKeToan(ss, idx, {
-    tenSheet: 'Công đoàn',
+    tenSheet: 'QUY_CongDoan',
     tieuDe: 'SỔ KẾ TOÁN CHI TIẾT QUỸ CÔNG ĐOÀN',
     phuDe: 'Loại tiền: VND; Từ ngày ' + _ddmmyyyy(tuNgay) + ' đến ngày ' + _ddmmyyyy(denNgay),
     headers: headers,
@@ -167,7 +168,7 @@ function _veSheetCom(ss, idx, nam, thang) {
   const d = res.data;
   const cuoiThang = new Date(nam, thang, 0).getDate();
 
-  const sh = idx === 0 ? ss.getSheets()[0].setName('cơm') : ss.insertSheet('cơm');
+  const sh = idx === 0 ? ss.getSheets()[0].setName('COM') : ss.insertSheet('COM');
   const headers = ['NGÀY', 'Trưa', 'Tối', 'Tổng', 'Đơn giá', 'Thành tiền', 'Ngày tạm ứng', 'Số tiền tạm ứng'];
   const soCot = headers.length;
 
