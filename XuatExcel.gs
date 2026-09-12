@@ -230,10 +230,11 @@ function xuatSoDoiSoatExcel(filters) {
     if (!res.success) throw new Error(res.message);
     const d = res.data;
 
-    const headers = ['Ngày HT', 'Ngày CT', 'Số PT', 'Số PC', 'Diễn giải', 'Quỹ', 'Thu', 'Chi', 'Đối soát', 'Người nhận/nộp'];
+    const loaiQuy = _chuanHoaLoaiQuy(filters && filters.loaiQuy);
+    const headers = ['Ngày HT', 'Ngày CT', 'Số PT', 'Số PC', 'Diễn giải', 'Thu', 'Chi', 'Đối soát', 'Người nhận/nộp'];
     const rows = d.danh_sach.map(function (t) {
       return [t.ngay_hach_toan, t.ngay, t.so_phieu_thu, t.so_phieu_chi, t.noi_dung || '',
-        t.loai_quy, t.thu || '', t.chi || '', t.doi_soat, t.nguoi_nhan_nop || ''];
+        t.thu || '', t.chi || '', t.doi_soat, t.nguoi_nhan_nop || ''];
     });
 
     let phuDe = 'Số chứng từ đang Chờ hoàn: ' + d.so_luong_cho_hoan + '  |  Tổng tiền Chờ hoàn: ' +
@@ -241,13 +242,13 @@ function xuatSoDoiSoatExcel(filters) {
     if (filters && filters.tuNgay) phuDe += '  |  Từ ngày ' + filters.tuNgay;
     if (filters && filters.denNgay) phuDe += ' đến ' + filters.denNgay;
 
-    const file = _taoFileExcel('SoDoiSoat', [{
+    const file = _taoFileExcel('SoDoiSoat_' + loaiQuy.replace(/\s+/g, ''), [{
       tenSheet: 'Sổ đối soát',
-      tieuDe: 'SỔ ĐỐI SOÁT — HOÀN ỨNG / CHỜ HOÀN',
+      tieuDe: 'SỔ ĐỐI SOÁT — ' + loaiQuy.toUpperCase(),
       phuDe: phuDe,
       headers: headers,
       rows: rows,
-      condoTien: [6, 7]
+      condoTien: [5, 6]
     }]);
 
     return _jsonOk(file);
