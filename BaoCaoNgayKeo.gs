@@ -78,6 +78,61 @@ function _kiemTraCotBatBuoc(sh, cacCotCanCo) {
 }
 
 /**
+ * Đọc TOÀN BỘ sheet PhanTichNhapTT_DRAFT (Google Sheet ngoài), có
+ * cache 5 phút (CacheService) — việc mở 1 Spreadsheet KHÁC rồi đọc
+ * hàng nghìn dòng là phần chậm nhất của Báo cáo ngày/tháng (Keo);
+ * cache giúp các lượt "Xem báo cáo"/"Xuất Excel" kế tiếp trong cùng
+ * 5 phút không phải mở + đọc lại từ đầu. Ném lỗi giống hệt khi đọc
+ * trực tiếp (chưa cấu hình / sai ID / thiếu cột) nếu cache trống.
+ */
+function _docPhanTichNhapTTCoCache() {
+  const cache = CacheService.getScriptCache();
+  const CHUNK_KEY_PREFIX = 'PTNT_';
+  const meta = cache.get(CHUNK_KEY_PREFIX + 'META');
+
+  if (meta) {
+    try {
+      const soChunk = JSON.parse(meta).n;
+      const keys = [];
+      for (let i = 0; i < soChunk; i++) keys.push(CHUNK_KEY_PREFIX + i);
+      const chunkMap = cache.getAll(keys);
+      if (keys.every(k => chunkMap[k] !== undefined && chunkMap[k] !== null)) {
+        return JSON.parse(keys.map(k => chunkMap[k]).join(''));
+      }
+    } catch (e) {
+      // Cache hỏng/không đọc được — bỏ qua, đọc lại trực tiếp từ Sheet nguồn bên dưới
+    }
+  }
+
+  const shPhanTich = _moSheetNgoaiTheoTen('ID_SHEET_PHANTICH_NHAP_TT', TEN_SHEET_PHANTICH_NHAP_TT);
+  _kiemTraCotBatBuoc(shPhanTich, ['Ngày', 'Loại', 'PhanLoai', 'Ten', 'KhoiLuongKg', 'GiaTri']);
+  const rows = _sheetToObjectsFromSheetObj(shPhanTich).map(r => ({
+    'Ngày': _ngayKeyLinhHoat(r['Ngày']),
+    'Loại': r['Loại'],
+    'PhanLoai': r['PhanLoai'],
+    'Ten': _safeText(r['Ten']),
+    'KhoiLuongKg': Number(r['KhoiLuongKg']) || 0,
+    'GiaTri': Number(r['GiaTri']) || 0
+  }));
+
+  try {
+    const json = JSON.stringify(rows);
+    const CHUNK_SIZE = 20000; // ký tự — đủ an toàn dưới giới hạn 100KB/khoá kể cả tiếng Việt có dấu (UTF-8 tới 3 byte/ký tự)
+    const soChunk = Math.max(1, Math.ceil(json.length / CHUNK_SIZE));
+    const puts = {};
+    for (let i = 0; i < soChunk; i++) {
+      puts[CHUNK_KEY_PREFIX + i] = json.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+    }
+    puts[CHUNK_KEY_PREFIX + 'META'] = JSON.stringify({ n: soChunk });
+    cache.putAll(puts, 300); // 5 phút
+  } catch (e) {
+    // Không cache được (vd dữ liệu quá lớn) — vẫn trả dữ liệu vừa đọc, chỉ mất phần tăng tốc
+  }
+
+  return rows;
+}
+
+/**
  * Tồn quỹ đầu ngày / cuối ngày của 1 loại quỹ, tính trên TOÀN BỘ
  * lịch sử giao dịch (không phụ thuộc bộ lọc), để luôn đúng kể cả
  * những ngày không phát sinh giao dịch nào.
@@ -116,10 +171,7 @@ function getBaoCaoNgayKeo(ngay) {
   try {
     if (!ngay) throw new Error('Vui lòng chọn ngày báo cáo.');
 
-    const shPhanTich = _moSheetNgoaiTheoTen('ID_SHEET_PHANTICH_NHAP_TT', TEN_SHEET_PHANTICH_NHAP_TT);
-    _kiemTraCotBatBuoc(shPhanTich, ['Ngày', 'Loại', 'PhanLoai', 'Ten', 'KhoiLuongKg', 'GiaTri']);
-    const rowsPhanTich = _sheetToObjectsFromSheetObj(shPhanTich)
-      .filter(r => _ngayKeyLinhHoat(r['Ngày']) === ngay);
+    const rowsPhanTich = _docPhanTichNhapTTCoCache().filter(r => r['Ngày'] === ngay);
 
     function gomNhom(loai, phanLoai) {
       return rowsPhanTich

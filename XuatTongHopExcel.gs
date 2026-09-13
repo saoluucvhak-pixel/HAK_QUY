@@ -54,9 +54,7 @@ function xuatTongHopExcel(nam, thang) {
     let rowsPhanTich = [];
     let loiNguonKeo = '';
     try {
-      const shPhanTich = _moSheetNgoaiTheoTen('ID_SHEET_PHANTICH_NHAP_TT', TEN_SHEET_PHANTICH_NHAP_TT);
-      _kiemTraCotBatBuoc(shPhanTich, ['Ngày', 'Loại', 'PhanLoai', 'Ten', 'KhoiLuongKg', 'GiaTri']);
-      rowsPhanTich = _sheetToObjectsFromSheetObj(shPhanTich);
+      rowsPhanTich = _docPhanTichNhapTTCoCache();
     } catch (e) {
       loiNguonKeo = e.message;
     }
@@ -97,12 +95,10 @@ function getBaoCaoThangTongHop(nam, thang) {
 
     let keoNhapKg = 0, keoNhapGt = 0, keoTTKg = 0, keoTTGt = 0, loiKeo = '';
     try {
-      const shPhanTich = _moSheetNgoaiTheoTen('ID_SHEET_PHANTICH_NHAP_TT', TEN_SHEET_PHANTICH_NHAP_TT);
-      _kiemTraCotBatBuoc(shPhanTich, ['Ngày', 'Loại', 'PhanLoai', 'Ten', 'KhoiLuongKg', 'GiaTri']);
       const monthPrefix = nam + '-' + String(thang).padStart(2, '0');
-      _sheetToObjectsFromSheetObj(shPhanTich).forEach(r => {
+      _docPhanTichNhapTTCoCache().forEach(r => {
         if (r['PhanLoai'] !== 'TONG') return;
-        if (_ngayKeyLinhHoat(r['Ngày']).slice(0, 7) !== monthPrefix) return;
+        if (r['Ngày'].slice(0, 7) !== monthPrefix) return;
         if (r['Loại'] === 'NHAP') { keoNhapKg += Number(r['KhoiLuongKg']) || 0; keoNhapGt += Number(r['GiaTri']) || 0; }
         else if (r['Loại'] === 'THANHTOAN') { keoTTKg += Number(r['KhoiLuongKg']) || 0; keoTTGt += Number(r['GiaTri']) || 0; }
       });
