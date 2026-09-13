@@ -3097,6 +3097,7 @@
         html += '<div><span class="text-gray-400">Người lập:</span> ' + p.nguoi_lap + '</div>';
         html += '<div><span class="text-gray-400">Thời gian lập:</span> ' + p.thoi_gian_lap + '</div>';
         html += '<div><span class="text-gray-400">Trạng thái:</span> <span class="px-2 py-0.5 rounded-full text-xs font-medium ' + (p.trang_thai === 'Hợp lệ' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') + '">' + p.trang_thai + '</span></div>';
+        html += '<div><span class="text-gray-400">Đối soát:</span> ' + _doiSoatBadge(p.doi_soat) + '</div>';
         if (p.ly_do_huy) html += '<div class="md:col-span-2"><span class="text-gray-400">Lý do hủy:</span> ' + p.ly_do_huy + '</div>';
         html += '</div>';
 
