@@ -2153,7 +2153,11 @@
         document.getElementById('qtBcnk_email').value = res.data.email_bao_cao;
         document.getElementById('qtBcnk_dongBoLuc').textContent = res.data.dong_bo_luc || 'Chưa đồng bộ lần nào';
         document.getElementById('qtBcnk_gio').value = String(res.data.dong_bo_gio);
-        if (!res.data.dong_bo_da_cai_dat) {
+        if (res.data.dong_bo_da_cai_dat === null) {
+          const canhBao = document.getElementById('qtBcnk_chuaCaiDat');
+          canhBao.classList.remove('hidden');
+          canhBao.innerHTML = '⚠ Chưa cấp đủ quyền cho hệ thống quản lý lịch chạy tự động. Vào Apps Script Editor, chọn hàm <b>thietLapDongBoHangNgay</b> ở dropdown trên cùng, bấm Run, và đồng ý cấp quyền khi được hỏi (chỉ cần làm 1 lần duy nhất) — sau đó tải lại trang này.';
+        } else if (!res.data.dong_bo_da_cai_dat) {
           document.getElementById('qtBcnk_chuaCaiDat').classList.remove('hidden');
         }
         if (res.data.dong_bo_loi) {

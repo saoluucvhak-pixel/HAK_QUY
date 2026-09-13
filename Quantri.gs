@@ -255,6 +255,19 @@ function getCauHinhBaoCaoNgay(currentUser) {
     if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
     _yeuCauQuyen(currentUser.username, [ROLE_ADMIN]);
 
+    // ScriptApp.getProjectTriggers() cần quyền OAuth "script.scriptapp" —
+    // quyền này chỉ được cấp sau khi chủ script chạy tay 1 lần hàm có đụng
+    // tới ScriptApp (vd thietLapDongBoHangNgay) từ Apps Script Editor và
+    // đồng ý cấp quyền. Trước khi việc đó xảy ra, gọi hàm này sẽ ném lỗi
+    // "You do not have permission..." — phải bắt riêng, không để nó làm
+    // hỏng luôn cả phần load cấu hình ID sheet/email vốn không liên quan.
+    let daCaiDatTrigger = false;
+    try {
+      daCaiDatTrigger = ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'dongBoDuLieuKeo');
+    } catch (e) {
+      daCaiDatTrigger = null; // null = chưa xác định được do thiếu quyền, khác với false (đã xác định là chưa cài)
+    }
+
     return _jsonOk({
       id_sheet_phantich: _getCauHinh('ID_SHEET_PHANTICH_NHAP_TT') || '',
       id_sheet_phieucan: _getCauHinh('ID_SHEET_PHIEU_CAN_DN') || '',
@@ -263,7 +276,7 @@ function getCauHinhBaoCaoNgay(currentUser) {
       dong_bo_loi: _getCauHinh('KEO_DONGBO_LOI') || '',
       dong_bo_loi_luc: _getCauHinh('KEO_DONGBO_LOI_LUC') || '',
       dong_bo_gio: Number(_getCauHinh('KEO_DONGBO_GIO')) || 1,
-      dong_bo_da_cai_dat: ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'dongBoDuLieuKeo')
+      dong_bo_da_cai_dat: daCaiDatTrigger
     });
   } catch (err) {
     return _jsonErr(err);
