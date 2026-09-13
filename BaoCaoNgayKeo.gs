@@ -222,14 +222,22 @@ function _caiDatTriggerDongBoKeo(gio) {
  * thể đổi giờ sau đó ngay trong Quản Trị > "Báo cáo ngày (Keo)" mà
  * không cần quay lại Apps Script Editor). Muốn đồng bộ ngay lập tức
  * bất cứ lúc nào, dùng nút "🔄 Đồng bộ dữ liệu Keo ngay" trong Quản Trị.
+ *
+ * Chủ động dùng Logger.log() thay vì SpreadsheetApp.getUi().alert() để
+ * báo kết quả — .alert() mở hộp thoại NGAY TRONG trang tính đang mở,
+ * chạy tay từ Apps Script Editor mà không có tab Sheet đang mở/focus
+ * sẽ khiến execution treo vô thời hạn chờ người dùng bấm OK vào 1 hộp
+ * thoại chẳng ai nhìn thấy. Logger.log() không chặn, xem kết quả ở
+ * View > Execution log (hoặc panel "Nhật ký thực thi" dưới cùng sau
+ * khi Run xong).
  */
 function thietLapDongBoHangNgay() {
   const gio = Number(_getCauHinh('KEO_DONGBO_GIO')) || 1;
   _caiDatTriggerDongBoKeo(gio);
 
-  SpreadsheetApp.getUi().alert(
-    'Đã thiết lập đồng bộ dữ liệu Keo tự động — chạy 1 lần mỗi ngày vào khoảng ' + gio + ' giờ.\n\n' +
-    'Muốn đổi giờ chạy, vào Quản Trị > "Báo cáo ngày (Keo)" trong webapp, không cần quay lại đây.\n\n' +
+  Logger.log(
+    'Đã thiết lập đồng bộ dữ liệu Keo tự động — chạy 1 lần mỗi ngày vào khoảng ' + gio + ' giờ. ' +
+    'Muốn đổi giờ chạy, vào Quản Trị > "Báo cáo ngày (Keo)" trong webapp, không cần quay lại đây. ' +
     'Nếu trong ngày có cập nhật dữ liệu Keo cần xem báo cáo ngay, bấm "🔄 Đồng bộ dữ liệu Keo ngay" để đồng bộ thủ công bất cứ lúc nào.'
   );
 }
