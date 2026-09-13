@@ -298,7 +298,10 @@
   function renderThuForm() {
     document.getElementById('mainContent').innerHTML = `
       <div class="card max-w-2xl">
-        <h2 class="text-lg font-semibold mb-4 text-gray-700">Lập Phiếu Thu</h2>
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-semibold text-gray-700">Lập Phiếu Thu</h2>
+          <button onclick="switchMenu('tracuu')" class="px-3 py-1.5 rounded-lg border text-sm text-gray-600 hover:bg-gray-50">🔍 Tra cứu</button>
+        </div>
         <div id="thuFormBody" class="text-gray-400 text-sm">Đang tải danh mục...</div>
       </div>
     `;
@@ -532,7 +535,10 @@
   function renderChiForm() {
     document.getElementById('mainContent').innerHTML = `
       <div class="card max-w-2xl">
-        <h2 class="text-lg font-semibold mb-4 text-gray-700">Lập Phiếu Chi</h2>
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-semibold text-gray-700">Lập Phiếu Chi</h2>
+          <button onclick="switchMenu('tracuu')" class="px-3 py-1.5 rounded-lg border text-sm text-gray-600 hover:bg-gray-50">🔍 Tra cứu</button>
+        </div>
         <div id="chiFormBody" class="text-gray-400 text-sm">Đang tải danh mục...</div>
       </div>
     `;
