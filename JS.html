@@ -517,7 +517,7 @@
         const soPhieu = res.data.so_phieu_thu;
         renderThuForm();
         setTimeout(function () {
-          if (document.getElementById('thuMsg')) showFormMsg('thuMsg', 'Đã lưu phiếu thu ' + soPhieu + ' thành công!', false);
+          if (document.getElementById('thuMsg')) _thongBaoLuuPhieuKemNutIn('thuMsg', soPhieu, 'Thu', 'phiếu thu');
         }, 300);
       })
       .withFailureHandler(function (err) {
@@ -751,7 +751,7 @@
         const soPhieu = res.data.so_phieu_chi;
         renderChiForm();
         setTimeout(function () {
-          if (document.getElementById('chiMsg')) showFormMsg('chiMsg', 'Đã lưu phiếu chi ' + soPhieu + ' thành công!', false);
+          if (document.getElementById('chiMsg')) _thongBaoLuuPhieuKemNutIn('chiMsg', soPhieu, 'Chi', 'phiếu chi');
         }, 300);
       })
       .withFailureHandler(function (err) {
@@ -3310,6 +3310,37 @@
     box.className = 'mb-4 p-3 rounded-lg text-sm ' +
       (isError ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200');
     box.classList.remove('hidden');
+  }
+
+  /**
+   * Báo đã lưu Phiếu Thu/Chi thành công KÈM nút in ngay — soPhieu/loai
+   * do server sinh ra (không phải input tự do của người dùng) nên gán
+   * thẳng vào innerHTML là an toàn, không có rủi ro XSS.
+   */
+  function _thongBaoLuuPhieuKemNutIn(boxId, soPhieu, loai, tenLoaiPhieu) {
+    const box = document.getElementById(boxId);
+    if (!box) return;
+    box.className = 'mb-4 p-3 rounded-lg text-sm bg-green-50 text-green-700 border border-green-200 flex items-center justify-between flex-wrap gap-2';
+    box.innerHTML = '<span>Đã lưu ' + tenLoaiPhieu + ' <b>' + soPhieu + '</b> thành công!</span>' +
+      '<button type="button" onclick="inPhieuTheoSo(\'' + soPhieu + '\',\'' + loai + '\')" ' +
+      'class="px-3 py-1.5 rounded-lg border border-green-300 bg-white text-green-800 text-xs font-medium hover:bg-green-100">🖨️ In phiếu vừa lập</button>';
+    box.classList.remove('hidden');
+  }
+
+  /**
+   * In 1 Phiếu Thu/Chi theo số phiếu, dùng chung mẫu in với Tra Cứu
+   * (_renderMauInPhieu) — cho phép in ngay sau khi vừa lập phiếu mà
+   * không cần vòng qua Tra Cứu tìm lại.
+   */
+  function inPhieuTheoSo(soPhieu, loai) {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        TC_CHITIET_CACHE = res.data.phieu;
+        _renderMauInPhieu(TC_CHITIET_CACHE);
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getChiTietGiaoDich(soPhieu, loai);
   }
 
   /**
