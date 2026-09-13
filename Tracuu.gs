@@ -6,6 +6,14 @@
  * lại, giống Sổ Quỹ, dành cho cả ADMIN/THU_QUY/XEM.
  *************************************************/
 
+function _getPhieuThuData() {
+  return _sheetToObjects(SHEET_PHIEU_THU);
+}
+
+function _getPhieuChiData() {
+  return _sheetToObjects(SHEET_PHIEU_CHI);
+}
+
 function traCuuGiaoDich(filters) {
   try {
     filters = filters || {};
@@ -81,7 +89,8 @@ function getChiTietGiaoDich(soPhieu, loai) {
           so_tien: Number(row.so_tien) || 0, chung_tu: row.chung_tu_lien_quan, ghi_chu: row.ghi_chu,
           nguoi_lap: row.nguoi_lap, thoi_gian_lap: _fmtDateTime(row.thoi_gian_lap),
           trang_thai: row.trang_thai, ly_do_huy: row.ly_do_huy,
-          loai_quy: _chuanHoaLoaiQuy(row.loai_quy), tai_khoan: row.tai_khoan || '1111', tk_doi_ung: row.tk_doi_ung || ''
+          loai_quy: _chuanHoaLoaiQuy(row.loai_quy), tai_khoan: row.tai_khoan || '1111', tk_doi_ung: row.tk_doi_ung || '',
+          doi_soat: _chuanHoaDoiSoat(row.doi_soat)
         };
       }
     } else if (loai === 'Chi') {
@@ -94,7 +103,8 @@ function getChiTietGiaoDich(soPhieu, loai) {
           so_tien: Number(row.so_tien) || 0, chung_tu: row.chung_tu_lien_quan, ghi_chu: row.ghi_chu,
           nguoi_lap: row.nguoi_lap, thoi_gian_lap: _fmtDateTime(row.thoi_gian_lap),
           trang_thai: row.trang_thai, ly_do_huy: row.ly_do_huy,
-          loai_quy: _chuanHoaLoaiQuy(row.loai_quy), tai_khoan: row.tai_khoan || '1111', tk_doi_ung: row.tk_doi_ung || ''
+          loai_quy: _chuanHoaLoaiQuy(row.loai_quy), tai_khoan: row.tai_khoan || '1111', tk_doi_ung: row.tk_doi_ung || '',
+          doi_soat: _chuanHoaDoiSoat(row.doi_soat)
         };
       }
     } else {

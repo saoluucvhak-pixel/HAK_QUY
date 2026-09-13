@@ -41,6 +41,10 @@ function _chuanHoaLoaiQuy(loaiQuy) {
   return loaiQuy === QUY_CONG_DOAN ? QUY_CONG_DOAN : QUY_TIEN_MAT;
 }
 
+function _chuanHoaDoiSoat(doiSoat) {
+  return doiSoat === DOI_SOAT_CHO_HOAN ? DOI_SOAT_CHO_HOAN : DOI_SOAT_HOAN_UNG;
+}
+
 function _cauHinhSoDuKhoiTaoTheoQuy(loaiQuy) {
   return loaiQuy === QUY_CONG_DOAN ? 'SO_DU_QUY_CONG_DOAN_KHOI_TAO' : 'SO_DU_QUY_KHOI_TAO';
 }
@@ -180,7 +184,8 @@ function addPhieuThu(payload, currentUser) {
       payload.chung_tu_lien_quan || '', payload.ghi_chu || '',
       nguoiLap, now, '', '', TRANG_THAI_HOP_LE, '',
       loaiQuy, ngayHachToan, taiKhoan, payload.tk_doi_ung || '',
-      payload.ma_nhan_vien || '', payload.chi_nhanh || ''
+      payload.ma_nhan_vien || '', payload.chi_nhanh || '',
+      _chuanHoaDoiSoat(payload.doi_soat)
     ]);
 
     _writeAuditLog(nguoiLap, 'Phiếu Thu', 'Thêm', soPhieuThu, '',
@@ -271,7 +276,8 @@ function addPhieuChi(payload, currentUser) {
       payload.chung_tu_lien_quan || '', payload.ghi_chu || '',
       nguoiLap, now, '', '', TRANG_THAI_HOP_LE, '',
       loaiQuy, ngayHachToan, taiKhoan, payload.tk_doi_ung || '',
-      payload.ma_nhan_vien || '', payload.chi_nhanh || ''
+      payload.ma_nhan_vien || '', payload.chi_nhanh || '',
+      _chuanHoaDoiSoat(payload.doi_soat)
     ]);
 
     _writeAuditLog(nguoiLap, 'Phiếu Chi', 'Thêm', soPhieuChi, '',
@@ -282,6 +288,132 @@ function addPhieuChi(payload, currentUser) {
       _writeAuditLog(nguoiLap, 'Công Nợ', 'Sửa', payload.ma_cong_no, '',
         'Trả nợ ' + soTien.toLocaleString('vi-VN') + ' đ qua phiếu ' + soPhieuChi);
     }
+
+    return _jsonOk({ so_phieu_chi: soPhieuChi });
+
+  } catch (err) {
+    return _jsonErr(err);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/*************************************************
+ * API: HỦY PHIẾU THU / PHIẾU CHI
+ * Theo đúng nguyên tắc kế toán: KHÔNG sửa/xóa phiếu đã lập — chỉ
+ * đổi trạng thái sang "Đã hủy" kèm lý do, giữ nguyên lịch sử để
+ * truy vết (Audit Log + số phiếu cũ vẫn còn trên Sổ Quỹ, chỉ không
+ * còn được tính vào tồn quỹ). Muốn ghi nhận đúng thì lập phiếu mới.
+ * Quyền: ADMIN hoặc THU_QUY (giống quyền lập phiếu).
+ *************************************************/
+function huyPhieuThu(soPhieuThu, lyDoHuy, currentUser) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(20000);
+
+    if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN, ROLE_THU_QUY]);
+
+    if (!soPhieuThu) throw new Error('Thiếu số phiếu thu cần hủy.');
+    if (!lyDoHuy) throw new Error('Vui lòng nhập lý do hủy.');
+
+    const sh = _sheet(SHEET_PHIEU_THU);
+    const data = sh.getDataRange().getValues();
+    const headers = data[0].map(h => String(h).trim());
+    const idxSoPhieu = headers.indexOf('so_phieu_thu');
+    const idxNgay = headers.indexOf('ngay_thu');
+    const idxLoaiGD = headers.indexOf('loai_giao_dich');
+    const idxTrangThai = headers.indexOf('trang_thai');
+    const idxLyDoHuy = headers.indexOf('ly_do_huy');
+    const idxNguoiSua = headers.indexOf('nguoi_sua_cuoi');
+    const idxThoiGianSua = headers.indexOf('thoi_gian_sua_cuoi');
+
+    let rowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][idxSoPhieu]) === String(soPhieuThu)) { rowIndex = i; break; }
+    }
+    if (rowIndex === -1) throw new Error('Không tìm thấy phiếu thu: ' + soPhieuThu);
+    if (data[rowIndex][idxTrangThai] === TRANG_THAI_DA_HUY) throw new Error('Phiếu này đã bị hủy trước đó.');
+
+    const ngayKey = _fmtDate(data[rowIndex][idxNgay]);
+    if (_isDateLocked(ngayKey)) throw new Error('Ngày ' + ngayKey + ' đã bị khóa sổ, không thể hủy phiếu.');
+
+    const loaiGD = data[rowIndex][idxLoaiGD];
+    const nguoiLap = currentUser.full_name || 'N/A';
+    const now = new Date();
+
+    sh.getRange(rowIndex + 1, idxTrangThai + 1).setValue(TRANG_THAI_DA_HUY);
+    sh.getRange(rowIndex + 1, idxLyDoHuy + 1).setValue(lyDoHuy);
+    sh.getRange(rowIndex + 1, idxNguoiSua + 1).setValue(nguoiLap);
+    sh.getRange(rowIndex + 1, idxThoiGianSua + 1).setValue(now);
+
+    if (loaiGD === 'Thu công nợ') {
+      const maCongNoDaHoanTac = _huyThanhToanCongNoTheoPhieu(soPhieuThu, nguoiLap);
+      maCongNoDaHoanTac.forEach(ma => {
+        _writeAuditLog(nguoiLap, 'Công Nợ', 'Sửa', ma, '', 'Hoàn tác thu nợ do hủy phiếu ' + soPhieuThu);
+      });
+    }
+
+    _writeAuditLog(nguoiLap, 'Phiếu Thu', 'Hủy', soPhieuThu, TRANG_THAI_HOP_LE, 'Lý do: ' + lyDoHuy);
+
+    return _jsonOk({ so_phieu_thu: soPhieuThu });
+
+  } catch (err) {
+    return _jsonErr(err);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function huyPhieuChi(soPhieuChi, lyDoHuy, currentUser) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(20000);
+
+    if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN, ROLE_THU_QUY]);
+
+    if (!soPhieuChi) throw new Error('Thiếu số phiếu chi cần hủy.');
+    if (!lyDoHuy) throw new Error('Vui lòng nhập lý do hủy.');
+
+    const sh = _sheet(SHEET_PHIEU_CHI);
+    const data = sh.getDataRange().getValues();
+    const headers = data[0].map(h => String(h).trim());
+    const idxSoPhieu = headers.indexOf('so_phieu_chi');
+    const idxNgay = headers.indexOf('ngay_chi');
+    const idxLoaiGD = headers.indexOf('loai_giao_dich');
+    const idxTrangThai = headers.indexOf('trang_thai');
+    const idxLyDoHuy = headers.indexOf('ly_do_huy');
+    const idxNguoiSua = headers.indexOf('nguoi_sua_cuoi');
+    const idxThoiGianSua = headers.indexOf('thoi_gian_sua_cuoi');
+
+    let rowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][idxSoPhieu]) === String(soPhieuChi)) { rowIndex = i; break; }
+    }
+    if (rowIndex === -1) throw new Error('Không tìm thấy phiếu chi: ' + soPhieuChi);
+    if (data[rowIndex][idxTrangThai] === TRANG_THAI_DA_HUY) throw new Error('Phiếu này đã bị hủy trước đó.');
+
+    const ngayKey = _fmtDate(data[rowIndex][idxNgay]);
+    if (_isDateLocked(ngayKey)) throw new Error('Ngày ' + ngayKey + ' đã bị khóa sổ, không thể hủy phiếu.');
+
+    const loaiGD = data[rowIndex][idxLoaiGD];
+    const nguoiLap = currentUser.full_name || 'N/A';
+    const now = new Date();
+
+    sh.getRange(rowIndex + 1, idxTrangThai + 1).setValue(TRANG_THAI_DA_HUY);
+    sh.getRange(rowIndex + 1, idxLyDoHuy + 1).setValue(lyDoHuy);
+    sh.getRange(rowIndex + 1, idxNguoiSua + 1).setValue(nguoiLap);
+    sh.getRange(rowIndex + 1, idxThoiGianSua + 1).setValue(now);
+
+    if (loaiGD === 'Trả công nợ') {
+      const maCongNoDaHoanTac = _huyThanhToanCongNoTheoPhieu(soPhieuChi, nguoiLap);
+      maCongNoDaHoanTac.forEach(ma => {
+        _writeAuditLog(nguoiLap, 'Công Nợ', 'Sửa', ma, '', 'Hoàn tác trả nợ do hủy phiếu ' + soPhieuChi);
+      });
+    }
+
+    _writeAuditLog(nguoiLap, 'Phiếu Chi', 'Hủy', soPhieuChi, TRANG_THAI_HOP_LE, 'Lý do: ' + lyDoHuy);
 
     return _jsonOk({ so_phieu_chi: soPhieuChi });
 
@@ -316,17 +448,19 @@ function getSoQuy(filters) {
     _sheetToObjects(SHEET_PHIEU_THU).forEach(p => {
       if (p.trang_thai !== TRANG_THAI_HOP_LE) return;
       if (_chuanHoaLoaiQuy(p.loai_quy) !== loaiQuy) return;
+      const soPhieuThu = _safeText(p.so_phieu_thu);
       list.push({
         ngay: _fmtDate(p.ngay_thu), gio: p.gio_thu || '00:00',
         ngay_hach_toan: p.ngay_hach_toan ? _fmtDate(p.ngay_hach_toan) : _fmtDate(p.ngay_thu),
-        so_phieu_thu: p.so_phieu_thu, so_phieu_chi: '', so_phieu: p.so_phieu_thu,
-        noi_dung: p.noi_dung_thu,
-        tai_khoan: p.tai_khoan || '1111', tk_doi_ung: p.tk_doi_ung || '',
+        so_phieu_thu: soPhieuThu, so_phieu_chi: '', so_phieu: soPhieuThu,
+        noi_dung: _safeText(p.noi_dung_thu),
+        tai_khoan: _safeText(p.tai_khoan) || '1111', tk_doi_ung: _safeText(p.tk_doi_ung),
         ma_doi_tuong: p.ma_doi_tuong,
         doi_tuong: doiTuongMap[p.ma_doi_tuong] || p.ma_doi_tuong || '',
         thu: Number(p.so_tien) || 0, chi: 0, loai: 'Thu',
-        nguoi_nhan_nop: p.nguoi_nop_tien || '',
-        ma_nhan_vien: p.ma_nhan_vien || '', chi_nhanh: p.chi_nhanh || '',
+        nguoi_nhan_nop: _safeText(p.nguoi_nop_tien),
+        ma_nhan_vien: _safeText(p.ma_nhan_vien), chi_nhanh: _safeText(p.chi_nhanh),
+        doi_soat: _chuanHoaDoiSoat(p.doi_soat),
         nguoi_lap: p.nguoi_lap, thoi_gian_lap: p.thoi_gian_lap
       });
     });
@@ -334,17 +468,19 @@ function getSoQuy(filters) {
     _sheetToObjects(SHEET_PHIEU_CHI).forEach(p => {
       if (p.trang_thai !== TRANG_THAI_HOP_LE) return;
       if (_chuanHoaLoaiQuy(p.loai_quy) !== loaiQuy) return;
+      const soPhieuChi = _safeText(p.so_phieu_chi);
       list.push({
         ngay: _fmtDate(p.ngay_chi), gio: p.gio_chi || '00:00',
         ngay_hach_toan: p.ngay_hach_toan ? _fmtDate(p.ngay_hach_toan) : _fmtDate(p.ngay_chi),
-        so_phieu_thu: '', so_phieu_chi: p.so_phieu_chi, so_phieu: p.so_phieu_chi,
-        noi_dung: p.noi_dung_chi,
-        tai_khoan: p.tai_khoan || '1111', tk_doi_ung: p.tk_doi_ung || '',
+        so_phieu_thu: '', so_phieu_chi: soPhieuChi, so_phieu: soPhieuChi,
+        noi_dung: _safeText(p.noi_dung_chi),
+        tai_khoan: _safeText(p.tai_khoan) || '1111', tk_doi_ung: _safeText(p.tk_doi_ung),
         ma_doi_tuong: p.ma_doi_tuong,
         doi_tuong: doiTuongMap[p.ma_doi_tuong] || p.ma_doi_tuong || '',
         thu: 0, chi: Number(p.so_tien) || 0, loai: 'Chi',
-        nguoi_nhan_nop: p.nguoi_nhan_tien || '',
-        ma_nhan_vien: p.ma_nhan_vien || '', chi_nhanh: p.chi_nhanh || '',
+        nguoi_nhan_nop: _safeText(p.nguoi_nhan_tien),
+        ma_nhan_vien: _safeText(p.ma_nhan_vien), chi_nhanh: _safeText(p.chi_nhanh),
+        doi_soat: _chuanHoaDoiSoat(p.doi_soat),
         nguoi_lap: p.nguoi_lap, thoi_gian_lap: p.thoi_gian_lap
       });
     });
@@ -388,8 +524,94 @@ function getSoQuy(filters) {
   }
 }
 
-function _testSoQuyCongDoan() {
-  const r = getSoQuy({ loaiQuy: 'Quỹ công đoàn', tuNgay: '2020-01-01', denNgay: '2026-12-31' });
-  Logger.log('success=' + r.success + ', so dong=' + (r.data ? r.data.length : 'n/a'));
-  Logger.log(JSON.stringify(r).length + ' ky tu');
+/*************************************************
+ * ============ ĐỐI SOÁT (Hoàn ứng / Chờ hoàn) ============
+ * Theo dõi các Phiếu Thu/Chi đang tạm ứng "Chờ hoàn" chứng từ, tách
+ * biệt hoàn toàn khỏi việc hủy phiếu: đổi Đối soát KHÔNG ảnh hưởng
+ * số tiền/ngày tháng/tồn quỹ, chỉ là 1 cờ trạng thái theo dõi nội bộ
+ * nên KHÔNG bị chặn bởi Khóa Sổ (việc hoàn chứng từ thường xảy ra
+ * sau khi ngày phát sinh đã được khóa sổ).
+ *************************************************/
+
+/**
+ * API: Sổ Đối Soát — danh sách phiếu Thu/Chi kèm trạng thái Đối
+ * soát, cộng gộp cả Quỹ tiền mặt lẫn Quỹ công đoàn (trừ khi lọc theo
+ * 1 quỹ cụ thể), kèm tổng số lượng/tổng tiền đang "Chờ hoàn".
+ * filters = { loaiQuy, tuNgay, denNgay, nguoiLap, trangThaiDoiSoat }
+ */
+function getSoDoiSoat(filters) {
+  try {
+    filters = filters || {};
+    const quyList = filters.loaiQuy ? [_chuanHoaLoaiQuy(filters.loaiQuy)] : [QUY_TIEN_MAT, QUY_CONG_DOAN];
+
+    let all = [];
+    quyList.forEach(quy => {
+      const res = getSoQuy({ loaiQuy: quy, tuNgay: filters.tuNgay, denNgay: filters.denNgay, nguoiLap: filters.nguoiLap });
+      if (!res.success) throw new Error(res.message);
+      res.data.forEach(t => { t.loai_quy = quy; });
+      all = all.concat(res.data);
+    });
+
+    const choHoanList = all.filter(t => t.doi_soat === DOI_SOAT_CHO_HOAN);
+    const tongTienChoHoan = choHoanList.reduce((s, t) => s + t.thu + t.chi, 0);
+
+    let danhSach = all;
+    if (filters.trangThaiDoiSoat) danhSach = danhSach.filter(t => t.doi_soat === filters.trangThaiDoiSoat);
+    danhSach.sort((a, b) => (a.ngay < b.ngay) ? 1 : (a.ngay > b.ngay ? -1 : 0));
+
+    return _jsonOk({
+      danh_sach: danhSach,
+      so_luong_cho_hoan: choHoanList.length,
+      tong_tien_cho_hoan: tongTienChoHoan
+    });
+
+  } catch (err) {
+    return _jsonErr(err);
+  }
+}
+
+/**
+ * API: Đổi trạng thái Đối soát của 1 phiếu Thu/Chi (Hoàn ứng <-> Chờ hoàn).
+ */
+function capNhatDoiSoat(soPhieu, loai, doiSoatMoi, currentUser) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+
+    if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN, ROLE_THU_QUY]);
+
+    if (!soPhieu || !loai) throw new Error('Thiếu thông tin phiếu.');
+    const doiSoatChuan = _chuanHoaDoiSoat(doiSoatMoi);
+
+    const sheetName = loai === 'Thu' ? SHEET_PHIEU_THU : (loai === 'Chi' ? SHEET_PHIEU_CHI : null);
+    if (!sheetName) throw new Error('Loại giao dịch không hợp lệ.');
+    const colSoPhieu = loai === 'Thu' ? 'so_phieu_thu' : 'so_phieu_chi';
+
+    const sh = _sheet(sheetName);
+    const data = sh.getDataRange().getValues();
+    const headers = data[0].map(h => String(h).trim());
+    const idxSoPhieu = headers.indexOf(colSoPhieu);
+    const idxDoiSoat = headers.indexOf('doi_soat');
+    if (idxDoiSoat === -1) throw new Error('Sheet chưa có cột doi_soat — ADMIN cần chạy hàm migrateDoiSoat() trong Apps Script Editor trước.');
+
+    let rowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][idxSoPhieu]) === String(soPhieu)) { rowIndex = i; break; }
+    }
+    if (rowIndex === -1) throw new Error('Không tìm thấy phiếu: ' + soPhieu);
+
+    const doiSoatCu = data[rowIndex][idxDoiSoat] || DOI_SOAT_HOAN_UNG;
+    sh.getRange(rowIndex + 1, idxDoiSoat + 1).setValue(doiSoatChuan);
+
+    const nguoiLap = currentUser.full_name || 'N/A';
+    _writeAuditLog(nguoiLap, 'Đối Soát', 'Sửa', soPhieu, doiSoatCu, doiSoatChuan);
+
+    return _jsonOk({ so_phieu: soPhieu, doi_soat: doiSoatChuan });
+
+  } catch (err) {
+    return _jsonErr(err);
+  } finally {
+    lock.releaseLock();
+  }
 }

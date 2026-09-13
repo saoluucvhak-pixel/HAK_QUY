@@ -1,10 +1,24 @@
 <script>
   let CURRENT_USER = null;
 
+  /**
+   * Định dạng 1 Date thành 'yyyy-MM-dd' theo GIỜ ĐỊA PHƯƠNG của trình duyệt.
+   * KHÔNG dùng toISOString() cho việc này vì nó quy đổi sang giờ UTC —
+   * ở múi giờ Việt Nam (UTC+7), điều đó khiến ngày bị lùi 1 hôm mỗi khi
+   * thời điểm tạo Date rơi vào khoảng 00:00-06:59 giờ địa phương (ví dụ
+   * new Date(năm, tháng, 1) luôn là 00:00 địa phương nên luôn bị lùi).
+   */
+  function _localDateStr(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
   const ROLE_MENUS = {
-    ADMIN: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'congno', 'doituong', 'danhmuc', 'baocao', 'tracuu', 'quantri'],
-    THU_QUY: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'tracuu'],
-    XEM: ['dashboard', 'soquy', 'soquycongdoan', 'socom', 'congno', 'baocao', 'tracuu']
+    ADMIN: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'congno', 'doituong', 'danhmuc', 'baocao', 'tracuu', 'quantri', 'huongdan'],
+    THU_QUY: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'tracuu', 'huongdan'],
+    XEM: ['dashboard', 'soquy', 'soquycongdoan', 'socom', 'congno', 'baocao', 'tracuu', 'huongdan']
   };
 
   function currentUserInfo() {
@@ -124,7 +138,8 @@
     danhmuc: 'Danh Mục',
     baocao: 'Báo Cáo',
     tracuu: 'Tra Cứu',
-    quantri: 'Quản Trị'
+    quantri: 'Quản Trị',
+    huongdan: 'Hướng Dẫn Sử Dụng'
   };
 
   function switchMenu(key) {
@@ -162,6 +177,8 @@
       renderDanhMuc();
     } else if (key === 'tracuu') {
       renderTraCuu();
+    } else if (key === 'huongdan') {
+      renderHuongDan();
     } else {
       renderComingSoon(MENU_TITLES[key]);
     }
@@ -281,7 +298,10 @@
   function renderThuForm() {
     document.getElementById('mainContent').innerHTML = `
       <div class="card max-w-2xl">
-        <h2 class="text-lg font-semibold mb-4 text-gray-700">Lập Phiếu Thu</h2>
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-semibold text-gray-700">Lập Phiếu Thu</h2>
+          <button onclick="switchMenu('tracuu')" class="px-3 py-1.5 rounded-lg border text-sm text-gray-600 hover:bg-gray-50">🔍 Tra cứu</button>
+        </div>
         <div id="thuFormBody" class="text-gray-400 text-sm">Đang tải danh mục...</div>
       </div>
     `;
@@ -289,7 +309,7 @@
   }
 
   function renderThuFormBody(opts) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = _localDateStr(new Date());
     const doiTuongOpts = opts.doiTuong.map(d => `<option value="${d.ma}">${d.ten}</option>`).join('');
     const loaiThuOpts = opts.loaiThu.map(l => `<option value="${l.ma}">${l.ten}</option>`).join('');
 
@@ -369,9 +389,16 @@
           <label class="block text-sm font-medium text-gray-600 mb-1">Mã nhân viên</label>
           <input type="text" id="thuMaNhanVien" placeholder="vd: 01.006.001" class="w-full border rounded-lg px-3 py-2">
         </div>
-        <div class="md:col-span-2">
+        <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">Chi nhánh</label>
           <input type="text" id="thuChiNhanh" placeholder="Chi nhánh (nếu có)" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Đối soát</label>
+          <select id="thuDoiSoat" class="w-full border rounded-lg px-3 py-2">
+            <option value="Hoàn ứng" selected>Hoàn ứng</option>
+            <option value="Chờ hoàn">Chờ hoàn</option>
+          </select>
         </div>
 
         <div class="md:col-span-2">
@@ -469,7 +496,8 @@
       tai_khoan: document.getElementById('thuTaiKhoan').value.trim(),
       tk_doi_ung: document.getElementById('thuTkDoiUng').value.trim(),
       ma_nhan_vien: document.getElementById('thuMaNhanVien').value.trim(),
-      chi_nhanh: document.getElementById('thuChiNhanh').value.trim()
+      chi_nhanh: document.getElementById('thuChiNhanh').value.trim(),
+      doi_soat: document.getElementById('thuDoiSoat').value
     };
 
     if (!payload.nguoi_nop_tien) return showFormMsg('thuMsg', 'Vui lòng nhập Người nộp tiền.', true);
@@ -492,7 +520,7 @@
         const soPhieu = res.data.so_phieu_thu;
         renderThuForm();
         setTimeout(function () {
-          if (document.getElementById('thuMsg')) showFormMsg('thuMsg', 'Đã lưu phiếu thu ' + soPhieu + ' thành công!', false);
+          if (document.getElementById('thuMsg')) _thongBaoLuuPhieuKemNutIn('thuMsg', soPhieu, 'Thu', 'phiếu thu');
         }, 300);
       })
       .withFailureHandler(function (err) {
@@ -507,7 +535,10 @@
   function renderChiForm() {
     document.getElementById('mainContent').innerHTML = `
       <div class="card max-w-2xl">
-        <h2 class="text-lg font-semibold mb-4 text-gray-700">Lập Phiếu Chi</h2>
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-semibold text-gray-700">Lập Phiếu Chi</h2>
+          <button onclick="switchMenu('tracuu')" class="px-3 py-1.5 rounded-lg border text-sm text-gray-600 hover:bg-gray-50">🔍 Tra cứu</button>
+        </div>
         <div id="chiFormBody" class="text-gray-400 text-sm">Đang tải danh mục...</div>
       </div>
     `;
@@ -515,7 +546,7 @@
   }
 
   function renderChiFormBody(opts) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = _localDateStr(new Date());
     const doiTuongOpts = opts.doiTuong.map(d => `<option value="${d.ma}">${d.ten}</option>`).join('');
     const loaiChiOpts = opts.loaiChi.map(l => `<option value="${l.ma}">${l.ten}</option>`).join('');
 
@@ -595,9 +626,16 @@
           <label class="block text-sm font-medium text-gray-600 mb-1">Mã nhân viên</label>
           <input type="text" id="chiMaNhanVien" placeholder="vd: 01.009.001" class="w-full border rounded-lg px-3 py-2">
         </div>
-        <div class="md:col-span-2">
+        <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">Chi nhánh</label>
           <input type="text" id="chiChiNhanh" placeholder="Chi nhánh (nếu có)" class="w-full border rounded-lg px-3 py-2">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-600 mb-1">Đối soát</label>
+          <select id="chiDoiSoat" class="w-full border rounded-lg px-3 py-2">
+            <option value="Hoàn ứng" selected>Hoàn ứng</option>
+            <option value="Chờ hoàn">Chờ hoàn</option>
+          </select>
         </div>
 
         <div class="md:col-span-2">
@@ -695,7 +733,8 @@
       tai_khoan: document.getElementById('chiTaiKhoan').value.trim(),
       tk_doi_ung: document.getElementById('chiTkDoiUng').value.trim(),
       ma_nhan_vien: document.getElementById('chiMaNhanVien').value.trim(),
-      chi_nhanh: document.getElementById('chiChiNhanh').value.trim()
+      chi_nhanh: document.getElementById('chiChiNhanh').value.trim(),
+      doi_soat: document.getElementById('chiDoiSoat').value
     };
 
     if (!payload.nguoi_nhan_tien) return showFormMsg('chiMsg', 'Vui lòng nhập Người nhận tiền.', true);
@@ -718,7 +757,7 @@
         const soPhieu = res.data.so_phieu_chi;
         renderChiForm();
         setTimeout(function () {
-          if (document.getElementById('chiMsg')) showFormMsg('chiMsg', 'Đã lưu phiếu chi ' + soPhieu + ' thành công!', false);
+          if (document.getElementById('chiMsg')) _thongBaoLuuPhieuKemNutIn('chiMsg', soPhieu, 'Chi', 'phiếu chi');
         }, 300);
       })
       .withFailureHandler(function (err) {
@@ -759,9 +798,13 @@
             <label class="block text-xs text-gray-500 mb-1">Người lập</label>
             <input type="text" id="sq_nguoiLap" placeholder="Tên người lập" class="w-full border rounded-lg px-2 py-1.5 text-sm">
           </div>
-          <div class="flex items-end">
+          <div class="flex items-end gap-2">
             <button onclick="loadSoQuy()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Lọc</button>
           </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-3 no-print">
+          <button id="btnXuatSoQuy" onclick="exportSoQuyExcel(this)" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
+          <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
         </div>
       </div>
 
@@ -780,10 +823,11 @@
               <th class="py-2 pr-3 text-right">Chi</th>
               <th class="py-2 pr-3 text-right">Tồn</th>
               <th class="py-2 pr-3">Người nhận/nộp</th>
+              <th class="py-2 pr-3">Đối soát</th>
             </tr>
           </thead>
           <tbody id="soQuyBody">
-            <tr><td colspan="11" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
+            <tr><td colspan="12" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
           </tbody>
         </table>
       </div>
@@ -791,22 +835,30 @@
 
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    document.getElementById('sq_tuNgay').value = firstDay.toISOString().slice(0, 10);
-    document.getElementById('sq_denNgay').value = now.toISOString().slice(0, 10);
+    document.getElementById('sq_tuNgay').value = _localDateStr(firstDay);
+    document.getElementById('sq_denNgay').value = _localDateStr(now);
 
     loadSoQuy();
   }
 
-  function loadSoQuy() {
-    const filters = {
+  function _soQuyFiltersHienTai() {
+    return {
       loaiQuy: document.getElementById('sq_loaiQuy').value,
       tuNgay: document.getElementById('sq_tuNgay').value,
       denNgay: document.getElementById('sq_denNgay').value,
       loaiGiaoDich: document.getElementById('sq_loai').value,
       nguoiLap: document.getElementById('sq_nguoiLap').value.trim()
     };
+  }
 
-    document.getElementById('soQuyBody').innerHTML = '<tr><td colspan="11" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
+  function exportSoQuyExcel(btn) {
+    xuatExcelTuServer(btn, 'xuatSoQuyExcel', [_soQuyFiltersHienTai()]);
+  }
+
+  function loadSoQuy() {
+    const filters = _soQuyFiltersHienTai();
+
+    document.getElementById('soQuyBody').innerHTML = '<tr><td colspan="12" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
 
     google.script.run
       .withSuccessHandler(function (res) {
@@ -820,7 +872,7 @@
   function renderSoQuyTable(list) {
     const body = document.getElementById('soQuyBody');
     if (!list || list.length === 0) {
-      body.innerHTML = '<tr><td colspan="11" class="py-6 text-center text-gray-400">Không có giao dịch trong khoảng lọc.</td></tr>';
+      body.innerHTML = '<tr><td colspan="12" class="py-6 text-center text-gray-400">Không có giao dịch trong khoảng lọc.</td></tr>';
       return;
     }
     body.innerHTML = list.map(t => `
@@ -836,8 +888,148 @@
         <td class="py-2 pr-3 text-right text-red-700">${t.chi ? formatMoney(t.chi) : ''}</td>
         <td class="py-2 pr-3 text-right font-semibold">${formatMoney(t.ton)}</td>
         <td class="py-2 pr-3">${t.nguoi_nhan_nop || ''}</td>
+        <td class="py-2 pr-3">${_doiSoatBadge(t.doi_soat)}</td>
       </tr>
     `).join('');
+  }
+
+  function _doiSoatBadge(doiSoat) {
+    if (doiSoat === 'Chờ hoàn') {
+      return '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Chờ hoàn</span>';
+    }
+    return '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Hoàn ứng</span>';
+  }
+
+  /* ================= SỔ ĐỐI SOÁT ================= */
+  function renderSoDoiSoatGeneric(loaiQuy) {
+    document.getElementById('traCuuTabBody').innerHTML = `
+      <input type="hidden" id="ds_loaiQuy" value="${loaiQuy}">
+      <div class="text-sm text-gray-500 mb-3">Theo dõi chứng từ Thu/Chi của <b>${loaiQuy}</b> đang tạm ứng "Chờ hoàn" (chưa hoàn tất chứng từ).</div>
+      <div class="card mb-4 no-print">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Từ ngày</label>
+            <input type="date" id="ds_tuNgay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Đến ngày</label>
+            <input type="date" id="ds_denNgay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Trạng thái đối soát</label>
+            <select id="ds_trangThai" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+              <option value="">Tất cả</option>
+              <option value="Chờ hoàn" selected>Chờ hoàn</option>
+              <option value="Hoàn ứng">Hoàn ứng</option>
+            </select>
+          </div>
+          <div class="flex items-end">
+            <button onclick="loadSoDoiSoat()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Lọc</button>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 mt-3">
+          <button id="btnXuatDoiSoat" onclick="exportSoDoiSoatExcel(this)" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
+          <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="card stat-card"><div class="stat-label">Số chứng từ Chờ hoàn</div><div class="stat-value text-amber-600" id="ds_soLuong">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tổng tiền Chờ hoàn</div><div class="stat-value text-amber-600" id="ds_tongTien">--</div></div>
+      </div>
+
+      <div class="card overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Ngày</th>
+              <th class="py-2 pr-3">Số phiếu</th>
+              <th class="py-2 pr-3">Loại</th>
+              <th class="py-2 pr-3">Diễn giải</th>
+              <th class="py-2 pr-3 text-right">Số tiền</th>
+              <th class="py-2 pr-3">Người nhận/nộp</th>
+              <th class="py-2 pr-3">Đối soát</th>
+              <th class="py-2 pr-3 no-print">Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="doiSoatBody">
+            <tr><td colspan="8" class="py-6 text-center text-gray-400">Đang tải...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    document.getElementById('ds_tuNgay').value = _localDateStr(firstDay);
+    document.getElementById('ds_denNgay').value = _localDateStr(now);
+
+    loadSoDoiSoat();
+  }
+
+  function _doiSoatFiltersHienTai() {
+    return {
+      loaiQuy: document.getElementById('ds_loaiQuy').value,
+      tuNgay: document.getElementById('ds_tuNgay').value,
+      denNgay: document.getElementById('ds_denNgay').value,
+      trangThaiDoiSoat: document.getElementById('ds_trangThai').value
+    };
+  }
+
+  function exportSoDoiSoatExcel(btn) {
+    xuatExcelTuServer(btn, 'xuatSoDoiSoatExcel', [_doiSoatFiltersHienTai()]);
+  }
+
+  function loadSoDoiSoat() {
+    const filters = _doiSoatFiltersHienTai();
+    const coQuyenDoi = ['ADMIN', 'THU_QUY'].indexOf(CURRENT_USER.role) !== -1;
+
+    document.getElementById('doiSoatBody').innerHTML = '<tr><td colspan="8" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        const d = res.data;
+        document.getElementById('ds_soLuong').textContent = d.so_luong_cho_hoan.toLocaleString('vi-VN');
+        document.getElementById('ds_tongTien').textContent = formatMoney(d.tong_tien_cho_hoan);
+
+        const body = document.getElementById('doiSoatBody');
+        if (!d.danh_sach || d.danh_sach.length === 0) {
+          body.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-gray-400">Không có chứng từ nào khớp bộ lọc.</td></tr>';
+          return;
+        }
+        body.innerHTML = d.danh_sach.map(function (t) {
+          const soTien = t.thu || t.chi;
+          const trangThaiKhac = t.doi_soat === 'Chờ hoàn' ? 'Hoàn ứng' : 'Chờ hoàn';
+          const nutDoi = coQuyenDoi
+            ? '<button onclick="doiTrangThaiDoiSoat(\'' + t.so_phieu + '\',\'' + t.loai + '\',\'' + trangThaiKhac + '\')" class="text-blue-600 text-xs hover:underline">Đổi thành "' + trangThaiKhac + '"</button>'
+            : '';
+          return '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="py-2 pr-3 whitespace-nowrap">' + t.ngay + '</td>' +
+            '<td class="py-2 pr-3 font-medium">' + t.so_phieu + '</td>' +
+            '<td class="py-2 pr-3">' + t.loai + '</td>' +
+            '<td class="py-2 pr-3">' + (t.noi_dung || '') + '</td>' +
+            '<td class="py-2 pr-3 text-right">' + formatMoney(soTien) + '</td>' +
+            '<td class="py-2 pr-3">' + (t.nguoi_nhan_nop || '') + '</td>' +
+            '<td class="py-2 pr-3">' + _doiSoatBadge(t.doi_soat) + '</td>' +
+            '<td class="py-2 pr-3 no-print">' + nutDoi + '</td>' +
+          '</tr>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getSoDoiSoat(filters);
+  }
+
+  function doiTrangThaiDoiSoat(soPhieu, loai, trangThaiMoi) {
+    if (!confirm('Đổi trạng thái đối soát phiếu ' + soPhieu + ' thành "' + trangThaiMoi + '"?')) return;
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        loadSoDoiSoat();
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .capNhatDoiSoat(soPhieu, loai, trangThaiMoi, currentUserInfo());
   }
 
   /* ================= SỔ CƠM ================= */
@@ -897,6 +1089,10 @@
           </div>
           <button onclick="loadSoCom()" class="px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Xem</button>
         </div>
+        <div class="flex justify-end gap-2 mt-3 no-print">
+          <button id="btnXuatSoCom" onclick="exportSoComExcel(this)" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
+          <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
+        </div>
       </div>
 
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
@@ -938,7 +1134,7 @@
     }
     thangSelect.value = now.getMonth() + 1;
     document.getElementById('com_namXem').value = now.getFullYear();
-    document.getElementById('com_ngay').value = now.toISOString().slice(0, 10);
+    document.getElementById('com_ngay').value = _localDateStr(now);
 
     google.script.run
       .withSuccessHandler(function (res) {
@@ -950,13 +1146,19 @@
   }
 
   function resetSoComForm() {
-    document.getElementById('com_ngay').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('com_ngay').value = _localDateStr(new Date());
     document.getElementById('com_trua').value = '';
     document.getElementById('com_toi').value = '';
     document.getElementById('com_ngayTamUng').value = '';
     document.getElementById('com_soTienTamUng').value = '';
     document.getElementById('com_ghiChu').value = '';
     document.getElementById('comMsg').classList.add('hidden');
+  }
+
+  function exportSoComExcel(btn) {
+    const thang = document.getElementById('com_thangXem').value;
+    const nam = document.getElementById('com_namXem').value;
+    xuatExcelTuServer(btn, 'xuatSoComExcel', [nam, thang]);
   }
 
   function loadSoCom() {
@@ -1125,7 +1327,7 @@
   }
 
   function renderCongNoFormBody(opts) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = _localDateStr(new Date());
     const doiTuongOpts = opts.doiTuong.map(d => `<option value="${d.ma}">${d.ten}</option>`).join('');
 
     document.getElementById('congNoFormBody').innerHTML = `
@@ -1250,10 +1452,12 @@
 
   function renderBaoCao() {
     document.getElementById('mainContent').innerHTML = `
-      <div class="flex gap-2 mb-4 no-print">
+      <div class="flex gap-2 mb-4 no-print flex-wrap">
         <button onclick="switchBaoCaoTab('thuchi')" id="bcTabThuChi" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Thu - Chi</button>
         <button onclick="switchBaoCaoTab('congno')" id="bcTabCongNo" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Công nợ tổng hợp</button>
         <button onclick="switchBaoCaoTab('quahan')" id="bcTabQuaHan" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Công nợ quá hạn</button>
+        <button onclick="switchBaoCaoTab('ngaykeo')" id="bcTabNgayKeo" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Báo cáo ngày (Keo)</button>
+        <button onclick="switchBaoCaoTab('tonghop')" id="bcTabTongHop" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Báo cáo tháng</button>
       </div>
       <div id="baoCaoBody"></div>
     `;
@@ -1261,15 +1465,137 @@
   }
 
   function switchBaoCaoTab(tab) {
-    ['bcTabThuChi', 'bcTabCongNo', 'bcTabQuaHan'].forEach(function (id) {
+    ['bcTabThuChi', 'bcTabCongNo', 'bcTabQuaHan', 'bcTabNgayKeo', 'bcTabTongHop'].forEach(function (id) {
       document.getElementById(id).classList.remove('bg-gray-800', 'text-white');
     });
-    const activeMap = { thuchi: 'bcTabThuChi', congno: 'bcTabCongNo', quahan: 'bcTabQuaHan' };
+    const activeMap = { thuchi: 'bcTabThuChi', congno: 'bcTabCongNo', quahan: 'bcTabQuaHan', ngaykeo: 'bcTabNgayKeo', tonghop: 'bcTabTongHop' };
     document.getElementById(activeMap[tab]).classList.add('bg-gray-800', 'text-white');
 
     if (tab === 'thuchi') renderBaoCaoThuChi();
     else if (tab === 'congno') renderBaoCaoCongNoTongHop();
+    else if (tab === 'ngaykeo') renderBaoCaoNgayKeo();
+    else if (tab === 'tonghop') renderBaoCaoThang();
     else renderBaoCaoQuaHan();
+  }
+
+  let BAOCAO_THANG_DATA = null;
+
+  function renderBaoCaoThang() {
+    const now = new Date();
+    document.getElementById('baoCaoBody').innerHTML = `
+      <div class="card mb-4 no-print">
+        <div class="grid grid-cols-1 md:grid-cols-6 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Tháng</label>
+            <select id="bcth_thang" class="w-full border rounded-lg px-2 py-1.5 text-sm"></select>
+          </div>
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Năm</label>
+            <input type="number" id="bcth_nam" class="w-full border rounded-lg px-2 py-1.5 text-sm" value="${now.getFullYear()}">
+          </div>
+          <div class="flex items-end">
+            <button onclick="loadBaoCaoThang()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Xem báo cáo</button>
+          </div>
+          <div class="flex items-end">
+            <button id="btnXuatBaoCaoThang" onclick="exportBaoCaoThangExcel(this)" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
+          </div>
+          <div class="flex items-end">
+            <button id="btnGuiEmailBaoCaoThang" onclick="guiEmailBaoCaoThang(this)" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">✉️ Gửi Email</button>
+          </div>
+          <div class="flex items-end">
+            <button onclick="window.print()" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="card stat-card"><div class="stat-label">Tổng nhập Keo (tấn)</div><div class="stat-value text-gray-800" id="bcth_nhapKl">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tổng thanh toán Keo</div><div class="stat-value text-red-600" id="bcth_ttGt">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tồn quỹ tiền mặt cuối tháng</div><div class="stat-value text-blue-700" id="bcth_tonTienMat">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tồn quỹ công đoàn cuối tháng</div><div class="stat-value text-purple-700" id="bcth_tonCongDoan">--</div></div>
+      </div>
+
+      <div class="card">
+        <div class="font-semibold text-gray-700 mb-2">Sổ Cơm trong tháng</div>
+        <div class="grid grid-cols-3 gap-3 text-sm">
+          <div><div class="text-gray-500 text-xs">Tổng suất ăn</div><div class="font-semibold" id="bcth_comSuat">--</div></div>
+          <div><div class="text-gray-500 text-xs">Thành tiền</div><div class="font-semibold" id="bcth_comTien">--</div></div>
+          <div><div class="text-gray-500 text-xs">Tạm ứng</div><div class="font-semibold" id="bcth_comTamUng">--</div></div>
+        </div>
+      </div>
+
+      <p class="text-xs text-gray-400 mt-3">File Excel xuất ra gồm các sheet: Quy_TamUng (tháng), KEO_NHAP (tháng), CK_KEO (tháng), COM (tháng), QUY_CongDoan (cả năm).</p>
+    `;
+
+    const sel = document.getElementById('bcth_thang');
+    for (let m = 1; m <= 12; m++) sel.innerHTML += '<option value="' + m + '">Tháng ' + m + '</option>';
+    sel.value = now.getMonth() + 1;
+
+    loadBaoCaoThang();
+  }
+
+  function loadBaoCaoThang() {
+    const nam = document.getElementById('bcth_nam').value;
+    const thang = document.getElementById('bcth_thang').value;
+    if (!nam || !thang) { alert('Vui lòng chọn Tháng/Năm.'); return; }
+
+    ['bcth_nhapKl', 'bcth_ttGt', 'bcth_tonTienMat', 'bcth_tonCongDoan', 'bcth_comSuat', 'bcth_comTien', 'bcth_comTamUng'].forEach(function (id) {
+      document.getElementById(id).textContent = 'Đang tải...';
+    });
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        BAOCAO_THANG_DATA = res.data;
+        const d = res.data;
+
+        document.getElementById('bcth_nhapKl').textContent = formatTan(d.keo_nhap.kl) + (d.loi_keo ? ' ⚠️' : '');
+        document.getElementById('bcth_ttGt').textContent = formatMoney(d.keo_thanh_toan.gt);
+        document.getElementById('bcth_tonTienMat').textContent = formatMoney(d.ton_quy_tien_mat_cuoi_thang);
+        document.getElementById('bcth_tonCongDoan').textContent = formatMoney(d.ton_quy_cong_doan_cuoi_thang);
+        document.getElementById('bcth_comSuat').textContent = d.com_tong_suat.toLocaleString('vi-VN');
+        document.getElementById('bcth_comTien').textContent = formatMoney(d.com_thanh_tien);
+        document.getElementById('bcth_comTamUng').textContent = formatMoney(d.com_tam_ung);
+
+        if (d.loi_keo) {
+          document.getElementById('bcth_nhapKl').title = 'Lỗi lấy dữ liệu Keo: ' + d.loi_keo;
+          document.getElementById('bcth_ttGt').title = 'Lỗi lấy dữ liệu Keo: ' + d.loi_keo;
+        }
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getBaoCaoThangTongHop(nam, thang);
+  }
+
+  function exportBaoCaoThangExcel(btn) {
+    const nam = document.getElementById('bcth_nam').value;
+    const thang = document.getElementById('bcth_thang').value;
+    if (!nam || !thang) { alert('Vui lòng chọn Tháng/Năm.'); return; }
+    xuatExcelTuServer(btn, 'xuatTongHopExcel', [nam, thang]);
+  }
+
+  function guiEmailBaoCaoThang(btn) {
+    const nam = document.getElementById('bcth_nam').value;
+    const thang = document.getElementById('bcth_thang').value;
+    if (!nam || !thang) { alert('Vui lòng chọn Tháng/Năm.'); return; }
+    if (!confirm('Gửi Báo cáo tháng ' + thang + '/' + nam + ' tới email đã thiết lập trong Quản Trị?')) return;
+
+    const textCu = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang gửi...';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = textCu;
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        alert('Đã gửi báo cáo tới: ' + res.data.da_gui_toi.join(', '));
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = textCu;
+        alert('Lỗi hệ thống: ' + err.message);
+      })
+      .guiBaoCaoThangEmail(nam, thang, currentUserInfo());
   }
 
   function renderBaoCaoThuChi() {
@@ -1310,7 +1636,7 @@
       </div>
 
       <div class="flex justify-end gap-2 mb-3 no-print">
-        <button onclick="exportBaoCaoThuChiCSV()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel (CSV)</button>
+        <button id="btnXuatBaoCaoThuChi" onclick="exportBaoCaoThuChiExcel(this)" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
         <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
       </div>
 
@@ -1337,8 +1663,8 @@
 
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    document.getElementById('bc_tuNgay').value = firstDay.toISOString().slice(0, 10);
-    document.getElementById('bc_denNgay').value = now.toISOString().slice(0, 10);
+    document.getElementById('bc_tuNgay').value = _localDateStr(firstDay);
+    document.getElementById('bc_denNgay').value = _localDateStr(now);
 
     loadBaoCaoThuChi();
   }
@@ -1383,13 +1709,170 @@
       .getBaoCaoThuChi(filters);
   }
 
-  function exportBaoCaoThuChiCSV() {
+  function exportBaoCaoThuChiExcel(btn) {
     if (!BAOCAO_THUCHI_DATA || !BAOCAO_THUCHI_DATA.chi_tiet) { alert('Chưa có dữ liệu để xuất.'); return; }
-    const headers = ['Ngày', 'Số phiếu', 'Loại', 'Nội dung', 'Đối tượng', 'Người lập', 'Thu', 'Chi'];
-    const rows = BAOCAO_THUCHI_DATA.chi_tiet.map(function (t) {
-      return [t.ngay, t.so_phieu, t.loai, t.noi_dung || '', t.doi_tuong || '', t.nguoi_lap || '', t.thu || 0, t.chi || 0];
-    });
-    downloadCSV('BaoCaoThuChi_' + BAOCAO_THUCHI_DATA.tu_ngay + '_' + BAOCAO_THUCHI_DATA.den_ngay + '.csv', headers, rows);
+    const filters = {
+      tuNgay: document.getElementById('bc_tuNgay').value,
+      denNgay: document.getElementById('bc_denNgay').value,
+      loaiGiaoDich: document.getElementById('bc_loai').value,
+      nguoiLap: document.getElementById('bc_nguoiLap').value.trim()
+    };
+    xuatExcelTuServer(btn, 'xuatBaoCaoThuChiExcel', [filters]);
+  }
+
+  let BAOCAO_NGAYKEO_DATA = null;
+
+  function renderBaoCaoNgayKeo() {
+    document.getElementById('baoCaoBody').innerHTML = `
+      <div class="card mb-4 no-print">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <div>
+            <label class="block text-xs text-gray-500 mb-1">Ngày báo cáo</label>
+            <input type="date" id="bcnk_ngay" class="w-full border rounded-lg px-2 py-1.5 text-sm">
+          </div>
+          <div class="flex items-end">
+            <button onclick="loadBaoCaoNgayKeo()" class="w-full px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🔍 Xem báo cáo</button>
+          </div>
+          <div class="flex items-end">
+            <button id="btnXuatBaoCaoNgayKeo" onclick="exportBaoCaoNgayKeoExcel(this)" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
+          </div>
+          <div class="flex items-end">
+            <button id="btnGuiEmailBaoCaoNgayKeo" onclick="guiEmailBaoCaoNgayKeo(this)" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">✉️ Gửi Email</button>
+          </div>
+          <div class="flex items-end">
+            <button onclick="window.print()" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div class="card stat-card"><div class="stat-label">Tổng nhập (tấn)</div><div class="stat-value text-gray-800" id="bcnk_nhapKl">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Giá trị nhập</div><div class="stat-value text-green-600" id="bcnk_nhapGt">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Giá trị thanh toán</div><div class="stat-value text-red-600" id="bcnk_ttGt">--</div></div>
+        <div class="card stat-card"><div class="stat-label">Tồn quỹ cuối ngày</div><div class="stat-value text-blue-700" id="bcnk_tonCuoi">--</div></div>
+      </div>
+
+      <div id="bcnkBangChiTiet" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+      <div class="card overflow-x-auto mt-4">
+        <div class="font-semibold text-gray-700 mb-2">Chi tiết phiếu cân trong ngày</div>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-gray-500 border-b">
+              <th class="py-2 pr-3">Số phiếu</th>
+              <th class="py-2 pr-3">Biển số</th>
+              <th class="py-2 pr-3">Khách hàng</th>
+              <th class="py-2 pr-3">Đại lý</th>
+              <th class="py-2 pr-3">Nguồn gốc</th>
+              <th class="py-2 pr-3 text-right">KL (tấn)</th>
+              <th class="py-2 pr-3 text-right">Thành tiền</th>
+            </tr>
+          </thead>
+          <tbody id="bcnkPhieuCanBody">
+            <tr><td colspan="7" class="py-6 text-center text-gray-400">Chọn ngày và bấm "Xem báo cáo"</td></tr>
+          </tbody>
+        </table>
+      </div>
+    `;
+
+    document.getElementById('bcnk_ngay').value = _localDateStr(new Date());
+    loadBaoCaoNgayKeo();
+  }
+
+  function _bcnkBangHtml(tieuDe, tieuCot, list) {
+    const rows = list.length === 0
+      ? '<tr><td colspan="3" class="py-3 text-center text-gray-400">Không có dữ liệu</td></tr>'
+      : list.map(function (x) {
+        return '<tr class="border-b">' +
+          '<td class="py-1.5 pr-2">' + x.ten + '</td>' +
+          '<td class="py-1.5 pr-2 text-right">' + formatTan(x.kl) + '</td>' +
+          '<td class="py-1.5 pr-2 text-right">' + formatMoney(x.gt) + '</td>' +
+          '</tr>';
+      }).join('');
+    return '<div class="card"><div class="font-semibold text-gray-700 mb-2">' + tieuDe + '</div>' +
+      '<table class="w-full text-sm"><thead><tr class="text-left text-gray-500 border-b">' +
+      '<th class="py-1.5 pr-2">' + tieuCot + '</th><th class="py-1.5 pr-2 text-right">KL (tấn)</th><th class="py-1.5 pr-2 text-right">Thành tiền</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+
+  function loadBaoCaoNgayKeo() {
+    const ngay = document.getElementById('bcnk_ngay').value;
+    if (!ngay) { alert('Vui lòng chọn ngày báo cáo.'); return; }
+
+    document.getElementById('bcnkBangChiTiet').innerHTML = '<div class="card text-center text-gray-400 py-6 md:col-span-2">Đang tải...</div>';
+    document.getElementById('bcnkPhieuCanBody').innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">Đang tải...</td></tr>';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) {
+          alert('Lỗi: ' + res.message);
+          document.getElementById('bcnkBangChiTiet').innerHTML = '';
+          document.getElementById('bcnkPhieuCanBody').innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">' + res.message + '</td></tr>';
+          return;
+        }
+        BAOCAO_NGAYKEO_DATA = res.data;
+        const d = res.data;
+
+        document.getElementById('bcnk_nhapKl').textContent = formatTan(d.nhap.tong.kl);
+        document.getElementById('bcnk_nhapGt').textContent = formatMoney(d.nhap.tong.gt);
+        document.getElementById('bcnk_ttGt').textContent = formatMoney(d.thanh_toan.tong.gt);
+        document.getElementById('bcnk_tonCuoi').textContent = formatMoney(d.ton_quy_cuoi_ngay);
+
+        document.getElementById('bcnkBangChiTiet').innerHTML =
+          _bcnkBangHtml('Nhập - theo Nguồn gốc', 'Nguồn gốc', d.nhap.theo_nguon_goc) +
+          _bcnkBangHtml('Nhập - theo Đại lý', 'Đại lý', d.nhap.theo_dai_ly) +
+          _bcnkBangHtml('Thanh toán - theo Nguồn gốc', 'Nguồn gốc', d.thanh_toan.theo_nguon_goc) +
+          _bcnkBangHtml('Thanh toán - theo Đại lý', 'Đại lý', d.thanh_toan.theo_dai_ly);
+
+        const body = document.getElementById('bcnkPhieuCanBody');
+        if (!d.chi_tiet_phieu_can || d.chi_tiet_phieu_can.length === 0) {
+          body.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-400">Không có phiếu cân nào trong ngày.</td></tr>';
+          return;
+        }
+        body.innerHTML = d.chi_tiet_phieu_can.map(function (r) {
+          return '<tr class="border-b hover:bg-gray-50">' +
+            '<td class="py-2 pr-3 font-medium">' + r.so_phieu + '</td>' +
+            '<td class="py-2 pr-3">' + r.bien_so + '</td>' +
+            '<td class="py-2 pr-3">' + r.khach_hang + '</td>' +
+            '<td class="py-2 pr-3">' + r.dai_ly + '</td>' +
+            '<td class="py-2 pr-3">' + r.nguon_goc + '</td>' +
+            '<td class="py-2 pr-3 text-right">' + formatTan(r.kl) + '</td>' +
+            '<td class="py-2 pr-3 text-right">' + formatMoney(r.thanh_tien) + '</td>' +
+          '</tr>';
+        }).join('');
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getBaoCaoNgayKeo(ngay);
+  }
+
+  function exportBaoCaoNgayKeoExcel(btn) {
+    if (!BAOCAO_NGAYKEO_DATA) { alert('Chưa có dữ liệu để xuất. Bấm "Xem báo cáo" trước.'); return; }
+    const ngay = document.getElementById('bcnk_ngay').value;
+    xuatExcelTuServer(btn, 'xuatBaoCaoNgayKeoExcel', [ngay]);
+  }
+
+  function guiEmailBaoCaoNgayKeo(btn) {
+    const ngay = document.getElementById('bcnk_ngay').value;
+    if (!ngay) { alert('Vui lòng chọn ngày báo cáo.'); return; }
+    if (!confirm('Gửi Báo cáo ngày ' + ngay + ' tới email đã thiết lập trong Quản Trị?')) return;
+
+    const textCu = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang gửi...';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = textCu;
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        alert('Đã gửi báo cáo tới: ' + res.data.da_gui_toi.join(', '));
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = textCu;
+        alert('Lỗi hệ thống: ' + err.message);
+      })
+      .guiBaoCaoNgayKeoEmail(ngay, currentUserInfo());
   }
 
   function renderBaoCaoCongNoTongHop() {
@@ -1418,7 +1901,7 @@
       </div>
 
       <div class="flex justify-end gap-2 mb-3 no-print">
-        <button onclick="exportBaoCaoCongNoCSV()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel (CSV)</button>
+        <button id="btnXuatBaoCaoCongNo" onclick="exportBaoCaoCongNoExcel(this)" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
         <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
       </div>
 
@@ -1451,8 +1934,8 @@
 
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    document.getElementById('bccn_tuNgay').value = firstDay.toISOString().slice(0, 10);
-    document.getElementById('bccn_denNgay').value = now.toISOString().slice(0, 10);
+    document.getElementById('bccn_tuNgay').value = _localDateStr(firstDay);
+    document.getElementById('bccn_denNgay').value = _localDateStr(now);
 
     loadBaoCaoCongNoTongHop();
   }
@@ -1530,19 +2013,15 @@
       .getBaoCaoCongNoChiTiet(maDoiTuong, BAOCAO_CONGNO_DATA.loai, BAOCAO_CONGNO_DATA.tuNgay, BAOCAO_CONGNO_DATA.denNgay);
   }
 
-  function exportBaoCaoCongNoCSV() {
+  function exportBaoCaoCongNoExcel(btn) {
     if (!BAOCAO_CONGNO_DATA || !BAOCAO_CONGNO_DATA.list) { alert('Chưa có dữ liệu để xuất.'); return; }
-    const headers = ['Đối tượng', 'Đầu kỳ', 'Phát sinh', 'Đã thu/trả', 'Cuối kỳ'];
-    const rows = BAOCAO_CONGNO_DATA.list.map(function (r) {
-      return [r.doi_tuong, r.dau_ky, r.phat_sinh, r.da_thu_tra, r.cuoi_ky];
-    });
-    downloadCSV('BaoCaoCongNo_' + BAOCAO_CONGNO_DATA.loai + '_' + BAOCAO_CONGNO_DATA.tuNgay + '.csv', headers, rows);
+    xuatExcelTuServer(btn, 'xuatBaoCaoCongNoExcel', [BAOCAO_CONGNO_DATA.loai, BAOCAO_CONGNO_DATA.tuNgay, BAOCAO_CONGNO_DATA.denNgay]);
   }
 
   function renderBaoCaoQuaHan() {
     document.getElementById('baoCaoBody').innerHTML = `
       <div class="flex justify-end gap-2 mb-3 no-print">
-        <button onclick="exportBaoCaoQuaHanCSV()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel (CSV)</button>
+        <button id="btnXuatBaoCaoQuaHan" onclick="exportBaoCaoQuaHanExcel(this)" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">⬇ Xuất Excel</button>
         <button onclick="window.print()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
       </div>
       <div class="card overflow-x-auto">
@@ -1590,22 +2069,19 @@
       .getBaoCaoCongNoQuaHan();
   }
 
-  function exportBaoCaoQuaHanCSV() {
+  function exportBaoCaoQuaHanExcel(btn) {
     if (!BAOCAO_QUAHAN_DATA) { alert('Chưa có dữ liệu để xuất.'); return; }
-    const headers = ['Mã CN', 'Đối tượng', 'Loại', 'Ngày phát sinh', 'Hạn thanh toán', 'Số ngày quá hạn', 'Còn nợ'];
-    const rows = BAOCAO_QUAHAN_DATA.map(function (r) {
-      return [r.ma_cong_no, r.doi_tuong, r.loai_cong_no, r.ngay_phat_sinh, r.han_thanh_toan, r.so_ngay_qua_han, r.con_lai];
-    });
-    downloadCSV('BaoCaoCongNoQuaHan.csv', headers, rows);
+    xuatExcelTuServer(btn, 'xuatBaoCaoQuaHanExcel', []);
   }
 
   /* ================= QUẢN TRỊ ================= */
   function renderQuanTri() {
     document.getElementById('mainContent').innerHTML = `
-      <div class="flex gap-2 mb-4">
+      <div class="flex gap-2 mb-4 flex-wrap">
         <button onclick="switchQuanTriTab('users')" id="qtTabUsers" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Người dùng</button>
         <button onclick="switchQuanTriTab('khoaso')" id="qtTabKhoaSo" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Khóa Sổ</button>
         <button onclick="switchQuanTriTab('auditlog')" id="qtTabAuditLog" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Nhật ký hệ thống</button>
+        <button onclick="switchQuanTriTab('baocaongay')" id="qtTabBaoCaoNgay" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Báo cáo ngày (Keo)</button>
       </div>
       <div id="quanTriBody"></div>
     `;
@@ -1613,15 +2089,188 @@
   }
 
   function switchQuanTriTab(tab) {
-    ['qtTabUsers', 'qtTabKhoaSo', 'qtTabAuditLog'].forEach(function (id) {
+    ['qtTabUsers', 'qtTabKhoaSo', 'qtTabAuditLog', 'qtTabBaoCaoNgay'].forEach(function (id) {
       document.getElementById(id).classList.remove('bg-gray-800', 'text-white');
     });
-    const map = { users: 'qtTabUsers', khoaso: 'qtTabKhoaSo', auditlog: 'qtTabAuditLog' };
+    const map = { users: 'qtTabUsers', khoaso: 'qtTabKhoaSo', auditlog: 'qtTabAuditLog', baocaongay: 'qtTabBaoCaoNgay' };
     document.getElementById(map[tab]).classList.add('bg-gray-800', 'text-white');
 
     if (tab === 'users') renderQuanTriUsers();
     else if (tab === 'khoaso') renderQuanTriKhoaSo();
+    else if (tab === 'baocaongay') renderQuanTriBaoCaoNgay();
     else renderQuanTriAuditLog();
+  }
+
+  function renderQuanTriBaoCaoNgay() {
+    document.getElementById('quanTriBody').innerHTML = `
+      <div class="card max-w-2xl">
+        <h3 class="font-semibold text-gray-700 mb-1">Cấu hình Báo cáo ngày (Keo)</h3>
+        <p class="text-xs text-gray-500 mb-4">Báo cáo ngày lấy dữ liệu từ 2 Google Sheet ngoài. Tài khoản Google đang chạy hệ thống này phải có quyền Xem trên cả 2 sheet đó.</p>
+        <div id="qtBcnkMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+        <div class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">ID Google Sheet "PhanTichNhapTT_DRAFT"</label>
+            <input type="text" id="qtBcnk_idPhanTich" placeholder="ID trong đường link Google Sheet" class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">ID Google Sheet "PhieuCan_DN"</label>
+            <input type="text" id="qtBcnk_idPhieuCan" placeholder="ID trong đường link Google Sheet" class="w-full border rounded-lg px-3 py-2 text-sm">
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Email nhận Báo cáo ngày</label>
+            <input type="text" id="qtBcnk_email" placeholder="vd: a@gmail.com, b@gmail.com" class="w-full border rounded-lg px-3 py-2 text-sm">
+            <p class="text-xs text-gray-400 mt-1">Nhiều email cách nhau bởi dấu phẩy.</p>
+          </div>
+          <button onclick="saveCauHinhBaoCaoNgay()" class="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700">💾 Lưu cấu hình</button>
+        </div>
+      </div>
+
+      <div class="card max-w-2xl mt-4">
+        <h3 class="font-semibold text-gray-700 mb-1">Đồng bộ dữ liệu Keo</h3>
+        <p class="text-xs text-gray-500 mb-3">Dữ liệu từ 2 sheet ngoài được sao chép về sheet nội bộ mỗi ngày (chạy tự động), để Báo cáo ngày/Báo cáo tháng đọc nhanh, không cần quét lại sheet ngoài mỗi lần xem báo cáo.</p>
+
+        <div id="qtBcnk_chuaCaiDat" class="hidden mb-3 p-3 rounded-lg text-sm bg-amber-50 text-amber-700">
+          ⚠ Chưa cài đặt đồng bộ tự động. Vào Apps Script Editor, chọn hàm <b>thietLapDongBoHangNgay</b> ở dropdown trên cùng và bấm Run 1 lần (chỉ cần làm 1 lần duy nhất) để bật lịch chạy tự động — sau đó có thể đổi giờ ngay tại đây.
+        </div>
+
+        <div class="flex items-end gap-2 mb-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Giờ chạy đồng bộ tự động mỗi ngày</label>
+            <select id="qtBcnk_gio" class="border rounded-lg px-3 py-2 text-sm">
+              ${Array.from({ length: 24 }, (_, h) => `<option value="${h}">${String(h).padStart(2, '0')}:00</option>`).join('')}
+            </select>
+          </div>
+          <button onclick="luuGioDongBoKeo()" class="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50">💾 Lưu giờ</button>
+        </div>
+        <div id="qtBcnkGioMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+
+        <div class="text-sm text-gray-600 mb-1">Lần đồng bộ thành công gần nhất: <span id="qtBcnk_dongBoLuc" class="font-medium">--</span></div>
+        <div id="qtBcnk_dongBoLoiWrap" class="hidden text-sm text-red-600 mb-3">⚠ Lần chạy gần nhất bị lỗi (<span id="qtBcnk_dongBoLoiLuc"></span>): <span id="qtBcnk_dongBoLoi"></span></div>
+        <div id="qtBcnkSyncMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+        <button onclick="dongBoDuLieuKeoNgay(this)" id="qtBcnkSyncBtn" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700">🔄 Đồng bộ dữ liệu Keo ngay</button>
+      </div>
+    `;
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        document.getElementById('qtBcnk_idPhanTich').value = res.data.id_sheet_phantich;
+        document.getElementById('qtBcnk_idPhieuCan').value = res.data.id_sheet_phieucan;
+        document.getElementById('qtBcnk_email').value = res.data.email_bao_cao;
+        document.getElementById('qtBcnk_dongBoLuc').textContent = res.data.dong_bo_luc || 'Chưa đồng bộ lần nào';
+        document.getElementById('qtBcnk_gio').value = String(res.data.dong_bo_gio);
+        if (res.data.dong_bo_da_cai_dat === null) {
+          const canhBao = document.getElementById('qtBcnk_chuaCaiDat');
+          canhBao.classList.remove('hidden');
+          canhBao.innerHTML = '⚠ Chưa cấp đủ quyền cho hệ thống quản lý lịch chạy tự động. Vào Apps Script Editor, chọn hàm <b>thietLapDongBoHangNgay</b> ở dropdown trên cùng, bấm Run, và đồng ý cấp quyền khi được hỏi (chỉ cần làm 1 lần duy nhất) — sau đó tải lại trang này.';
+        } else if (!res.data.dong_bo_da_cai_dat) {
+          document.getElementById('qtBcnk_chuaCaiDat').classList.remove('hidden');
+        }
+        if (res.data.dong_bo_loi) {
+          document.getElementById('qtBcnk_dongBoLoiWrap').classList.remove('hidden');
+          document.getElementById('qtBcnk_dongBoLoi').textContent = res.data.dong_bo_loi;
+          document.getElementById('qtBcnk_dongBoLoiLuc').textContent = res.data.dong_bo_loi_luc || '';
+        }
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getCauHinhBaoCaoNgay(currentUserInfo());
+  }
+
+  function luuGioDongBoKeo() {
+    const gio = Number(document.getElementById('qtBcnk_gio').value);
+    const msg = document.getElementById('qtBcnkGioMsg');
+    msg.classList.add('hidden');
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        msg.classList.remove('hidden');
+        if (!res.success) {
+          msg.className = 'mb-3 p-3 rounded-lg text-sm bg-red-50 text-red-700';
+          msg.textContent = 'Lỗi: ' + res.message;
+          return;
+        }
+        msg.className = 'mb-3 p-3 rounded-lg text-sm bg-green-50 text-green-700';
+        msg.textContent = 'Đã đổi giờ đồng bộ tự động sang ' + String(res.data.gio).padStart(2, '0') + ':00 mỗi ngày.';
+      })
+      .withFailureHandler(function (err) {
+        msg.classList.remove('hidden');
+        msg.className = 'mb-3 p-3 rounded-lg text-sm bg-red-50 text-red-700';
+        msg.textContent = 'Lỗi hệ thống: ' + err.message;
+      })
+      .capNhatGioDongBoTuGiaoDien(gio, currentUserInfo());
+  }
+
+  function dongBoDuLieuKeoNgay(btn) {
+    const msg = document.getElementById('qtBcnkSyncMsg');
+    msg.classList.add('hidden');
+    btn.disabled = true;
+    const oldText = btn.textContent;
+    btn.textContent = 'Đang đồng bộ...';
+
+    // Nếu tiến trình đồng bộ ở server chạy quá lâu (rất hiếm, chỉ khi dữ
+    // liệu quá lớn), Apps Script có thể mất vài phút mới trả lời — hiện
+    // cảnh báo "vẫn đang chạy" sau 60s thay vì để nút "Đang đồng bộ..."
+    // treo im lặng khiến người dùng tưởng bị đứng máy.
+    const canhBaoCham = setTimeout(function () {
+      btn.textContent = 'Đang đồng bộ... (dữ liệu lớn có thể mất vài phút, vui lòng đợi)';
+    }, 60000);
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        clearTimeout(canhBaoCham);
+        btn.disabled = false;
+        btn.textContent = oldText;
+        msg.classList.remove('hidden');
+        if (!res.success) {
+          msg.className = 'mb-3 p-3 rounded-lg text-sm bg-red-50 text-red-700';
+          msg.textContent = 'Lỗi: ' + res.message;
+          return;
+        }
+        msg.className = 'mb-3 p-3 rounded-lg text-sm bg-green-50 text-green-700';
+        msg.textContent = 'Đã đồng bộ ' + res.data.so_dong_phantich + ' dòng Phân tích nhập TT và ' + res.data.so_dong_phieucan + ' dòng Phiếu cân.';
+        document.getElementById('qtBcnk_dongBoLuc').textContent = res.data.luc || '--';
+        document.getElementById('qtBcnk_dongBoLoiWrap').classList.add('hidden');
+      })
+      .withFailureHandler(function (err) {
+        clearTimeout(canhBaoCham);
+        btn.disabled = false;
+        btn.textContent = oldText;
+        msg.classList.remove('hidden');
+        msg.className = 'mb-3 p-3 rounded-lg text-sm bg-red-50 text-red-700';
+        const laTimeout = /time|thời gian|exceeded/i.test(err.message || '');
+        msg.textContent = laTimeout
+          ? 'Đồng bộ mất quá lâu và bị hệ thống Google dừng giữa chừng (thường do dữ liệu quá lớn hoặc mạng chậm lúc này). Vui lòng thử bấm lại sau ít phút.'
+          : 'Lỗi hệ thống: ' + err.message;
+      })
+      .dongBoDuLieuKeoTuGiaoDien(currentUserInfo());
+  }
+
+  function saveCauHinhBaoCaoNgay() {
+    const payload = {
+      id_sheet_phantich: document.getElementById('qtBcnk_idPhanTich').value.trim(),
+      id_sheet_phieucan: document.getElementById('qtBcnk_idPhieuCan').value.trim(),
+      email_bao_cao: document.getElementById('qtBcnk_email').value.trim()
+    };
+    const msg = document.getElementById('qtBcnkMsg');
+    msg.classList.add('hidden');
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        msg.classList.remove('hidden');
+        if (!res.success) {
+          msg.className = 'mb-3 p-3 rounded-lg text-sm bg-red-50 text-red-700';
+          msg.textContent = 'Lỗi: ' + res.message;
+          return;
+        }
+        msg.className = 'mb-3 p-3 rounded-lg text-sm bg-green-50 text-green-700';
+        msg.textContent = 'Đã lưu cấu hình.';
+      })
+      .withFailureHandler(function (err) {
+        msg.classList.remove('hidden');
+        msg.className = 'mb-3 p-3 rounded-lg text-sm bg-red-50 text-red-700';
+        msg.textContent = 'Lỗi hệ thống: ' + err.message;
+      })
+      .luuCauHinhBaoCaoNgay(payload, currentUserInfo());
   }
 
   function renderQuanTriUsers() {
@@ -1781,7 +2430,7 @@
       </div>
     `;
 
-    document.getElementById('ksNgay').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('ksNgay').value = _localDateStr(new Date());
     loadKhoaSoList();
   }
 
@@ -2292,6 +2941,30 @@
   /* ================= TRA CỨU ================= */
   function renderTraCuu() {
     document.getElementById('mainContent').innerHTML = `
+      <div class="flex gap-2 mb-4 flex-wrap no-print">
+        <button onclick="switchTraCuuTab('chungtu')" id="tcTabChungTu" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Tra cứu chứng từ</button>
+        <button onclick="switchTraCuuTab('doisoat_tienmat')" id="tcTabDoiSoatTienMat" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Đối soát quỹ tiền mặt</button>
+        <button onclick="switchTraCuuTab('doisoat_congdoan')" id="tcTabDoiSoatCongDoan" class="px-3 py-1.5 rounded-lg text-sm font-medium border">Đối soát quỹ công đoàn</button>
+      </div>
+      <div id="traCuuTabBody"></div>
+    `;
+    switchTraCuuTab('chungtu');
+  }
+
+  function switchTraCuuTab(tab) {
+    ['tcTabChungTu', 'tcTabDoiSoatTienMat', 'tcTabDoiSoatCongDoan'].forEach(function (id) {
+      document.getElementById(id).classList.remove('bg-gray-800', 'text-white');
+    });
+    const activeMap = { chungtu: 'tcTabChungTu', doisoat_tienmat: 'tcTabDoiSoatTienMat', doisoat_congdoan: 'tcTabDoiSoatCongDoan' };
+    document.getElementById(activeMap[tab]).classList.add('bg-gray-800', 'text-white');
+
+    if (tab === 'chungtu') renderTraCuuChungTu();
+    else if (tab === 'doisoat_tienmat') renderSoDoiSoatGeneric('Quỹ tiền mặt');
+    else renderSoDoiSoatGeneric('Quỹ công đoàn');
+  }
+
+  function renderTraCuuChungTu() {
+    document.getElementById('traCuuTabBody').innerHTML = `
       <div class="card mb-4">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
           <div>
@@ -2353,6 +3026,13 @@
         <div id="tcChiTietBody" class="text-sm text-gray-400">--</div>
       </div>
     `;
+
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    document.getElementById('tc_tuNgay').value = _localDateStr(firstDay);
+    document.getElementById('tc_denNgay').value = _localDateStr(now);
+
+    loadTraCuu();
   }
 
   function loadTraCuu() {
@@ -2399,6 +3079,8 @@
       .traCuuGiaoDich(filters);
   }
 
+  let TC_CHITIET_CACHE = null;
+
   function xemChiTietGiaoDich(soPhieu, loai) {
     const wrap = document.getElementById('tcChiTietWrap');
     const body = document.getElementById('tcChiTietBody');
@@ -2411,6 +3093,7 @@
         if (!res.success) { body.textContent = 'Lỗi: ' + res.message; return; }
         const p = res.data.phieu;
         const lichSu = res.data.lich_su;
+        TC_CHITIET_CACHE = p;
 
         let html = '<div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4 text-sm">';
         html += '<div><span class="text-gray-400">Số phiếu:</span> <b>' + p.so_phieu + '</b></div>';
@@ -2427,7 +3110,18 @@
         html += '<div><span class="text-gray-400">Người lập:</span> ' + p.nguoi_lap + '</div>';
         html += '<div><span class="text-gray-400">Thời gian lập:</span> ' + p.thoi_gian_lap + '</div>';
         html += '<div><span class="text-gray-400">Trạng thái:</span> <span class="px-2 py-0.5 rounded-full text-xs font-medium ' + (p.trang_thai === 'Hợp lệ' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') + '">' + p.trang_thai + '</span></div>';
+        html += '<div><span class="text-gray-400">Đối soát:</span> ' + _doiSoatBadge(p.doi_soat) + '</div>';
         if (p.ly_do_huy) html += '<div class="md:col-span-2"><span class="text-gray-400">Lý do hủy:</span> ' + p.ly_do_huy + '</div>';
+        html += '</div>';
+
+        html += '<div class="mb-4 flex gap-2"><button onclick="inPhieuTraCuu()" ' +
+          'class="px-4 py-2 rounded-lg border text-gray-700 text-sm font-medium hover:bg-gray-50">🖨️ In phiếu</button>';
+
+        const coQuyenHuy = ['ADMIN', 'THU_QUY'].indexOf(CURRENT_USER.role) !== -1;
+        if (p.trang_thai === 'Hợp lệ' && coQuyenHuy) {
+          html += '<button onclick="huyPhieuTraCuu(\'' + p.so_phieu + '\',\'' + p.loai + '\')" ' +
+            'class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700">🗑️ Hủy phiếu này</button>';
+        }
         html += '</div>';
 
         html += '<div class="font-medium text-gray-600 text-sm mb-2">Lịch sử thao tác</div>';
@@ -2445,10 +3139,181 @@
       .getChiTietGiaoDich(soPhieu, loai);
   }
 
+  /**
+   * Hủy 1 phiếu Thu/Chi ngay từ màn Tra Cứu. Theo đúng nguyên tắc kế
+   * toán: không sửa/xóa phiếu cũ, chỉ đổi trạng thái + ghi lý do, giữ
+   * nguyên lịch sử. Nếu phiếu là Thu/Trả công nợ, backend tự hoàn tác
+   * lại khoản công nợ liên quan.
+   */
+  function huyPhieuTraCuu(soPhieu, loai) {
+    const lyDo = prompt('Nhập lý do hủy phiếu ' + soPhieu + ':');
+    if (lyDo === null) return; // bấm Hủy (Cancel) hộp thoại
+    if (!lyDo.trim()) { alert('Vui lòng nhập lý do hủy.'); return; }
+
+    const hamGoi = loai === 'Thu' ? 'huyPhieuThu' : 'huyPhieuChi';
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        alert('Đã hủy phiếu ' + soPhieu + '.');
+        xemChiTietGiaoDich(soPhieu, loai);
+        loadTraCuu();
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      [hamGoi](soPhieu, lyDo.trim(), currentUserInfo());
+  }
+
+  /**
+   * In 1 Phiếu Thu/Phiếu Chi theo đúng mẫu chứng từ kế toán chuẩn
+   * (Mẫu 01-TT / 02-TT, Thông tư 200/2014/TT-BTC) — thay thế toàn bộ
+   * nội dung màn hình bằng bản in, sau đó dùng window.print() (đã có
+   * CSS @media print ẩn sidebar/menu, chỉ in đúng phần này).
+   */
+  function inPhieuTraCuu() {
+    if (!TC_CHITIET_CACHE) { alert('Không có dữ liệu phiếu để in.'); return; }
+    _renderMauInPhieu(TC_CHITIET_CACHE);
+  }
+
+  function _renderMauInPhieu(p) {
+    const isThu = p.loai === 'Thu';
+    const tieuDe = isThu ? 'PHIẾU THU' : 'PHIẾU CHI';
+    const mauSo = isThu ? 'Mẫu số 01 - TT' : 'Mẫu số 02 - TT';
+    const nguoiLabel = isThu ? 'Người nộp tiền' : 'Người nhận tiền';
+    const ngayParts = String(p.ngay || '').split('-'); // yyyy-MM-dd
+    const ngay = ngayParts.length === 3 ? ngayParts[2] : '..';
+    const thang = ngayParts.length === 3 ? ngayParts[1] : '..';
+    const nam = ngayParts.length === 3 ? ngayParts[0] : '....';
+
+    const daHuyBox = p.trang_thai === 'Đã hủy'
+      ? '<div class="text-center text-red-600 font-bold mt-4" style="border:2px solid #dc2626;padding:8px;border-radius:4px;">CHỨNG TỪ ĐÃ HỦY — Lý do: ' + (p.ly_do_huy || '') + '</div>'
+      : '';
+
+    document.getElementById('mainContent').innerHTML = `
+      <div class="no-print mb-4 flex gap-2">
+        <button onclick="renderTraCuu()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">← Quay lại Tra Cứu</button>
+        <button onclick="window.print()" class="px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🖨 In phiếu</button>
+      </div>
+      <div class="card" style="max-width:820px;margin:0 auto;font-family:'Times New Roman',Times,serif;">
+        <div class="flex justify-between items-start text-sm mb-2">
+          <div>
+            <div class="font-semibold">Đơn vị: HAK_QUY</div>
+            <div>Bộ phận: ..........................................</div>
+          </div>
+          <div class="text-right">
+            <div>${mauSo}</div>
+            <div class="italic text-xs text-gray-500">(Ban hành theo Thông tư số 200/2014/TT-BTC<br>ngày 22/12/2014 của Bộ Tài chính)</div>
+          </div>
+        </div>
+
+        <div class="text-center my-4">
+          <div class="text-xl font-bold tracking-wide">${tieuDe}</div>
+          <div class="text-sm">Ngày ${ngay} tháng ${thang} năm ${nam}</div>
+        </div>
+
+        <div class="flex justify-end text-sm mb-3">
+          <div class="text-right">
+            <div>Số: <b>${p.so_phieu}</b></div>
+            <div>Nợ: ${p.tai_khoan || '1111'}</div>
+            <div>Có: ${p.tk_doi_ung || '...........'}</div>
+          </div>
+        </div>
+
+        <table class="w-full text-sm" style="border-collapse:collapse;">
+          <tr><td class="py-1" style="width:220px;">Họ và tên ${nguoiLabel.toLowerCase()}:</td><td class="py-1"><b>${p.nguoi_nop_nhan || ''}</b></td></tr>
+          <tr><td class="py-1">Địa chỉ / Đơn vị:</td><td class="py-1">${p.doi_tuong || ''}</td></tr>
+          <tr><td class="py-1">Lý do ${isThu ? 'nộp' : 'chi'}:</td><td class="py-1">${p.noi_dung || ''}</td></tr>
+          <tr><td class="py-1">Số tiền:</td><td class="py-1"><b>${formatMoney(p.so_tien)}</b></td></tr>
+          <tr><td class="py-1" colspan="2">Viết bằng chữ: <i>${soTienBangChu(p.so_tien)}</i></td></tr>
+          <tr><td class="py-1">Kèm theo:</td><td class="py-1">${p.chung_tu || '...'} chứng từ gốc</td></tr>
+        </table>
+
+        <div class="text-right text-sm mt-5 mb-2 italic">Ngày ${ngay} tháng ${thang} năm ${nam}</div>
+
+        <table class="w-full text-center text-sm" style="table-layout:fixed;">
+          <tr>
+            <td>Giám đốc<br><span class="text-xs italic">(Ký, họ tên)</span></td>
+            <td>Kế toán trưởng<br><span class="text-xs italic">(Ký, họ tên)</span></td>
+            <td>${nguoiLabel}<br><span class="text-xs italic">(Ký, họ tên)</span></td>
+            <td>Người lập phiếu<br><span class="text-xs italic">(Ký, họ tên)</span></td>
+            <td>Thủ quỹ<br><span class="text-xs italic">(Ký, họ tên)</span></td>
+          </tr>
+          <tr>
+            <td style="height:80px;"></td><td></td><td></td>
+            <td class="align-bottom">${p.nguoi_lap || ''}</td>
+            <td></td>
+          </tr>
+        </table>
+
+        ${daHuyBox}
+      </div>
+    `;
+    window.scrollTo(0, 0);
+  }
+
   /* ================= TIỆN ÍCH ================= */
   function formatMoney(n) {
     n = Number(n) || 0;
     return n.toLocaleString('vi-VN') + ' đ';
+  }
+
+  function formatTan(n) {
+    n = Number(n) || 0;
+    return n.toLocaleString('vi-VN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  /**
+   * Đổi 1 số tiền (VNĐ, số nguyên) thành chữ tiếng Việt, dùng để in
+   * lên mẫu Phiếu Thu/Phiếu Chi ("Viết bằng chữ: ..."). Không xử lý
+   * phần thập phân (tiền VNĐ trong hệ thống luôn là số nguyên).
+   */
+  function soTienBangChu(soTien) {
+    soTien = Math.round(Number(soTien) || 0);
+    if (soTien === 0) return 'Không đồng.';
+    const amNhat = soTien < 0;
+    soTien = Math.abs(soTien);
+
+    const chuSo = ['không', 'một', 'hai', 'ba', 'bốn', 'năm', 'sáu', 'bảy', 'tám', 'chín'];
+    const donViNhom = ['', 'nghìn', 'triệu', 'tỷ'];
+
+    function docBaSo(so, canKhongTram) {
+      const tram = Math.floor(so / 100);
+      const chuc = Math.floor((so % 100) / 10);
+      const donvi = so % 10;
+      let s = '';
+      if (tram > 0) s += chuSo[tram] + ' trăm ';
+      else if (canKhongTram) s += 'không trăm ';
+
+      if (chuc === 0) {
+        if (donvi > 0) s += (tram > 0 || canKhongTram ? 'lẻ ' : '') + chuSo[donvi] + ' ';
+      } else if (chuc === 1) {
+        s += 'mười ';
+        if (donvi === 5) s += 'lăm ';
+        else if (donvi > 0) s += chuSo[donvi] + ' ';
+      } else {
+        s += chuSo[chuc] + ' mươi ';
+        if (donvi === 1) s += 'mốt ';
+        else if (donvi === 5) s += 'lăm ';
+        else if (donvi > 0) s += chuSo[donvi] + ' ';
+      }
+      return s.trim();
+    }
+
+    const nhom = [];
+    let n = soTien;
+    while (n > 0) { nhom.push(n % 1000); n = Math.floor(n / 1000); }
+
+    const parts = [];
+    for (let i = nhom.length - 1; i >= 0; i--) {
+      const g = nhom[i];
+      if (g === 0) continue;
+      const canKhongTram = i !== nhom.length - 1 && Math.floor(g / 100) === 0;
+      let groupText = docBaSo(g, canKhongTram);
+      if (donViNhom[i]) groupText += ' ' + donViNhom[i];
+      parts.push(groupText.trim());
+    }
+
+    let result = parts.join(' ').replace(/\s+/g, ' ').trim();
+    result = result.charAt(0).toUpperCase() + result.slice(1);
+    return (amNhat ? 'Âm ' + result.toLowerCase() : result) + ' đồng chẵn.';
   }
 
   function showFormMsg(boxId, text, isError) {
@@ -2460,20 +3325,271 @@
     box.classList.remove('hidden');
   }
 
-  function downloadCSV(filename, headers, rows) {
-    let csv = '\uFEFF' + headers.join(',') + '\n';
-    rows.forEach(function (row) {
-      csv += row.map(function (cell) {
-        const s = String(cell === null || cell === undefined ? '' : cell).replace(/"/g, '""');
-        return '"' + s + '"';
-      }).join(',') + '\n';
-    });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  /**
+   * Báo đã lưu Phiếu Thu/Chi thành công KÈM nút in ngay — soPhieu/loai
+   * do server sinh ra (không phải input tự do của người dùng) nên gán
+   * thẳng vào innerHTML là an toàn, không có rủi ro XSS.
+   */
+  function _thongBaoLuuPhieuKemNutIn(boxId, soPhieu, loai, tenLoaiPhieu) {
+    const box = document.getElementById(boxId);
+    if (!box) return;
+    box.className = 'mb-4 p-3 rounded-lg text-sm bg-green-50 text-green-700 border border-green-200 flex items-center justify-between flex-wrap gap-2';
+    box.innerHTML = '<span>Đã lưu ' + tenLoaiPhieu + ' <b>' + soPhieu + '</b> thành công!</span>' +
+      '<button type="button" onclick="inPhieuTheoSo(\'' + soPhieu + '\',\'' + loai + '\')" ' +
+      'class="px-3 py-1.5 rounded-lg border border-green-300 bg-white text-green-800 text-xs font-medium hover:bg-green-100">🖨️ In phiếu vừa lập</button>';
+    box.classList.remove('hidden');
+  }
+
+  /**
+   * In 1 Phiếu Thu/Chi theo số phiếu, dùng chung mẫu in với Tra Cứu
+   * (_renderMauInPhieu) — cho phép in ngay sau khi vừa lập phiếu mà
+   * không cần vòng qua Tra Cứu tìm lại.
+   */
+  function inPhieuTheoSo(soPhieu, loai) {
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        TC_CHITIET_CACHE = res.data.phieu;
+        _renderMauInPhieu(TC_CHITIET_CACHE);
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .getChiTietGiaoDich(soPhieu, loai);
+  }
+
+  /**
+   * Nhận file .xlsx dạng base64 từ server (xem XuatExcel.gs) và cho
+   * trình duyệt tải xuống trực tiếp — file Excel THẬT (có định dạng,
+   * màu sắc, số tiền căn phải...), không phải CSV thô.
+   */
+  function taiFileExcel(base64, filename) {
+    const byteChars = atob(base64);
+    const byteNumbers = new Array(byteChars.length);
+    for (let i = 0; i < byteChars.length; i++) byteNumbers[i] = byteChars.charCodeAt(i);
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
   }
+
+  /**
+   * Gọi 1 hàm server sinh file Excel, disable nút bấm trong lúc chờ
+   * (việc tạo + xuất Google Sheet mất vài giây), rồi tự tải file về.
+   */
+  function xuatExcelTuServer(btn, tenHamServer, thamSo) {
+    const textCu = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang tạo file...';
+
+    const xongRoi = function () { btn.disabled = false; btn.textContent = textCu; };
+
+    let call = google.script.run
+      .withSuccessHandler(function (res) {
+        xongRoi();
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        taiFileExcel(res.data.base64, res.data.filename);
+      })
+      .withFailureHandler(function (err) {
+        xongRoi();
+        alert('Lỗi hệ thống: ' + err.message);
+      });
+    call[tenHamServer].apply(call, thamSo || []);
+  }
+
+  /* ================= HƯỚNG DẪN SỬ DỤNG ================= */
+  const HD_TABS = [
+    { id: 'tongquan', label: 'Tổng quan' },
+    { id: 'thuchi', label: 'Thu - Chi - Hủy phiếu' },
+    { id: 'congno', label: 'Công Nợ' },
+    { id: 'soquycom', label: 'Sổ Quỹ - Sổ Cơm' },
+    { id: 'baocao', label: 'Báo Cáo' },
+    { id: 'khoaso', label: 'Khóa Sổ - Quản Trị' },
+    { id: 'phanquyen', label: 'Phân quyền' },
+    { id: 'suco', label: 'Xử lý sự cố' }
+  ];
+
+  function renderHuongDan() {
+    document.getElementById('mainContent').innerHTML = `
+      <div class="flex gap-2 mb-4 flex-wrap no-print">
+        ${HD_TABS.map(t => '<button onclick="switchHuongDanTab(\'' + t.id + '\')" id="hdTab_' + t.id + '" class="px-3 py-1.5 rounded-lg text-sm font-medium border">' + t.label + '</button>').join('')}
+      </div>
+      <div id="huongDanBody" class="card prose-hd"></div>
+    `;
+    switchHuongDanTab('tongquan');
+  }
+
+  function switchHuongDanTab(tab) {
+    HD_TABS.forEach(function (t) {
+      document.getElementById('hdTab_' + t.id).classList.remove('bg-gray-800', 'text-white');
+    });
+    document.getElementById('hdTab_' + tab).classList.add('bg-gray-800', 'text-white');
+    document.getElementById('huongDanBody').innerHTML = HD_CONTENT[tab] || '';
+    document.getElementById('huongDanBody').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  function _hdH(text) {
+    return '<h3 class="text-base font-semibold text-gray-800 mt-5 mb-2">' + text + '</h3>';
+  }
+  function _hdP(text) {
+    return '<p class="text-sm text-gray-600 mb-2">' + text + '</p>';
+  }
+  function _hdOl(items) {
+    return '<ol class="list-decimal ml-5 space-y-1 text-sm text-gray-700 mb-3">' + items.map(i => '<li>' + i + '</li>').join('') + '</ol>';
+  }
+  function _hdUl(items) {
+    return '<ul class="list-disc ml-5 space-y-1 text-sm text-gray-700 mb-3">' + items.map(i => '<li>' + i + '</li>').join('') + '</ul>';
+  }
+  function _hdNote(text) {
+    return '<div class="bg-amber-50 border-l-4 border-amber-400 text-sm text-amber-800 rounded-r-lg px-3 py-2 mb-3"><b>Lưu ý:</b> ' + text + '</div>';
+  }
+
+  const HD_CONTENT = {
+
+    tongquan:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-1">Giới thiệu hệ thống HAK_QUY</h2>' +
+      _hdP('HAK_QUY dùng để quản lý thu – chi tiền mặt, sổ quỹ, công nợ, sổ cơm, quỹ công đoàn và các báo cáo thu mua Keo, thay cho việc ghi chép thủ công trên Excel/sổ giấy.') +
+      _hdH('3 vai trò sử dụng') +
+      _hdUl([
+        '<b>ADMIN</b> (Quản trị viên): toàn quyền — lập/hủy phiếu, quản lý công nợ, quản lý người dùng, khóa sổ, xem nhật ký hệ thống, cấu hình báo cáo Keo.',
+        '<b>THU_QUY</b> (Thủ quỹ): lập Phiếu Thu/Chi, hủy phiếu (nếu chưa khóa sổ), xem Sổ Quỹ/Sổ Cơm, tra cứu — không tạo được khoản công nợ mới, không vào Quản Trị.',
+        '<b>XEM</b>: chỉ xem Dashboard, Sổ Quỹ, Sổ Quỹ Công Đoàn, Sổ Cơm, Công Nợ, Báo Cáo, Tra Cứu — không lập/sửa/hủy được gì.'
+      ]) +
+      _hdNote('Hệ thống luôn tra đúng vai trò thật của tài khoản để phân quyền, không phụ thuộc giao diện hiển thị gì.') +
+      _hdH('Tổng quan giao diện') +
+      _hdUl([
+        '📊 Dashboard — tổng quan số liệu hôm nay (tồn quỹ, thu/chi, công nợ, số phiếu).',
+        '💵 Thu Tiền / 💸 Chi Tiền — lập phiếu.',
+        '📒 Sổ Quỹ / 🎌 Sổ Quỹ Công Đoàn — sổ kế toán chi tiết từng quỹ.',
+        '🍚 Sổ Cơm — theo dõi suất ăn hàng ngày.',
+        '🤝 Công Nợ — quản lý khoản phải thu/phải trả.',
+        '👥 Đối Tượng / 🏷️ Danh Mục — danh mục dùng khi lập phiếu.',
+        '📈 Báo Cáo — báo cáo tổng hợp, xuất Excel, gửi email.',
+        '🔍 Tra Cứu — tìm/xem chi tiết phiếu, hủy phiếu.',
+        '⚙️ Quản Trị — chỉ ADMIN.'
+      ]),
+
+    thuchi:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-1">Quy trình Thu - Chi - Hủy phiếu</h2>' +
+      _hdH('1. Lập Phiếu Thu') +
+      _hdOl([
+        'Vào menu "Thu Tiền".',
+        'Chọn Quỹ: "Quỹ tiền mặt" hoặc "Quỹ công đoàn".',
+        'Chọn Loại giao dịch: "Thu thường" hoặc "Thu công nợ" (thu tiền khách trả nợ cũ).',
+        'Nếu chọn "Thu công nợ": chọn Đối tượng trước — hệ thống hiện các khoản công nợ "Còn nợ" của đối tượng đó để chọn.',
+        'Nhập Ngày thu, Người nộp tiền, Đối tượng, Loại thu, Số tiền, Nội dung thu.',
+        '(Tùy chọn) Mở phần "Thông tin hạch toán Sổ Quỹ" để nhập Ngày hạch toán / Tài khoản / TK đối ứng / Mã nhân viên / Chi nhánh — bỏ trống thì lấy mặc định (TK 1111).',
+        'Bấm "💾 Lưu Phiếu Thu".'
+      ]) +
+      _hdP('Hệ thống tự sinh Số phiếu thu (PT000001…), cộng vào Sổ Quỹ tương ứng, và tự trừ vào khoản công nợ đã chọn nếu là "Thu công nợ".') +
+      _hdH('2. Lập Phiếu Chi') +
+      _hdP('Tương tự Phiếu Thu, tại menu "Chi Tiền": chọn Quỹ, Loại giao dịch ("Chi thường"/"Trả công nợ"), Người nhận tiền, Đối tượng, Loại chi, Số tiền, Nội dung chi → "💾 Lưu Phiếu Chi". Số phiếu chi sinh tự động dạng PC000001…') +
+      _hdH('3. Hủy Phiếu (khi lập sai)') +
+      _hdNote('Hệ thống KHÔNG cho sửa/xóa phiếu đã lập — mọi chứng từ sai phải HỦY (giữ nguyên lịch sử) rồi lập lại phiếu mới nếu cần.') +
+      _hdOl([
+        'Vào menu "Tra Cứu".',
+        'Tìm phiếu cần hủy: nhập Số phiếu hoặc lọc theo ngày/Đối tượng/Nội dung/Người lập, bấm "Tìm kiếm".',
+        'Bấm "Xem" ở cuối dòng phiếu để mở Chi tiết.',
+        'Nếu phiếu đang "Hợp lệ" và bạn là ADMIN/THU_QUY, sẽ hiện nút đỏ "🗑️ Hủy phiếu này".',
+        'Bấm vào, nhập Lý do hủy (bắt buộc), xác nhận.'
+      ]) +
+      _hdP('Sau khi hủy: phiếu chuyển "Đã hủy" kèm lý do, bị loại khỏi Sổ Quỹ; nếu là Thu/Trả công nợ thì khoản nợ liên quan được tự hoàn tác. Mọi thao tác được ghi vào Nhật ký hệ thống.') +
+      _hdNote('Không hủy được nếu phiếu đã "Đã hủy" từ trước, hoặc ngày của phiếu đã bị Khóa Sổ — phải Mở khóa ngày đó trước (xem tab "Khóa Sổ - Quản Trị").'),
+
+    congno:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-1">Quy trình quản lý Công Nợ</h2>' +
+      _hdOl([
+        '(Chỉ ADMIN) Vào "Công Nợ" > bấm "+ Thêm khoản Công Nợ".',
+        'Chọn Đối tượng, Loại ("Phải thu"/"Phải trả"), nhập Ngày phát sinh, Số tiền phát sinh, Hạn thanh toán (nếu có), Nội dung, rồi Lưu.',
+        'Khi phát sinh thu/trả tiền cho khoản nợ đó: lập Phiếu Thu ("Thu công nợ") hoặc Phiếu Chi ("Trả công nợ"), nhớ chọn đúng khoản công nợ trong danh sách hiện ra.',
+        'Theo dõi tại trang "Công Nợ": lọc theo Loại / Trạng thái ("Còn nợ"/"Đã tất toán").',
+        'Cuối kỳ, vào "Báo Cáo" > "Công nợ tổng hợp" (đối chiếu theo đối tượng, theo kỳ) hoặc "Công nợ quá hạn" (tự động liệt kê khoản quá hạn tính đến hôm nay).'
+      ]),
+
+    soquycom:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-1">Sổ Quỹ / Sổ Quỹ Công Đoàn / Sổ Cơm</h2>' +
+      _hdH('Theo dõi Sổ Quỹ') +
+      _hdOl([
+        'Vào "Sổ Quỹ" (quỹ tiền mặt) hoặc "Sổ Quỹ Công Đoàn".',
+        'Lọc theo khoảng ngày, Loại giao dịch, hoặc Người lập nếu cần.',
+        'Xem danh sách kèm cột Tồn lũy kế sau mỗi dòng.',
+        'Bấm "⬇ Xuất Excel" để tải file .xlsx đúng khuôn sổ kế toán chi tiết (dòng Tồn đầu kỳ, cột Nợ/Có, kẻ khung).'
+      ]) +
+      _hdH('Nhập Sổ Cơm hàng ngày') +
+      _hdOl([
+        'Vào "Sổ Cơm", chọn Ngày, nhập Số suất Trưa/Tối (đơn giá tự lấy mặc định, có thể sửa).',
+        'Nếu ngày đó có tạm ứng tiền cơm: nhập thêm Ngày tạm ứng + Số tiền tạm ứng.',
+        'Lưu — nếu ngày đó đã có dữ liệu, hệ thống tự cập nhật lại (không tạo trùng).'
+      ]) +
+      _hdP('Bảng Sổ Cơm theo tháng hiển thị Tổng suất, Thành tiền từng ngày và cột Tồn quỹ cơm tính lũy kế tự động.'),
+
+    baocao:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-1">Báo Cáo</h2>' +
+      _hdUl([
+        '<b>Thu - Chi</b>: chọn khoảng ngày (+ lọc Loại/Người lập) → xem Tồn đầu kỳ – Tổng Thu – Tổng Chi – Tồn cuối kỳ và chi tiết → Xuất Excel hoặc In/Xuất PDF.',
+        '<b>Công nợ tổng hợp</b>: chọn Loại công nợ + khoảng ngày → xem Đầu kỳ/Phát sinh/Đã thu-trả/Cuối kỳ theo từng đối tượng → Xuất Excel.',
+        '<b>Công nợ quá hạn</b>: danh sách tự động các khoản quá hạn tính đến hôm nay.',
+        '<b>Báo cáo ngày (Keo)</b>: chọn 1 ngày → xem Nhập/Thanh toán Keo trong ngày (theo Nguồn gốc, theo Đại lý DT/QT/KL), chi tiết phiếu cân, tồn quỹ tiền mặt đầu/cuối ngày → Xuất Excel hoặc Gửi Email.',
+        '<b>Báo cáo tháng</b>: chọn Tháng/Năm → xem tổng quan Keo trong tháng, tồn quỹ tiền mặt & công đoàn cuối tháng, Sổ Cơm trong tháng → Xuất Excel (1 file gồm 5 sheet: Quy_TamUng, KEO_NHAP, CK_KEO, COM, QUY_CongDoan) hoặc Gửi Email.'
+      ]) +
+      _hdNote('Nút "Gửi Email" gửi tới đúng danh sách email đã cấu hình ở Quản Trị > "Báo cáo ngày (Keo)".'),
+
+    khoaso:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-1">Khóa Sổ và Quản Trị (chỉ ADMIN)</h2>' +
+      _hdH('Khóa Sổ cuối kỳ') +
+      _hdOl([
+        'Vào "Quản Trị" > tab "Khóa Sổ".',
+        'Chọn Ngày cần khóa (sau khi đã đối chiếu số liệu ngày đó chính xác), bấm Khóa.',
+        'Sau khi khóa: không ai (kể cả ADMIN) lập/sửa/hủy được Phiếu Thu/Chi vào đúng ngày đó.',
+        'Nếu cần sửa lại: bấm "Mở khóa", bắt buộc nhập Lý do mở khóa (lưu vào lịch sử để truy vết).'
+      ]) +
+      _hdH('Người dùng') +
+      _hdP('Bấm "+ Thêm người dùng" để tạo tài khoản (Tên đăng nhập, Mật khẩu ≥ 6 ký tự, Họ tên, Vai trò). Có thể Khóa/Mở khóa từng tài khoản (trừ tài khoản đang đăng nhập).') +
+      _hdH('Nhật ký hệ thống') +
+      _hdP('Ghi lại MỌI thao tác Thêm/Sửa/Hủy quan trọng (ai làm, lúc nào, dữ liệu trước/sau) — lọc theo Chức năng/Người thao tác/Mã chứng từ để tra soát khi có sai lệch.') +
+      _hdH('Cấu hình Báo cáo ngày (Keo)') +
+      _hdOl([
+        'Nhập (hoặc dán nguyên link) ID 2 Google Sheet nguồn: "PhanTichNhapTT_DRAFT" và "PhieuCan_DN".',
+        'Nhập danh sách Email nhận báo cáo, nhiều email cách nhau bởi dấu phẩy.',
+        'Bấm "💾 Lưu cấu hình".'
+      ]) +
+      _hdNote('Tài khoản Google đứng tên deploy web app phải có quyền Xem (Viewer) trên cả 2 Google Sheet nguồn thì mới đọc được dữ liệu.'),
+
+    phanquyen:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-3">Bảng phân quyền theo chức năng</h2>' +
+      '<div class="overflow-x-auto"><table class="w-full text-sm border-collapse">' +
+      '<thead><tr class="bg-gray-800 text-white text-left">' +
+      '<th class="px-3 py-2">Chức năng</th><th class="px-3 py-2 text-center">ADMIN</th><th class="px-3 py-2 text-center">THU_QUY</th><th class="px-3 py-2 text-center">XEM</th>' +
+      '</tr></thead><tbody>' +
+      [
+        ['Xem Dashboard, Sổ Quỹ, Sổ Quỹ Công Đoàn, Sổ Cơm, Tra Cứu', '✔', '✔', '✔'],
+        ['Lập Phiếu Thu / Phiếu Chi', '✔', '✔', '✘'],
+        ['Hủy Phiếu Thu / Chi', '✔', '✔', '✘'],
+        ['Nhập / sửa Sổ Cơm', '✔', '✔', '✘'],
+        ['Xem trang Công Nợ', '✔', '✘', '✔'],
+        ['Tạo khoản Công Nợ mới', '✔', '✘', '✘'],
+        ['Xem trang Báo Cáo + Xuất Excel', '✔', '✘', '✔'],
+        ['Gửi Email báo cáo (ngày/tháng)', '✔', '✘', '✘'],
+        ['Xem/Thêm/Sửa Đối Tượng, Danh Mục', '✔', '✘', '✘'],
+        ['Quản Trị (Người dùng, Khóa Sổ, Nhật ký, Cấu hình báo cáo Keo)', '✔', '✘', '✘']
+      ].map(r => '<tr class="border-b"><td class="px-3 py-2">' + r[0] + '</td><td class="px-3 py-2 text-center">' + r[1] + '</td><td class="px-3 py-2 text-center">' + r[2] + '</td><td class="px-3 py-2 text-center">' + r[3] + '</td></tr>').join('') +
+      '</tbody></table></div>' +
+      _hdNote('THU_QUY không có mục "Công Nợ" và "Báo Cáo" trên menu; XEM xem được nhưng không sửa/lập được gì. "Gửi Email" chỉ ADMIN dùng được.'),
+
+    suco:
+      '<h2 class="text-lg font-semibold text-gray-800 mb-1">Xử lý sự cố thường gặp</h2>' +
+      _hdH('Trang cứ hiện "Đang tải..." mãi không lên số liệu') +
+      _hdP('Tải lại trang (F5) và kiểm tra kết nối mạng. Nếu vẫn lỗi ở đúng 1 màn hình cụ thể, báo lại chính xác màn hình đó.') +
+      _hdH('Lỗi "You do not have permission to call UrlFetchApp.fetch"') +
+      _hdP('ADMIN vào Apps Script Editor, chọn 1 hàm bất kỳ liên quan xuất Excel/gửi email ở ô chọn hàm trên cùng, bấm Run, và bấm "Cho phép" khi Google hỏi cấp quyền — chỉ cần làm 1 lần.') +
+      _hdH('Lỗi "Illegal spreadsheet id or key"') +
+      _hdP('ID Google Sheet nguồn trong Quản Trị > "Báo cáo ngày (Keo)" chưa đúng — dán lại nguyên đường link Google Sheet, hệ thống tự tách lấy ID.') +
+      _hdH('Không lập/hủy được phiếu, báo "Ngày ... đã bị khóa sổ"') +
+      _hdP('Ngày đó đã bị ADMIN khóa sổ — vào Quản Trị > Khóa Sổ, Mở khóa ngày đó (nhập lý do) rồi thao tác lại.') +
+      _hdH('Không thấy nút "Hủy phiếu này"') +
+      _hdP('Kiểm tra: phiếu đã "Đã hủy" từ trước (không hủy lại được), hoặc tài khoản đang đăng nhập là vai trò XEM (không có quyền hủy).')
+  };
 </script>

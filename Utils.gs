@@ -30,7 +30,16 @@ function _cleanCell(v) {
  * __row = vị trí dòng thật trên sheet (1-based), dùng khi cần sửa lại dòng đó.
  */
 function _sheetToObjects(sheetName) {
-  const sh = _sheet(sheetName);
+  return _sheetToObjectsFromSheetObj(_sheet(sheetName));
+}
+
+/**
+ * Giống _sheetToObjects nhưng nhận thẳng 1 đối tượng Sheet thay vì tên
+ * sheet trong spreadsheet đang chạy — dùng để đọc dữ liệu từ 1 Google
+ * Sheet KHÁC (ví dụ PhieuCan_DN, PhanTichNhapTT_DRAFT) mở qua
+ * SpreadsheetApp.openById().
+ */
+function _sheetToObjectsFromSheetObj(sh) {
   const values = sh.getDataRange().getValues();
   if (values.length < 2) return [];
   const headers = values[0].map(h => String(h).trim());
@@ -44,6 +53,44 @@ function _sheetToObjects(sheetName) {
     rows.push(obj);
   }
   return rows;
+}
+
+/**
+ * Đặt độ rộng cột hợp lý dựa theo tên tiêu đề cột, thay cho
+ * autoResizeColumns() — vốn tính độ rộng KHÔNG đáng tin cậy khi
+ * dòng 1 phía trên là 1 ô đã merge() ngang qua nhiều cột (tiêu đề
+ * báo cáo), dễ khiến các cột dữ liệu bên dưới bị co hẹp/lệch,
+ * trông không chuẩn. Dùng cho mọi sheet Excel xuất ra.
+ */
+function _datDoRongCotTheoTieuDe(sh, headers, cotBatDau) {
+  const batDau = cotBatDau || 1;
+  headers.forEach((h, i) => {
+    const label = String(h === null || h === undefined ? '' : h);
+    let w = 90;
+    if (label === '') w = 24;
+    else if (/diễn giải|nội dung/i.test(label)) w = 340;
+    else if (/người|khách hàng|đối tượng|biển số/i.test(label)) w = 170;
+    else if (/^nợ$|^có$/i.test(label)) w = 170;
+    else if (/ngày/i.test(label)) w = 100;
+    else if (/tồn|thành tiền|giá trị|^thu$|^chi$/i.test(label)) w = 115;
+    else if (/số phiếu/i.test(label)) w = 100;
+    else if (/tổng.*\((kg|tấn)\)|đơn giá/i.test(label)) w = 110;
+    sh.setColumnWidth(batDau + i, w);
+  });
+}
+
+/**
+ * Chuyển 1 giá trị đọc từ ô Sheet (có thể là Date thật, hoặc chuỗi text
+ * "yyyy-MM-dd" như trong PhanTichNhapTT_DRAFT) thành khóa ngày dạng
+ * "yyyy-MM-dd" để so sánh/lọc, không phụ thuộc việc ô đó được lưu dưới
+ * dạng Date hay Text.
+ */
+function _ngayKeyLinhHoat(v) {
+  if (!v) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    return _isValidDate(v) ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd') : '';
+  }
+  return String(v).trim();
 }
 
 function _jsonOk(data) {
@@ -64,6 +111,23 @@ function _jsonErr(err) {
  */
 function _isValidDate(d) {
   return Object.prototype.toString.call(d) === '[object Date]' && !isNaN(d.getTime());
+}
+
+/**
+ * Ép 1 giá trị đọc từ Sheet thành CHUỖI an toàn để trả về client.
+ * Dùng cho các cột lẽ ra là text tự do (số phiếu, mã, ghi chú...) nhưng
+ * có thể lỡ bị Google Sheets tự động hiểu nhầm thành Ngày/Số khi nhập
+ * liệu (ví dụ số phiếu "01/02" bị hiểu thành ngày 01/02). Nếu vô tình
+ * vẫn còn 1 ô như vậy, hàm này chuyển về dạng hiển thị dd/MM/yyyy thay
+ * vì để lọt 1 Date/Invalid Date thô ra ngoài (có thể làm hỏng ngầm
+ * phản hồi của google.script.run).
+ */
+function _safeText(v) {
+  if (v === null || v === undefined) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    return _isValidDate(v) ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'dd/MM/yyyy') : '';
+  }
+  return String(v);
 }
 
 function _fmtDate(d) {

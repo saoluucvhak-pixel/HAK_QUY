@@ -133,7 +133,8 @@ function _setupPhieuThuSheet(ss) {
     'nguoi_nop_tien', 'ma_doi_tuong', 'noi_dung_thu', 'ma_loai_thu', 'so_tien',
     'chung_tu_lien_quan', 'ghi_chu', 'nguoi_lap', 'thoi_gian_lap',
     'nguoi_sua_cuoi', 'thoi_gian_sua_cuoi', 'trang_thai', 'ly_do_huy',
-    'loai_quy', 'ngay_hach_toan', 'tai_khoan', 'tk_doi_ung', 'ma_nhan_vien', 'chi_nhanh'
+    'loai_quy', 'ngay_hach_toan', 'tai_khoan', 'tk_doi_ung', 'ma_nhan_vien', 'chi_nhanh',
+    'doi_soat'
   ];
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
   sh.getRange(2, 3, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
@@ -150,7 +151,8 @@ function _setupPhieuChiSheet(ss) {
     'nguoi_nhan_tien', 'ma_doi_tuong', 'noi_dung_chi', 'ma_loai_chi', 'so_tien',
     'chung_tu_lien_quan', 'ghi_chu', 'nguoi_lap', 'thoi_gian_lap',
     'nguoi_sua_cuoi', 'thoi_gian_sua_cuoi', 'trang_thai', 'ly_do_huy',
-    'loai_quy', 'ngay_hach_toan', 'tai_khoan', 'tk_doi_ung', 'ma_nhan_vien', 'chi_nhanh'
+    'loai_quy', 'ngay_hach_toan', 'tai_khoan', 'tk_doi_ung', 'ma_nhan_vien', 'chi_nhanh',
+    'doi_soat'
   ];
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
   sh.getRange(2, 3, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
@@ -293,6 +295,77 @@ function migrateSoQuyMoRong() {
     '- Đã bổ sung cấu hình Quỹ Công đoàn / Quỹ Cơm trong CAU_HINH.\n\n' +
     'Toàn bộ dữ liệu cũ được giữ nguyên. Hãy vào sheet CAU_HINH để cập nhật số dư đầu kỳ thật của Quỹ Công đoàn / Quỹ Cơm nếu cần.'
   );
+}
+
+/*************************************************
+ * NÂNG CẤP: BÁO CÁO NGÀY (KEO) + EMAIL
+ * Thiết lập sẵn trong CAU_HINH: ID của 2 Google Sheet nguồn dữ liệu
+ * (PhanTichNhapTT_DRAFT, PhieuCan_DN) + ô email nhận báo cáo (để
+ * trống, thiết lập sau trong menu Quản Trị). KHÔNG xóa dữ liệu nào.
+ *
+ * CÁCH CHẠY: Trong Apps Script Editor, chọn hàm
+ * "migrateBaoCaoNgayKeo" ở dropdown trên cùng > bấm Run > chạy 1
+ * lần duy nhất.
+ *************************************************/
+function migrateBaoCaoNgayKeo() {
+  _themCauHinhNeuChua('ID_SHEET_PHANTICH_NHAP_TT', '1kjYne-hIpnHs7UfXUiokbyyEe5Y02rKaCe-kfoVwuFc',
+    'ID Google Sheet chứa sheet PhanTichNhapTT_DRAFT (dùng cho Báo cáo ngày Keo)');
+  _themCauHinhNeuChua('ID_SHEET_PHIEU_CAN_DN', '1vqMVxccBA7zlAMHrGsVBydGFwZJ6QuDZW10zJ74V29g',
+    'ID Google Sheet chứa sheet PhieuCan_DN (dùng cho Báo cáo ngày Keo)');
+  _themCauHinhNeuChua('EMAIL_BAO_CAO_NGAY', '',
+    'Danh sách email nhận Báo cáo ngày Keo, cách nhau bởi dấu phẩy - thiết lập ở Quản Trị');
+
+  SpreadsheetApp.getUi().alert(
+    'Đã thiết lập xong Báo Cáo Ngày (Keo)!\n\n' +
+    '- Đã lưu ID 2 Google Sheet nguồn dữ liệu (PhanTichNhapTT_DRAFT, PhieuCan_DN) vào CAU_HINH.\n' +
+    '- Vào menu Báo Cáo > "Báo cáo ngày (Keo)" để xem, xuất Excel, hoặc gửi email.\n' +
+    '- Vào menu Quản Trị > "Báo cáo ngày (Keo)" để cập nhật lại ID 2 sheet trên hoặc thiết lập email nhận báo cáo.\n\n' +
+    'Lưu ý: Tài khoản Google đang chạy Apps Script này PHẢI có quyền xem (Viewer trở lên) trên 2 Google Sheet nguồn đó thì mới đọc được dữ liệu.'
+  );
+}
+
+/*************************************************
+ * NÂNG CẤP: CỘT ĐỐI SOÁT (Hoàn ứng / Chờ hoàn)
+ * Thêm cột doi_soat vào PHIEU_THU/PHIEU_CHI, mặc định "Hoàn ứng"
+ * cho toàn bộ dữ liệu cũ (không ảnh hưởng số liệu tài chính nào).
+ * Dùng để theo dõi khoản tạm ứng đang chờ hoàn chứng từ — xem "Sổ
+ * Đối Soát" trong menu để biết còn bao nhiêu chứng từ "Chờ hoàn".
+ *
+ * CÁCH CHẠY: Trong Apps Script Editor, chọn hàm "migrateDoiSoat" ở
+ * dropdown trên cùng > bấm Run > chạy 1 lần duy nhất.
+ *************************************************/
+function migrateDoiSoat() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  _themCotConThieu(ss, SHEET_PHIEU_THU, ['doi_soat']);
+  _themCotConThieu(ss, SHEET_PHIEU_CHI, ['doi_soat']);
+  _dienGiaTriMacDinhDoiSoat(ss, SHEET_PHIEU_THU);
+  _dienGiaTriMacDinhDoiSoat(ss, SHEET_PHIEU_CHI);
+
+  SpreadsheetApp.getUi().alert(
+    'Đã thêm cột Đối soát!\n\n' +
+    '- PHIEU_THU / PHIEU_CHI: đã thêm cột doi_soat, toàn bộ dữ liệu cũ được đặt mặc định "Hoàn ứng".\n' +
+    '- Vào menu "Sổ Đối Soát" trên web app để xem/đổi trạng thái các chứng từ "Chờ hoàn".'
+  );
+}
+
+function _dienGiaTriMacDinhDoiSoat(ss, sheetName) {
+  const sh = ss.getSheetByName(sheetName);
+  if (!sh) return;
+  const lastRow = sh.getLastRow();
+  if (lastRow < 2) return;
+
+  const lastCol = sh.getLastColumn();
+  const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
+  const idxDoiSoat = headers.indexOf('doi_soat');
+  if (idxDoiSoat === -1) return;
+
+  const range = sh.getRange(2, idxDoiSoat + 1, lastRow - 1, 1);
+  const values = range.getValues();
+  let changed = false;
+  for (let i = 0; i < values.length; i++) {
+    if (!values[i][0]) { values[i][0] = DOI_SOAT_HOAN_UNG; changed = true; }
+  }
+  if (changed) range.setValues(values);
 }
 
 function _themCotConThieu(ss, sheetName, newCols) {

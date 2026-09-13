@@ -1,5 +1,4 @@
-function myFunction() {
-  /*************************************************
+/*************************************************
  * FIX_SOPHIEU_CONGDOAN.GS
  * Sửa lỗi: số phiếu thu/chi của Quỹ Công đoàn (dạng "01/02",
  * "01/03"...) bị Google Sheets tự động hiểu nhầm thành NGÀY
@@ -81,6 +80,4 @@ function suaSoPhieuCongDoanBiSai() {
     "Phiếu Thu đã sửa: " + soThuDaSua + "\n" +
     "Phiếu Chi đã sửa: " + soChiDaSua
   );
-}
-
 }

@@ -247,6 +247,70 @@ function toggleUserStatus(targetUsername, currentUser) {
 }
 
 /*************************************************
+ * ============ CẤU HÌNH BÁO CÁO NGÀY (KEO) + EMAIL ============
+ *************************************************/
+
+function getCauHinhBaoCaoNgay(currentUser) {
+  try {
+    if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN]);
+
+    // ScriptApp.getProjectTriggers() cần quyền OAuth "script.scriptapp" —
+    // quyền này chỉ được cấp sau khi chủ script chạy tay 1 lần hàm có đụng
+    // tới ScriptApp (vd thietLapDongBoHangNgay) từ Apps Script Editor và
+    // đồng ý cấp quyền. Trước khi việc đó xảy ra, gọi hàm này sẽ ném lỗi
+    // "You do not have permission..." — phải bắt riêng, không để nó làm
+    // hỏng luôn cả phần load cấu hình ID sheet/email vốn không liên quan.
+    let daCaiDatTrigger = false;
+    try {
+      daCaiDatTrigger = ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'dongBoDuLieuKeo');
+    } catch (e) {
+      daCaiDatTrigger = null; // null = chưa xác định được do thiếu quyền, khác với false (đã xác định là chưa cài)
+    }
+
+    return _jsonOk({
+      id_sheet_phantich: _getCauHinh('ID_SHEET_PHANTICH_NHAP_TT') || '',
+      id_sheet_phieucan: _getCauHinh('ID_SHEET_PHIEU_CAN_DN') || '',
+      email_bao_cao: _getCauHinh('EMAIL_BAO_CAO_NGAY') || '',
+      dong_bo_luc: _getCauHinh('KEO_DONGBO_LUC') || '',
+      dong_bo_loi: _getCauHinh('KEO_DONGBO_LOI') || '',
+      dong_bo_loi_luc: _getCauHinh('KEO_DONGBO_LOI_LUC') || '',
+      dong_bo_gio: Number(_getCauHinh('KEO_DONGBO_GIO')) || 1,
+      dong_bo_da_cai_dat: daCaiDatTrigger
+    });
+  } catch (err) {
+    return _jsonErr(err);
+  }
+}
+
+function luuCauHinhBaoCaoNgay(payload, currentUser) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+
+    if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN]);
+    if (!payload) throw new Error('Thiếu dữ liệu cấu hình.');
+
+    // Cho phép dán nguyên đường link Google Sheet thay vì chỉ ID —
+    // _rutGonIdSheet tự tách lấy đúng phần ID để lưu, tránh lỗi
+    // "Illegal spreadsheet id or key" khi mở sheet sau này.
+    _setCauHinh('ID_SHEET_PHANTICH_NHAP_TT', _rutGonIdSheet(payload.id_sheet_phantich));
+    _setCauHinh('ID_SHEET_PHIEU_CAN_DN', _rutGonIdSheet(payload.id_sheet_phieucan));
+    _setCauHinh('EMAIL_BAO_CAO_NGAY', String(payload.email_bao_cao || '').trim());
+
+    _writeAuditLog(currentUser.full_name, 'Quản Trị', 'Sửa', 'CAU_HINH_BAO_CAO_NGAY', '', 'Cập nhật cấu hình Báo cáo ngày (Keo) + email nhận báo cáo');
+
+    return _jsonOk({});
+
+  } catch (err) {
+    return _jsonErr(err);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/*************************************************
  * ================= NHẬT KÝ HỆ THỐNG (AUDIT LOG) =================
  *************************************************/
 
