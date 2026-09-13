@@ -54,7 +54,7 @@ function xuatTongHopExcel(nam, thang) {
     let rowsPhanTich = [];
     let loiNguonKeo = '';
     try {
-      rowsPhanTich = _docPhanTichNhapTTCoCache();
+      rowsPhanTich = _docPhanTichNhapTTDaDongBo();
     } catch (e) {
       loiNguonKeo = e.message;
     }
@@ -96,7 +96,7 @@ function getBaoCaoThangTongHop(nam, thang) {
     let keoNhapKg = 0, keoNhapGt = 0, keoTTKg = 0, keoTTGt = 0, loiKeo = '';
     try {
       const monthPrefix = nam + '-' + String(thang).padStart(2, '0');
-      _docPhanTichNhapTTCoCache().forEach(r => {
+      _docPhanTichNhapTTDaDongBo().forEach(r => {
         if (r['PhanLoai'] !== 'TONG') return;
         if (r['Ngày'].slice(0, 7) !== monthPrefix) return;
         if (r['Loại'] === 'NHAP') { keoNhapKg += Number(r['KhoiLuongKg']) || 0; keoNhapGt += Number(r['GiaTri']) || 0; }

@@ -77,59 +77,136 @@ function _kiemTraCotBatBuoc(sh, cacCotCanCo) {
   }
 }
 
-/**
- * Đọc TOÀN BỘ sheet PhanTichNhapTT_DRAFT (Google Sheet ngoài), có
- * cache 5 phút (CacheService) — việc mở 1 Spreadsheet KHÁC rồi đọc
- * hàng nghìn dòng là phần chậm nhất của Báo cáo ngày/tháng (Keo);
- * cache giúp các lượt "Xem báo cáo"/"Xuất Excel" kế tiếp trong cùng
- * 5 phút không phải mở + đọc lại từ đầu. Ném lỗi giống hệt khi đọc
- * trực tiếp (chưa cấu hình / sai ID / thiếu cột) nếu cache trống.
- */
-function _docPhanTichNhapTTCoCache() {
-  const cache = CacheService.getScriptCache();
-  const CHUNK_KEY_PREFIX = 'PTNT_';
-  const meta = cache.get(CHUNK_KEY_PREFIX + 'META');
+/*************************************************
+ * ĐỒNG BỘ DỮ LIỆU KEO VÀO SHEET NỘI BỘ
+ * Mở 2 Google Sheet ngoài (PhanTichNhapTT_DRAFT, PhieuCan_DN) và mở
+ * KHÔNG hề rẻ (mỗi lần mất 1-3 giây + phải đọc lại hàng nghìn dòng) —
+ * đây là phần chậm nhất của Báo cáo ngày/tháng (Keo). Thay vì đọc lại
+ * từ nguồn ngoài mỗi lần xem báo cáo, ta ĐỒNG BỘ (copy) toàn bộ 2
+ * sheet đó vào 2 sheet nội bộ (cùng spreadsheet này) theo lịch (xem
+ * thietLapDongBoHangNgay) hoặc bấm tay — mọi hàm báo cáo sau đó chỉ
+ * đọc từ sheet nội bộ, nhanh như đọc Sổ Quỹ bình thường.
+ *************************************************/
+const SHEET_KEO_PHANTICH_DONGBO = 'KEO_PHANTICH_DONGBO';
+const SHEET_KEO_PHIEUCAN_DONGBO = 'KEO_PHIEUCAN_DONGBO';
 
-  if (meta) {
-    try {
-      const soChunk = JSON.parse(meta).n;
-      const keys = [];
-      for (let i = 0; i < soChunk; i++) keys.push(CHUNK_KEY_PREFIX + i);
-      const chunkMap = cache.getAll(keys);
-      if (keys.every(k => chunkMap[k] !== undefined && chunkMap[k] !== null)) {
-        return JSON.parse(keys.map(k => chunkMap[k]).join(''));
-      }
-    } catch (e) {
-      // Cache hỏng/không đọc được — bỏ qua, đọc lại trực tiếp từ Sheet nguồn bên dưới
+/**
+ * Ghi đè 1 sheet nội bộ bằng dữ liệu mới đồng bộ — xoá sạch nội dung
+ * cũ rồi ghi lại từ đầu (không tăng dần) để không bao giờ lẫn dữ liệu
+ * đã xoá/sửa ở nguồn. cotNgayIndex (0-based, có thể bỏ trống) được ép
+ * định dạng Văn bản (@) TRƯỚC khi ghi để giảm rủi ro Google Sheets tự
+ * hiểu nhầm chuỗi "yyyy-MM-dd" thành 1 Date thật; dù vậy phía đọc vẫn
+ * luôn dùng _ngayKeyLinhHoat() để an toàn cho cả 2 trường hợp.
+ */
+function _ghiDeSheetDongBo(ss, tenSheet, headers, rows, cotNgayIndex) {
+  let sh = ss.getSheetByName(tenSheet);
+  if (!sh) sh = ss.insertSheet(tenSheet);
+  sh.clear();
+  sh.getRange(1, 1, 1, headers.length).setValues([headers]);
+  if (rows.length > 0) {
+    if (cotNgayIndex !== null && cotNgayIndex !== undefined) {
+      sh.getRange(2, cotNgayIndex + 1, rows.length, 1).setNumberFormat('@');
     }
+    sh.getRange(2, 1, rows.length, headers.length).setValues(rows);
   }
+}
+
+/**
+ * API: chạy đồng bộ ngay — gọi từ Apps Script Editor (thiết lập lần
+ * đầu / kiểm tra), từ trigger theo lịch (thietLapDongBoHangNgay), hoặc
+ * từ nút "🔄 Đồng bộ dữ liệu Keo ngay" trong Quản Trị.
+ */
+function dongBoDuLieuKeo() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
 
   const shPhanTich = _moSheetNgoaiTheoTen('ID_SHEET_PHANTICH_NHAP_TT', TEN_SHEET_PHANTICH_NHAP_TT);
   _kiemTraCotBatBuoc(shPhanTich, ['Ngày', 'Loại', 'PhanLoai', 'Ten', 'KhoiLuongKg', 'GiaTri']);
-  const rows = _sheetToObjectsFromSheetObj(shPhanTich).map(r => ({
+  const headersA = ['Ngày', 'Loại', 'PhanLoai', 'Ten', 'KhoiLuongKg', 'GiaTri'];
+  const rowsA = _sheetToObjectsFromSheetObj(shPhanTich).map(r => ([
+    _ngayKeyLinhHoat(r['Ngày']), r['Loại'], r['PhanLoai'], _safeText(r['Ten']),
+    Number(r['KhoiLuongKg']) || 0, Number(r['GiaTri']) || 0
+  ]));
+  _ghiDeSheetDongBo(ss, SHEET_KEO_PHANTICH_DONGBO, headersA, rowsA, 0);
+
+  const headersB = ['Số phiếu', 'Ngày cân 1', 'Biển số 1', 'Khách hàng', 'ĐL', 'NG', 'KL hàng (KG)', 'Đơn giá_TC', 'Thành tiền', 'Trạng thái'];
+  const shPhieuCan = _moSheetNgoaiTheoTen('ID_SHEET_PHIEU_CAN_DN', TEN_SHEET_PHIEU_CAN_DN);
+  _kiemTraCotBatBuoc(shPhieuCan, headersB);
+  const rowsB = _sheetToObjectsFromSheetObj(shPhieuCan).map(r => headersB.map(h => {
+    if (h === 'Ngày cân 1') return _ngayKeyLinhHoat(r[h]);
+    if (h === 'KL hàng (KG)' || h === 'Đơn giá_TC' || h === 'Thành tiền') return Number(r[h]) || 0;
+    return _safeText(r[h]);
+  }));
+  _ghiDeSheetDongBo(ss, SHEET_KEO_PHIEUCAN_DONGBO, headersB, rowsB, 1);
+
+  _setCauHinh('KEO_DONGBO_LUC', Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'));
+
+  return { so_dong_phantich: rowsA.length, so_dong_phieucan: rowsB.length };
+}
+
+/**
+ * API: đồng bộ ngay, gọi từ giao diện Quản Trị (chỉ ADMIN).
+ */
+function dongBoDuLieuKeoTuGiaoDien(currentUser) {
+  try {
+    if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN]);
+    const ketQua = dongBoDuLieuKeo();
+    return _jsonOk({
+      so_dong_phantich: ketQua.so_dong_phantich,
+      so_dong_phieucan: ketQua.so_dong_phieucan,
+      luc: _getCauHinh('KEO_DONGBO_LUC')
+    });
+  } catch (err) {
+    return _jsonErr(err);
+  }
+}
+
+/**
+ * CÁCH CHẠY: Trong Apps Script Editor, chọn hàm "thietLapDongBoHangNgay"
+ * ở dropdown trên cùng > bấm Run > chạy 1 lần duy nhất để bật đồng bộ
+ * tự động mỗi ngày (khoảng 1 giờ sáng). Muốn đồng bộ ngay lập tức bất
+ * cứ lúc nào, dùng nút "🔄 Đồng bộ dữ liệu Keo ngay" trong Quản Trị.
+ */
+function thietLapDongBoHangNgay() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'dongBoDuLieuKeo') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('dongBoDuLieuKeo').timeBased().everyDays(1).atHour(1).create();
+
+  SpreadsheetApp.getUi().alert(
+    'Đã thiết lập đồng bộ dữ liệu Keo tự động — chạy 1 lần mỗi ngày vào khoảng 1 giờ sáng.\n\n' +
+    'Nếu trong ngày có cập nhật dữ liệu Keo cần xem báo cáo ngay, vào Quản Trị > "Báo cáo ngày (Keo)" > bấm "🔄 Đồng bộ dữ liệu Keo ngay" để đồng bộ thủ công bất cứ lúc nào.'
+  );
+}
+
+/**
+ * Đọc dữ liệu PhanTichNhapTT_DRAFT đã đồng bộ sẵn trong sheet nội bộ
+ * — nhanh, không phải mở Google Sheet ngoài mỗi lần gọi.
+ */
+function _docPhanTichNhapTTDaDongBo() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_KEO_PHANTICH_DONGBO);
+  if (!sh) {
+    throw new Error('Chưa có dữ liệu Keo được đồng bộ. Vào Quản Trị > "Báo cáo ngày (Keo)" > bấm "🔄 Đồng bộ dữ liệu Keo ngay".');
+  }
+  return _sheetToObjectsFromSheetObj(sh).map(r => ({
     'Ngày': _ngayKeyLinhHoat(r['Ngày']),
     'Loại': r['Loại'],
     'PhanLoai': r['PhanLoai'],
-    'Ten': _safeText(r['Ten']),
+    'Ten': r['Ten'],
     'KhoiLuongKg': Number(r['KhoiLuongKg']) || 0,
     'GiaTri': Number(r['GiaTri']) || 0
   }));
+}
 
-  try {
-    const json = JSON.stringify(rows);
-    const CHUNK_SIZE = 20000; // ký tự — đủ an toàn dưới giới hạn 100KB/khoá kể cả tiếng Việt có dấu (UTF-8 tới 3 byte/ký tự)
-    const soChunk = Math.max(1, Math.ceil(json.length / CHUNK_SIZE));
-    const puts = {};
-    for (let i = 0; i < soChunk; i++) {
-      puts[CHUNK_KEY_PREFIX + i] = json.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
-    }
-    puts[CHUNK_KEY_PREFIX + 'META'] = JSON.stringify({ n: soChunk });
-    cache.putAll(puts, 300); // 5 phút
-  } catch (e) {
-    // Không cache được (vd dữ liệu quá lớn) — vẫn trả dữ liệu vừa đọc, chỉ mất phần tăng tốc
+/**
+ * Đọc dữ liệu PhieuCan_DN đã đồng bộ sẵn trong sheet nội bộ.
+ */
+function _docPhieuCanDaDongBo() {
+  const sh = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(SHEET_KEO_PHIEUCAN_DONGBO);
+  if (!sh) {
+    throw new Error('Chưa có dữ liệu Keo được đồng bộ. Vào Quản Trị > "Báo cáo ngày (Keo)" > bấm "🔄 Đồng bộ dữ liệu Keo ngay".');
   }
-
-  return rows;
+  return _sheetToObjectsFromSheetObj(sh);
 }
 
 /**
@@ -171,7 +248,7 @@ function getBaoCaoNgayKeo(ngay) {
   try {
     if (!ngay) throw new Error('Vui lòng chọn ngày báo cáo.');
 
-    const rowsPhanTich = _docPhanTichNhapTTCoCache().filter(r => r['Ngày'] === ngay);
+    const rowsPhanTich = _docPhanTichNhapTTDaDongBo().filter(r => r['Ngày'] === ngay);
 
     function gomNhom(loai, phanLoai) {
       return rowsPhanTich
@@ -187,9 +264,7 @@ function getBaoCaoNgayKeo(ngay) {
     const nhap = { theo_nguon_goc: gomNhom('NHAP', 'NG'), theo_dai_ly: gomNhom('NHAP', 'DL'), tong: tongCua('NHAP') };
     const thanhToan = { theo_nguon_goc: gomNhom('THANHTOAN', 'NG'), theo_dai_ly: gomNhom('THANHTOAN', 'DL'), tong: tongCua('THANHTOAN') };
 
-    const shPhieuCan = _moSheetNgoaiTheoTen('ID_SHEET_PHIEU_CAN_DN', TEN_SHEET_PHIEU_CAN_DN);
-    _kiemTraCotBatBuoc(shPhieuCan, ['Số phiếu', 'Ngày cân 1', 'Biển số 1', 'Khách hàng', 'ĐL', 'NG', 'KL hàng (KG)', 'Đơn giá_TC', 'Thành tiền', 'Trạng thái']);
-    const chiTietPhieuCan = _sheetToObjectsFromSheetObj(shPhieuCan)
+    const chiTietPhieuCan = _docPhieuCanDaDongBo()
       .filter(r => _ngayKeyLinhHoat(r['Ngày cân 1']) === ngay)
       .map(r => ({
         so_phieu: _safeText(r['Số phiếu']),

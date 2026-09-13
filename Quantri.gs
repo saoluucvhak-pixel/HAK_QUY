@@ -258,7 +258,8 @@ function getCauHinhBaoCaoNgay(currentUser) {
     return _jsonOk({
       id_sheet_phantich: _getCauHinh('ID_SHEET_PHANTICH_NHAP_TT') || '',
       id_sheet_phieucan: _getCauHinh('ID_SHEET_PHIEU_CAN_DN') || '',
-      email_bao_cao: _getCauHinh('EMAIL_BAO_CAO_NGAY') || ''
+      email_bao_cao: _getCauHinh('EMAIL_BAO_CAO_NGAY') || '',
+      dong_bo_luc: _getCauHinh('KEO_DONGBO_LUC') || ''
     });
   } catch (err) {
     return _jsonErr(err);
