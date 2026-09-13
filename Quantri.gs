@@ -261,7 +261,9 @@ function getCauHinhBaoCaoNgay(currentUser) {
       email_bao_cao: _getCauHinh('EMAIL_BAO_CAO_NGAY') || '',
       dong_bo_luc: _getCauHinh('KEO_DONGBO_LUC') || '',
       dong_bo_loi: _getCauHinh('KEO_DONGBO_LOI') || '',
-      dong_bo_loi_luc: _getCauHinh('KEO_DONGBO_LOI_LUC') || ''
+      dong_bo_loi_luc: _getCauHinh('KEO_DONGBO_LOI_LUC') || '',
+      dong_bo_gio: Number(_getCauHinh('KEO_DONGBO_GIO')) || 1,
+      dong_bo_da_cai_dat: ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'dongBoDuLieuKeo')
     });
   } catch (err) {
     return _jsonErr(err);

@@ -2121,7 +2121,23 @@
 
       <div class="card max-w-2xl mt-4">
         <h3 class="font-semibold text-gray-700 mb-1">Đồng bộ dữ liệu Keo</h3>
-        <p class="text-xs text-gray-500 mb-3">Dữ liệu từ 2 sheet ngoài được sao chép về sheet nội bộ mỗi ngày lúc 1:00 sáng (chạy tự động, đã cài ở Apps Script Editor), để Báo cáo ngày/Báo cáo tháng đọc nhanh, không cần quét lại sheet ngoài mỗi lần xem báo cáo.</p>
+        <p class="text-xs text-gray-500 mb-3">Dữ liệu từ 2 sheet ngoài được sao chép về sheet nội bộ mỗi ngày (chạy tự động), để Báo cáo ngày/Báo cáo tháng đọc nhanh, không cần quét lại sheet ngoài mỗi lần xem báo cáo.</p>
+
+        <div id="qtBcnk_chuaCaiDat" class="hidden mb-3 p-3 rounded-lg text-sm bg-amber-50 text-amber-700">
+          ⚠ Chưa cài đặt đồng bộ tự động. Vào Apps Script Editor, chọn hàm <b>thietLapDongBoHangNgay</b> ở dropdown trên cùng và bấm Run 1 lần (chỉ cần làm 1 lần duy nhất) để bật lịch chạy tự động — sau đó có thể đổi giờ ngay tại đây.
+        </div>
+
+        <div class="flex items-end gap-2 mb-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Giờ chạy đồng bộ tự động mỗi ngày</label>
+            <select id="qtBcnk_gio" class="border rounded-lg px-3 py-2 text-sm">
+              ${Array.from({ length: 24 }, (_, h) => `<option value="${h}">${String(h).padStart(2, '0')}:00</option>`).join('')}
+            </select>
+          </div>
+          <button onclick="luuGioDongBoKeo()" class="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50">💾 Lưu giờ</button>
+        </div>
+        <div id="qtBcnkGioMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+
         <div class="text-sm text-gray-600 mb-1">Lần đồng bộ thành công gần nhất: <span id="qtBcnk_dongBoLuc" class="font-medium">--</span></div>
         <div id="qtBcnk_dongBoLoiWrap" class="hidden text-sm text-red-600 mb-3">⚠ Lần chạy gần nhất bị lỗi (<span id="qtBcnk_dongBoLoiLuc"></span>): <span id="qtBcnk_dongBoLoi"></span></div>
         <div id="qtBcnkSyncMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
@@ -2136,6 +2152,10 @@
         document.getElementById('qtBcnk_idPhieuCan').value = res.data.id_sheet_phieucan;
         document.getElementById('qtBcnk_email').value = res.data.email_bao_cao;
         document.getElementById('qtBcnk_dongBoLuc').textContent = res.data.dong_bo_luc || 'Chưa đồng bộ lần nào';
+        document.getElementById('qtBcnk_gio').value = String(res.data.dong_bo_gio);
+        if (!res.data.dong_bo_da_cai_dat) {
+          document.getElementById('qtBcnk_chuaCaiDat').classList.remove('hidden');
+        }
         if (res.data.dong_bo_loi) {
           document.getElementById('qtBcnk_dongBoLoiWrap').classList.remove('hidden');
           document.getElementById('qtBcnk_dongBoLoi').textContent = res.data.dong_bo_loi;
@@ -2144,6 +2164,30 @@
       })
       .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
       .getCauHinhBaoCaoNgay(currentUserInfo());
+  }
+
+  function luuGioDongBoKeo() {
+    const gio = Number(document.getElementById('qtBcnk_gio').value);
+    const msg = document.getElementById('qtBcnkGioMsg');
+    msg.classList.add('hidden');
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        msg.classList.remove('hidden');
+        if (!res.success) {
+          msg.className = 'mb-3 p-3 rounded-lg text-sm bg-red-50 text-red-700';
+          msg.textContent = 'Lỗi: ' + res.message;
+          return;
+        }
+        msg.className = 'mb-3 p-3 rounded-lg text-sm bg-green-50 text-green-700';
+        msg.textContent = 'Đã đổi giờ đồng bộ tự động sang ' + String(res.data.gio).padStart(2, '0') + ':00 mỗi ngày.';
+      })
+      .withFailureHandler(function (err) {
+        msg.classList.remove('hidden');
+        msg.className = 'mb-3 p-3 rounded-lg text-sm bg-red-50 text-red-700';
+        msg.textContent = 'Lỗi hệ thống: ' + err.message;
+      })
+      .capNhatGioDongBoTuGiaoDien(gio, currentUserInfo());
   }
 
   function dongBoDuLieuKeoNgay(btn) {

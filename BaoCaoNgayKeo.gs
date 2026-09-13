@@ -198,21 +198,67 @@ function dongBoDuLieuKeoTuGiaoDien(currentUser) {
 }
 
 /**
- * CÁCH CHẠY: Trong Apps Script Editor, chọn hàm "thietLapDongBoHangNgay"
- * ở dropdown trên cùng > bấm Run > chạy 1 lần duy nhất để bật đồng bộ
- * tự động mỗi ngày (khoảng 1 giờ sáng). Muốn đồng bộ ngay lập tức bất
- * cứ lúc nào, dùng nút "🔄 Đồng bộ dữ liệu Keo ngay" trong Quản Trị.
+ * Xoá trigger đồng bộ cũ (nếu có) và tạo lại đúng 1 trigger chạy mỗi
+ * ngày vào giờ chỉ định — dùng chung cho cả lần cài đặt đầu tiên
+ * (thietLapDongBoHangNgay, chạy tay từ Apps Script Editor) và khi đổi
+ * giờ từ giao diện Quản Trị (capNhatGioDongBoTuGiaoDien).
  */
-function thietLapDongBoHangNgay() {
+function _caiDatTriggerDongBoKeo(gio) {
+  gio = Number(gio);
+  if (!Number.isInteger(gio) || gio < 0 || gio > 23) {
+    throw new Error('Giờ đồng bộ không hợp lệ, phải là số nguyên từ 0 đến 23.');
+  }
   ScriptApp.getProjectTriggers().forEach(t => {
     if (t.getHandlerFunction() === 'dongBoDuLieuKeo') ScriptApp.deleteTrigger(t);
   });
-  ScriptApp.newTrigger('dongBoDuLieuKeo').timeBased().everyDays(1).atHour(1).create();
+  ScriptApp.newTrigger('dongBoDuLieuKeo').timeBased().everyDays(1).atHour(gio).create();
+  _setCauHinh('KEO_DONGBO_GIO', String(gio));
+}
+
+/**
+ * CÁCH CHẠY LẦN ĐẦU: Trong Apps Script Editor, chọn hàm
+ * "thietLapDongBoHangNgay" ở dropdown trên cùng > bấm Run > chạy 1 lần
+ * duy nhất để bật đồng bộ tự động mỗi ngày (mặc định 1 giờ sáng, có
+ * thể đổi giờ sau đó ngay trong Quản Trị > "Báo cáo ngày (Keo)" mà
+ * không cần quay lại Apps Script Editor). Muốn đồng bộ ngay lập tức
+ * bất cứ lúc nào, dùng nút "🔄 Đồng bộ dữ liệu Keo ngay" trong Quản Trị.
+ */
+function thietLapDongBoHangNgay() {
+  const gio = Number(_getCauHinh('KEO_DONGBO_GIO')) || 1;
+  _caiDatTriggerDongBoKeo(gio);
 
   SpreadsheetApp.getUi().alert(
-    'Đã thiết lập đồng bộ dữ liệu Keo tự động — chạy 1 lần mỗi ngày vào khoảng 1 giờ sáng.\n\n' +
-    'Nếu trong ngày có cập nhật dữ liệu Keo cần xem báo cáo ngay, vào Quản Trị > "Báo cáo ngày (Keo)" > bấm "🔄 Đồng bộ dữ liệu Keo ngay" để đồng bộ thủ công bất cứ lúc nào.'
+    'Đã thiết lập đồng bộ dữ liệu Keo tự động — chạy 1 lần mỗi ngày vào khoảng ' + gio + ' giờ.\n\n' +
+    'Muốn đổi giờ chạy, vào Quản Trị > "Báo cáo ngày (Keo)" trong webapp, không cần quay lại đây.\n\n' +
+    'Nếu trong ngày có cập nhật dữ liệu Keo cần xem báo cáo ngay, bấm "🔄 Đồng bộ dữ liệu Keo ngay" để đồng bộ thủ công bất cứ lúc nào.'
   );
+}
+
+/**
+ * API: đổi giờ chạy đồng bộ tự động, gọi từ giao diện Quản Trị (chỉ
+ * ADMIN). Chỉ áp dụng được nếu trigger đã được cài đặt lần đầu bằng
+ * thietLapDongBoHangNgay (chạy tay 1 lần trong Apps Script Editor) —
+ * việc tạo trigger MỚI (chưa từng có) không thể làm từ trong webapp vì
+ * Apps Script yêu cầu người chủ script tự cấp quyền trigger, còn ĐỔI
+ * giờ 1 trigger đã tồn tại thì được vì không cần xin thêm quyền mới.
+ */
+function capNhatGioDongBoTuGiaoDien(gio, currentUser) {
+  try {
+    if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN]);
+
+    const daCoTrigger = ScriptApp.getProjectTriggers().some(t => t.getHandlerFunction() === 'dongBoDuLieuKeo');
+    if (!daCoTrigger) {
+      throw new Error('Chưa cài đặt đồng bộ tự động. Cần vào Apps Script Editor, chọn hàm "thietLapDongBoHangNgay" và bấm Run 1 lần trước (chỉ cần làm 1 lần duy nhất).');
+    }
+
+    _caiDatTriggerDongBoKeo(gio);
+    _writeAuditLog(currentUser.full_name, 'Quản Trị', 'Sửa', 'CAU_HINH_BAO_CAO_NGAY', '', 'Đổi giờ đồng bộ dữ liệu Keo tự động thành ' + gio + ' giờ');
+
+    return _jsonOk({ gio: gio });
+  } catch (err) {
+    return _jsonErr(err);
+  }
 }
 
 /**
