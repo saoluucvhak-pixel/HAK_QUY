@@ -2122,9 +2122,10 @@
       <div class="card max-w-2xl mt-4">
         <h3 class="font-semibold text-gray-700 mb-1">Đồng bộ dữ liệu Keo</h3>
         <p class="text-xs text-gray-500 mb-3">Dữ liệu từ 2 sheet ngoài được sao chép về sheet nội bộ mỗi ngày lúc 1:00 sáng (chạy tự động, đã cài ở Apps Script Editor), để Báo cáo ngày/Báo cáo tháng đọc nhanh, không cần quét lại sheet ngoài mỗi lần xem báo cáo.</p>
-        <div class="text-sm text-gray-600 mb-3">Lần đồng bộ gần nhất: <span id="qtBcnk_dongBoLuc" class="font-medium">--</span></div>
+        <div class="text-sm text-gray-600 mb-1">Lần đồng bộ thành công gần nhất: <span id="qtBcnk_dongBoLuc" class="font-medium">--</span></div>
+        <div id="qtBcnk_dongBoLoiWrap" class="hidden text-sm text-red-600 mb-3">⚠ Lần chạy gần nhất bị lỗi (<span id="qtBcnk_dongBoLoiLuc"></span>): <span id="qtBcnk_dongBoLoi"></span></div>
         <div id="qtBcnkSyncMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
-        <button onclick="dongBoDuLieuKeoNgay(this)" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700">🔄 Đồng bộ dữ liệu Keo ngay</button>
+        <button onclick="dongBoDuLieuKeoNgay(this)" id="qtBcnkSyncBtn" class="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700">🔄 Đồng bộ dữ liệu Keo ngay</button>
       </div>
     `;
 
@@ -2135,6 +2136,11 @@
         document.getElementById('qtBcnk_idPhieuCan').value = res.data.id_sheet_phieucan;
         document.getElementById('qtBcnk_email').value = res.data.email_bao_cao;
         document.getElementById('qtBcnk_dongBoLuc').textContent = res.data.dong_bo_luc || 'Chưa đồng bộ lần nào';
+        if (res.data.dong_bo_loi) {
+          document.getElementById('qtBcnk_dongBoLoiWrap').classList.remove('hidden');
+          document.getElementById('qtBcnk_dongBoLoi').textContent = res.data.dong_bo_loi;
+          document.getElementById('qtBcnk_dongBoLoiLuc').textContent = res.data.dong_bo_loi_luc || '';
+        }
       })
       .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
       .getCauHinhBaoCaoNgay(currentUserInfo());
@@ -2147,8 +2153,17 @@
     const oldText = btn.textContent;
     btn.textContent = 'Đang đồng bộ...';
 
+    // Nếu tiến trình đồng bộ ở server chạy quá lâu (rất hiếm, chỉ khi dữ
+    // liệu quá lớn), Apps Script có thể mất vài phút mới trả lời — hiện
+    // cảnh báo "vẫn đang chạy" sau 60s thay vì để nút "Đang đồng bộ..."
+    // treo im lặng khiến người dùng tưởng bị đứng máy.
+    const canhBaoCham = setTimeout(function () {
+      btn.textContent = 'Đang đồng bộ... (dữ liệu lớn có thể mất vài phút, vui lòng đợi)';
+    }, 60000);
+
     google.script.run
       .withSuccessHandler(function (res) {
+        clearTimeout(canhBaoCham);
         btn.disabled = false;
         btn.textContent = oldText;
         msg.classList.remove('hidden');
@@ -2160,13 +2175,18 @@
         msg.className = 'mb-3 p-3 rounded-lg text-sm bg-green-50 text-green-700';
         msg.textContent = 'Đã đồng bộ ' + res.data.so_dong_phantich + ' dòng Phân tích nhập TT và ' + res.data.so_dong_phieucan + ' dòng Phiếu cân.';
         document.getElementById('qtBcnk_dongBoLuc').textContent = res.data.luc || '--';
+        document.getElementById('qtBcnk_dongBoLoiWrap').classList.add('hidden');
       })
       .withFailureHandler(function (err) {
+        clearTimeout(canhBaoCham);
         btn.disabled = false;
         btn.textContent = oldText;
         msg.classList.remove('hidden');
         msg.className = 'mb-3 p-3 rounded-lg text-sm bg-red-50 text-red-700';
-        msg.textContent = 'Lỗi hệ thống: ' + err.message;
+        const laTimeout = /time|thời gian|exceeded/i.test(err.message || '');
+        msg.textContent = laTimeout
+          ? 'Đồng bộ mất quá lâu và bị hệ thống Google dừng giữa chừng (thường do dữ liệu quá lớn hoặc mạng chậm lúc này). Vui lòng thử bấm lại sau ít phút.'
+          : 'Lỗi hệ thống: ' + err.message;
       })
       .dongBoDuLieuKeoTuGiaoDien(currentUserInfo());
   }

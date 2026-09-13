@@ -115,32 +115,68 @@ function _ghiDeSheetDongBo(ss, tenSheet, headers, rows, cotNgayIndex) {
  * API: chạy đồng bộ ngay — gọi từ Apps Script Editor (thiết lập lần
  * đầu / kiểm tra), từ trigger theo lịch (thietLapDongBoHangNgay), hoặc
  * từ nút "🔄 Đồng bộ dữ liệu Keo ngay" trong Quản Trị.
+ *
+ * Chống 2 tình huống hay gây "treo"/timeout:
+ *  1) Chạy chồng lên nhau (trigger 1h sáng trùng lúc có người bấm nút
+ *     đồng bộ tay) — dùng LockService để chỉ cho 1 lượt đồng bộ chạy
+ *     tại 1 thời điểm, lượt sau phải đợi hoặc báo lỗi rõ ràng thay vì
+ *     2 lượt cùng ghi đè 1 sheet.
+ *  2) Đồng bộ bị lỗi (hết quyền xem sheet nguồn, đổi cấu trúc cột...)
+ *     nhưng chạy âm thầm lúc 1h sáng thì không ai biết — lỗi được ghi
+ *     lại vào CAU_HINH (KEO_DONGBO_LOI) để hiển thị ở Quản Trị, và Apps
+ *     Script cũng tự gửi email cho chủ script khi 1 trigger lỗi liên
+ *     tục nhiều lần.
+ * Lưu ý: nếu bản thân việc đọc 2 sheet ngoài quá lâu và chạm giới hạn
+ * thời gian chạy tối đa của Apps Script (~6 phút tài khoản cá nhân,
+ * ~30 phút Google Workspace), nền tảng sẽ dừng script ngay lập tức —
+ * trường hợp này không có cách nào bắt được bằng try/catch trong chính
+ * script. Vì khối lượng dữ liệu hiện tại (vài nghìn dòng, đọc/ghi 1
+ * lần bằng getValues/setValues hàng loạt) chỉ mất vài giây nên rủi ro
+ * này rất thấp; nếu sau này dữ liệu tăng rất lớn và thực sự bị timeout
+ * kiểu này, cần tách đồng bộ thành nhiều lượt nhỏ theo khoảng ngày.
  */
 function dongBoDuLieuKeo() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(20000);
+  } catch (e) {
+    throw new Error('Đang có 1 tiến trình đồng bộ dữ liệu Keo khác đang chạy, vui lòng thử lại sau ít phút.');
+  }
 
-  const shPhanTich = _moSheetNgoaiTheoTen('ID_SHEET_PHANTICH_NHAP_TT', TEN_SHEET_PHANTICH_NHAP_TT);
-  _kiemTraCotBatBuoc(shPhanTich, ['Ngày', 'Loại', 'PhanLoai', 'Ten', 'KhoiLuongKg', 'GiaTri']);
-  const headersA = ['Ngày', 'Loại', 'PhanLoai', 'Ten', 'KhoiLuongKg', 'GiaTri'];
-  const rowsA = _sheetToObjectsFromSheetObj(shPhanTich).map(r => ([
-    _ngayKeyLinhHoat(r['Ngày']), r['Loại'], r['PhanLoai'], _safeText(r['Ten']),
-    Number(r['KhoiLuongKg']) || 0, Number(r['GiaTri']) || 0
-  ]));
-  _ghiDeSheetDongBo(ss, SHEET_KEO_PHANTICH_DONGBO, headersA, rowsA, 0);
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-  const headersB = ['Số phiếu', 'Ngày cân 1', 'Biển số 1', 'Khách hàng', 'ĐL', 'NG', 'KL hàng (KG)', 'Đơn giá_TC', 'Thành tiền', 'Trạng thái'];
-  const shPhieuCan = _moSheetNgoaiTheoTen('ID_SHEET_PHIEU_CAN_DN', TEN_SHEET_PHIEU_CAN_DN);
-  _kiemTraCotBatBuoc(shPhieuCan, headersB);
-  const rowsB = _sheetToObjectsFromSheetObj(shPhieuCan).map(r => headersB.map(h => {
-    if (h === 'Ngày cân 1') return _ngayKeyLinhHoat(r[h]);
-    if (h === 'KL hàng (KG)' || h === 'Đơn giá_TC' || h === 'Thành tiền') return Number(r[h]) || 0;
-    return _safeText(r[h]);
-  }));
-  _ghiDeSheetDongBo(ss, SHEET_KEO_PHIEUCAN_DONGBO, headersB, rowsB, 1);
+    const shPhanTich = _moSheetNgoaiTheoTen('ID_SHEET_PHANTICH_NHAP_TT', TEN_SHEET_PHANTICH_NHAP_TT);
+    _kiemTraCotBatBuoc(shPhanTich, ['Ngày', 'Loại', 'PhanLoai', 'Ten', 'KhoiLuongKg', 'GiaTri']);
+    const headersA = ['Ngày', 'Loại', 'PhanLoai', 'Ten', 'KhoiLuongKg', 'GiaTri'];
+    const rowsA = _sheetToObjectsFromSheetObj(shPhanTich).map(r => ([
+      _ngayKeyLinhHoat(r['Ngày']), r['Loại'], r['PhanLoai'], _safeText(r['Ten']),
+      Number(r['KhoiLuongKg']) || 0, Number(r['GiaTri']) || 0
+    ]));
+    _ghiDeSheetDongBo(ss, SHEET_KEO_PHANTICH_DONGBO, headersA, rowsA, 0);
 
-  _setCauHinh('KEO_DONGBO_LUC', Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'));
+    const headersB = ['Số phiếu', 'Ngày cân 1', 'Biển số 1', 'Khách hàng', 'ĐL', 'NG', 'KL hàng (KG)', 'Đơn giá_TC', 'Thành tiền', 'Trạng thái'];
+    const shPhieuCan = _moSheetNgoaiTheoTen('ID_SHEET_PHIEU_CAN_DN', TEN_SHEET_PHIEU_CAN_DN);
+    _kiemTraCotBatBuoc(shPhieuCan, headersB);
+    const rowsB = _sheetToObjectsFromSheetObj(shPhieuCan).map(r => headersB.map(h => {
+      if (h === 'Ngày cân 1') return _ngayKeyLinhHoat(r[h]);
+      if (h === 'KL hàng (KG)' || h === 'Đơn giá_TC' || h === 'Thành tiền') return Number(r[h]) || 0;
+      return _safeText(r[h]);
+    }));
+    _ghiDeSheetDongBo(ss, SHEET_KEO_PHIEUCAN_DONGBO, headersB, rowsB, 1);
 
-  return { so_dong_phantich: rowsA.length, so_dong_phieucan: rowsB.length };
+    _setCauHinh('KEO_DONGBO_LUC', Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'));
+    _setCauHinh('KEO_DONGBO_LOI', '');
+
+    return { so_dong_phantich: rowsA.length, so_dong_phieucan: rowsB.length };
+
+  } catch (err) {
+    _setCauHinh('KEO_DONGBO_LOI', err.message);
+    _setCauHinh('KEO_DONGBO_LOI_LUC', Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'));
+    throw err;
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 /**
