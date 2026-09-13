@@ -3026,6 +3026,13 @@
         <div id="tcChiTietBody" class="text-sm text-gray-400">--</div>
       </div>
     `;
+
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    document.getElementById('tc_tuNgay').value = _localDateStr(firstDay);
+    document.getElementById('tc_denNgay').value = _localDateStr(now);
+
+    loadTraCuu();
   }
 
   function loadTraCuu() {
