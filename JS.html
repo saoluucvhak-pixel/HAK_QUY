@@ -2298,7 +2298,12 @@
           return;
         }
         msg.className = 'mb-3 p-3 rounded-lg text-sm bg-green-50 text-green-700';
-        msg.textContent = 'Đã lưu cấu hình.';
+        msg.textContent = 'Đã lưu cấu hình. Bấm "🔄 Đồng bộ dữ liệu Keo ngay" bên dưới để thử lại với ID vừa lưu.';
+        // Cấu hình vừa đổi có thể đã khắc phục lỗi lần đồng bộ trước —
+        // ẩn luôn cảnh báo lỗi cũ đi, tránh gây hiểu lầm là vẫn còn lỗi
+        // dù thật ra người dùng chưa bấm đồng bộ lại lần nào cả.
+        const canhBaoLoiCu = document.getElementById('qtBcnk_dongBoLoiWrap');
+        if (canhBaoLoiCu) canhBaoLoiCu.classList.add('hidden');
       })
       .withFailureHandler(function (err) {
         msg.classList.remove('hidden');
