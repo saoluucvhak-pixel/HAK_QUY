@@ -1540,6 +1540,10 @@
           <div class="flex items-end">
             <button onclick="window.print()" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
           </div>
+          ${CURRENT_USER.role === 'ADMIN' ? `
+          <div class="flex items-end">
+            <button id="btnLamMoiKeoThang" onclick="lamMoiDuLieuKeoVaTaiLaiBaoCao(this, 'thang')" class="w-full px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-700 text-sm hover:bg-emerald-50">🔄 Làm mới dữ liệu Keo</button>
+          </div>` : ''}
         </div>
       </div>
 
@@ -1606,6 +1610,35 @@
     const thang = document.getElementById('bcth_thang').value;
     if (!nam || !thang) { alert('Vui lòng chọn Tháng/Năm.'); return; }
     xuatExcelTuServer(btn, 'xuatTongHopExcel', [nam, thang]);
+  }
+
+  /**
+   * Đồng bộ dữ liệu Keo (2 sheet ngoài PhanTichNhapTT_DRAFT/PhieuCan_DN
+   * -> sheet nội bộ, xem BaoCaoNgayKeo.gs) ngay từ màn Báo cáo ngày/tháng
+   * (Keo), rồi tự tải lại đúng báo cáo đang xem — làm y hệt nút "Đồng bộ
+   * dữ liệu Keo ngay" trong Quản Trị, chỉ khác là không cần rời khỏi màn
+   * báo cáo. Chỉ ADMIN thấy nút này (dongBoDuLieuKeoTuGiaoDien yêu cầu
+   * quyền ADMIN, giống hệt bên Quản Trị).
+   */
+  function lamMoiDuLieuKeoVaTaiLaiBaoCao(btn, loaiBaoCao) {
+    const textCu = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang làm mới...';
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        btn.disabled = false;
+        btn.textContent = textCu;
+        if (!res.success) { alert('Lỗi đồng bộ dữ liệu Keo: ' + res.message); return; }
+        if (loaiBaoCao === 'thang') loadBaoCaoThang();
+        else loadBaoCaoNgayKeo();
+      })
+      .withFailureHandler(function (err) {
+        btn.disabled = false;
+        btn.textContent = textCu;
+        alert('Lỗi hệ thống: ' + err.message);
+      })
+      .dongBoDuLieuKeoTuGiaoDien(currentUserInfo());
   }
 
   function guiEmailBaoCaoThang(btn) {
@@ -1777,6 +1810,10 @@
           <div class="flex items-end">
             <button onclick="window.print()" class="w-full px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">🖨 In / Xuất PDF</button>
           </div>
+          ${CURRENT_USER.role === 'ADMIN' ? `
+          <div class="flex items-end">
+            <button id="btnLamMoiKeoNgay" onclick="lamMoiDuLieuKeoVaTaiLaiBaoCao(this, 'ngay')" class="w-full px-3 py-1.5 rounded-lg border border-emerald-300 text-emerald-700 text-sm hover:bg-emerald-50">🔄 Làm mới dữ liệu Keo</button>
+          </div>` : ''}
         </div>
       </div>
 
