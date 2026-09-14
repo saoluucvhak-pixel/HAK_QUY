@@ -450,7 +450,7 @@ function getSoQuy(filters) {
       if (_chuanHoaLoaiQuy(p.loai_quy) !== loaiQuy) return;
       const soPhieuThu = _safeText(p.so_phieu_thu);
       list.push({
-        ngay: _fmtDate(p.ngay_thu), gio: p.gio_thu || '00:00',
+        ngay: _fmtDate(p.ngay_thu), gio: _gioLinhHoat(p.gio_thu) || '00:00',
         ngay_hach_toan: p.ngay_hach_toan ? _fmtDate(p.ngay_hach_toan) : _fmtDate(p.ngay_thu),
         so_phieu_thu: soPhieuThu, so_phieu_chi: '', so_phieu: soPhieuThu,
         noi_dung: _safeText(p.noi_dung_thu),
@@ -470,7 +470,7 @@ function getSoQuy(filters) {
       if (_chuanHoaLoaiQuy(p.loai_quy) !== loaiQuy) return;
       const soPhieuChi = _safeText(p.so_phieu_chi);
       list.push({
-        ngay: _fmtDate(p.ngay_chi), gio: p.gio_chi || '00:00',
+        ngay: _fmtDate(p.ngay_chi), gio: _gioLinhHoat(p.gio_chi) || '00:00',
         ngay_hach_toan: p.ngay_hach_toan ? _fmtDate(p.ngay_hach_toan) : _fmtDate(p.ngay_chi),
         so_phieu_thu: '', so_phieu_chi: soPhieuChi, so_phieu: soPhieuChi,
         noi_dung: _safeText(p.noi_dung_chi),
