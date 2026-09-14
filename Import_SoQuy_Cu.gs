@@ -15,7 +15,6 @@
 
 function importDuLieuSoQuyCu() {
   const nguoiLap = "Nhập liệu sổ cũ";
-  const now = new Date();
   const shThu = _sheet(SHEET_PHIEU_THU);
   const shChi = _sheet(SHEET_PHIEU_CHI);
   const shCom = _sheet(SHEET_SO_COM);
@@ -102,79 +101,79 @@ function importDuLieuSoQuyCu() {
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ tổng (Excel cũ)"
   });
   thuRows.push({
-    soPhieu: "CD-01/02", ngayCT: new Date(2026, 1, 3), ngayHT: new Date(2026, 1, 3),
+    soPhieu: "01/02", ngayCT: new Date(2026, 1, 3), ngayHT: new Date(2026, 1, 3),
     nguoi: "", noiDung: "Nhận tiền thưởng CĐ cấp trên", soTien: 1400000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   thuRows.push({
-    soPhieu: "CD-01/03", ngayCT: new Date(2026, 2, 12), ngayHT: new Date(2026, 2, 12),
+    soPhieu: "01/03", ngayCT: new Date(2026, 2, 12), ngayHT: new Date(2026, 2, 12),
     nguoi: "", noiDung: "Nhận tiền KPCĐ cấp trên cấp T01+T02", soTien: 8728200,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   thuRows.push({
-    soPhieu: "CD-01/03", ngayCT: new Date(2026, 2, 14), ngayHT: new Date(2026, 2, 14),
+    soPhieu: "01/03", ngayCT: new Date(2026, 2, 14), ngayHT: new Date(2026, 2, 14),
     nguoi: "", noiDung: "Nhận tiền ĐPCĐ tháng 01+02 nhập quỹ CĐ", soTien: 2909400,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   thuRows.push({
-    soPhieu: "CD-01/03", ngayCT: new Date(2026, 3, 13), ngayHT: new Date(2026, 3, 13),
+    soPhieu: "01/03", ngayCT: new Date(2026, 3, 13), ngayHT: new Date(2026, 3, 13),
     nguoi: "", noiDung: "Nhận tiền KPCĐ cấp trên cấp T03", soTien: 4400325,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   thuRows.push({
-    soPhieu: "CD-02/03", ngayCT: new Date(2026, 3, 13), ngayHT: new Date(2026, 3, 13),
+    soPhieu: "02/03", ngayCT: new Date(2026, 3, 13), ngayHT: new Date(2026, 3, 13),
     nguoi: "", noiDung: "Nhận tiền ĐPCĐ tháng 03 nhập quỹ CĐ", soTien: 1466775,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   thuRows.push({
-    soPhieu: "CD-01/05", ngayCT: new Date(2026, 4, 18), ngayHT: new Date(2026, 4, 18),
+    soPhieu: "01/05", ngayCT: new Date(2026, 4, 18), ngayHT: new Date(2026, 4, 18),
     nguoi: "", noiDung: "Nhận tiền KPCĐ cấp trên cấp Tháng 04/2026", soTien: 4168500,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   thuRows.push({
-    soPhieu: "CD-02/05", ngayCT: new Date(2026, 4, 28), ngayHT: new Date(2026, 4, 28),
+    soPhieu: "02/05", ngayCT: new Date(2026, 4, 28), ngayHT: new Date(2026, 4, 28),
     nguoi: "", noiDung: "Nhận tiền ĐPCĐ Tháng 04 nhập quỹ", soTien: 1389000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   thuRows.push({
-    soPhieu: "CD-01/06", ngayCT: new Date(2026, 5, 8), ngayHT: new Date(2026, 5, 8),
+    soPhieu: "01/06", ngayCT: new Date(2026, 5, 8), ngayHT: new Date(2026, 5, 8),
     nguoi: "", noiDung: "Nhận tiền KPCĐ cấp trên cấp Tháng 05/2026", soTien: 4164600,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   thuRows.push({
-    soPhieu: "CD-02/06", ngayCT: new Date(2026, 5, 17), ngayHT: new Date(2026, 5, 17),
+    soPhieu: "02/06", ngayCT: new Date(2026, 5, 17), ngayHT: new Date(2026, 5, 17),
     nguoi: "", noiDung: "Nhận tiền ĐPCĐ Tháng 05 nhập quỹ", soTien: 1388200,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   thuRows.push({
-    soPhieu: "CD-01/07", ngayCT: new Date(2026, 6, 22), ngayHT: new Date(2026, 6, 22),
+    soPhieu: "01/07", ngayCT: new Date(2026, 6, 22), ngayHT: new Date(2026, 6, 22),
     nguoi: "", noiDung: "Nhận tiền KPCĐ cấp trên cấp Tháng 06/2026", soTien: 3930675,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   thuRows.push({
-    soPhieu: "CD-02/07", ngayCT: new Date(2026, 6, 22), ngayHT: new Date(2026, 6, 22),
+    soPhieu: "02/07", ngayCT: new Date(2026, 6, 22), ngayHT: new Date(2026, 6, 22),
     nguoi: "", noiDung: "Nhận tiền ĐPCĐ Tháng 06 nhập quỹ", soTien: 1310225,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   thuRows.push({
-    soPhieu: "CD-01/08", ngayCT: new Date(2026, 7, 28), ngayHT: new Date(2026, 7, 28),
+    soPhieu: "01/08", ngayCT: new Date(2026, 7, 28), ngayHT: new Date(2026, 7, 28),
     nguoi: "", noiDung: "Nhận tiền KPCĐ cấp trên cấp tháng 07/2026", soTien: 4005225,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   thuRows.push({
-    soPhieu: "CD-02/08", ngayCT: new Date(2026, 7, 28), ngayHT: new Date(2026, 7, 28),
+    soPhieu: "02/08", ngayCT: new Date(2026, 7, 28), ngayHT: new Date(2026, 7, 28),
     nguoi: "", noiDung: "Nhận tiền ĐPCĐ T07/2026 nhập quỹ CĐ", soTien: 1335075,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
@@ -326,121 +325,121 @@ function importDuLieuSoQuyCu() {
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ tổng (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-01/01", ngayCT: new Date(2026, 0, 7), ngayHT: new Date(2022, 0, 6),
+    soPhieu: "01/01", ngayCT: new Date(2026, 0, 7), ngayHT: new Date(2022, 0, 6),
     nguoi: "", noiDung: "Chi tiền thăm ốm cô khương mổ mắt", soTien: 500000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-02/01", ngayCT: new Date(2026, 0, 30), ngayHT: new Date(2026, 0, 30),
+    soPhieu: "02/01", ngayCT: new Date(2026, 0, 30), ngayHT: new Date(2026, 0, 30),
     nguoi: "", noiDung: "Chi tiền thăm ốm chú trương cơ khí nhập viện 21-27", soTien: 500000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-01/02", ngayCT: new Date(2026, 1, 5), ngayHT: new Date(2026, 1, 5),
+    soPhieu: "01/02", ngayCT: new Date(2026, 1, 5), ngayHT: new Date(2026, 1, 5),
     nguoi: "", noiDung: "Chi tiền quà tết CĐ CNV năm 2025                     ( 800.000/người)", soTien: 48800000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-01/03", ngayCT: new Date(2026, 2, 7), ngayHT: new Date(2026, 2, 7),
+    soPhieu: "01/03", ngayCT: new Date(2026, 2, 7), ngayHT: new Date(2026, 2, 7),
     nguoi: "", noiDung: "Chi tiền lễ 8/3 cho cnv nữ", soTien: 1600000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-02/03", ngayCT: new Date(2026, 2, 12), ngayHT: new Date(2026, 2, 12),
+    soPhieu: "02/03", ngayCT: new Date(2026, 2, 12), ngayHT: new Date(2026, 2, 12),
     nguoi: "", noiDung: "Chi tiền nộp TK CĐ để duy trì số dư", soTien: 500000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-03/03", ngayCT: new Date(2026, 2, 12), ngayHT: new Date(2026, 2, 12),
+    soPhieu: "03/03", ngayCT: new Date(2026, 2, 12), ngayHT: new Date(2026, 2, 12),
     nguoi: "", noiDung: "Chi tiền nộp ĐPCĐ T01+02 lên cấp trên", soTien: 872820,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-04/03", ngayCT: new Date(2026, 2, 25), ngayHT: new Date(2026, 2, 25),
+    soPhieu: "04/03", ngayCT: new Date(2026, 2, 25), ngayHT: new Date(2026, 2, 25),
     nguoi: "", noiDung: "Chi tiền đi đám ma mẹ chị Lệ CN", soTien: 500000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-01/04", ngayCT: new Date(2026, 3, 13), ngayHT: new Date(2026, 3, 13),
+    soPhieu: "01/04", ngayCT: new Date(2026, 3, 13), ngayHT: new Date(2026, 3, 13),
     nguoi: "", noiDung: "Chi tiền nộp ĐPCĐ T03 lên cấp trên", soTien: 440033,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-02/04", ngayCT: new Date(2026, 3, 16), ngayHT: new Date(2026, 3, 16),
+    soPhieu: "02/04", ngayCT: new Date(2026, 3, 16), ngayHT: new Date(2026, 3, 16),
     nguoi: "", noiDung: "Chi tiền thăm ốm chị Lý CN", soTien: 500000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-01/05", ngayCT: new Date(2026, 4, 4), ngayHT: new Date(2026, 4, 4),
+    soPhieu: "01/05", ngayCT: new Date(2026, 4, 4), ngayHT: new Date(2026, 4, 4),
     nguoi: "", noiDung: "Chi thăm ốm anh Đạt TX", soTien: 500000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-02/05", ngayCT: new Date(2026, 4, 16), ngayHT: new Date(2026, 4, 16),
+    soPhieu: "02/05", ngayCT: new Date(2026, 4, 16), ngayHT: new Date(2026, 4, 16),
     nguoi: "", noiDung: "Chi tiền thăm ốm Hà Điền Hưng TX", soTien: 500000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-03/05", ngayCT: new Date(2026, 4, 18), ngayHT: new Date(2026, 4, 18),
+    soPhieu: "03/05", ngayCT: new Date(2026, 4, 18), ngayHT: new Date(2026, 4, 18),
     nguoi: "", noiDung: "Chi tiền nộp ĐPCĐ T04/2026 lên cấp trên", soTien: 416850,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-04/05", ngayCT: new Date(2026, 4, 27), ngayHT: new Date(2026, 4, 27),
+    soPhieu: "04/05", ngayCT: new Date(2026, 4, 27), ngayHT: new Date(2026, 4, 27),
     nguoi: "", noiDung: "Chi tiền đi đám ma mẹ anh Khương", soTien: 500000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-05/05", ngayCT: new Date(2026, 4, 27), ngayHT: new Date(2026, 4, 27),
+    soPhieu: "05/05", ngayCT: new Date(2026, 4, 27), ngayHT: new Date(2026, 4, 27),
     nguoi: "", noiDung: "Chi tiền quà Tết thiếu nhi (01/06) 100.000/người x 55 người", soTien: 5500000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-01/06", ngayCT: new Date(2026, 5, 8), ngayHT: new Date(2026, 5, 8),
+    soPhieu: "01/06", ngayCT: new Date(2026, 5, 8), ngayHT: new Date(2026, 5, 8),
     nguoi: "", noiDung: "Chi tiền thăm chị Lý công nhân", soTien: 500000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-02/06", ngayCT: new Date(2026, 5, 8), ngayHT: new Date(2026, 5, 8),
+    soPhieu: "02/06", ngayCT: new Date(2026, 5, 8), ngayHT: new Date(2026, 5, 8),
     nguoi: "", noiDung: "Chi tiền nộp ĐPCĐ T05/2026 lên cấp trên", soTien: 416460,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-01/07", ngayCT: new Date(2026, 6, 22), ngayHT: new Date(2026, 6, 22),
+    soPhieu: "01/07", ngayCT: new Date(2026, 6, 22), ngayHT: new Date(2026, 6, 22),
     nguoi: "", noiDung: "Chi tiền nộp ĐPCĐ T06/2026 lên cấp trên", soTien: 393068,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-01/08", ngayCT: new Date(2026, 7, 13), ngayHT: new Date(2026, 7, 13),
+    soPhieu: "01/08", ngayCT: new Date(2026, 7, 13), ngayHT: new Date(2026, 7, 13),
     nguoi: "", noiDung: "Chi tiền thăm Quang CN tổ Đức bị tai nạn", soTien: 500000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-02/08", ngayCT: new Date(2026, 7, 24), ngayHT: new Date(2026, 7, 24),
+    soPhieu: "02/08", ngayCT: new Date(2026, 7, 24), ngayHT: new Date(2026, 7, 24),
     nguoi: "", noiDung: "Chi tiền thăm chị Hạnh công nhân nữ", soTien: 500000,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
   });
   chiRows.push({
-    soPhieu: "CD-03/08", ngayCT: new Date(2026, 7, 28), ngayHT: new Date(2026, 7, 28),
+    soPhieu: "03/08", ngayCT: new Date(2026, 7, 28), ngayHT: new Date(2026, 7, 28),
     nguoi: "", noiDung: "Chi tiền nộp ĐPCĐ T07/2026 lên cấp trên", soTien: 400523,
     loaiQuy: "Quỹ công đoàn", tkDoiUng: "", maNV: "",
     chiNhanh: "", ghiChu: "Nhập từ Sổ Quỹ Công đoàn (Excel cũ)"
