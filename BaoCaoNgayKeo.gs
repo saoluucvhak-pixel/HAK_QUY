@@ -326,12 +326,36 @@ function _tonDauCuoiNgay(loaiQuy, ngay) {
 }
 
 /**
- * Quy đổi khối lượng từ KG (đơn vị lưu trong sheet nguồn) sang TẤN,
- * làm tròn 2 chữ số thập phân — mọi báo cáo Keo hiển thị khối lượng
- * theo TẤN, không phải KG.
+ * Quy đổi khối lượng từ KG sang TẤN, làm tròn 2 chữ số thập phân —
+ * dùng cho nguồn khối lượng ĐÃ BIẾT CHẮC là KG thật sự (vd cột "KL
+ * hàng (KG)" của sheet PhieuCan_DN). Mọi báo cáo Keo hiển thị khối
+ * lượng theo TẤN, không phải KG.
  */
 function _kgSangTan(kg) {
   return Math.round((Number(kg) || 0) / 10) / 100;
+}
+
+/**
+ * Làm tròn 1 số ĐÃ SẴN là TẤN, giữ 2 chữ số thập phân — KHÔNG chia
+ * cho 1000 như _kgSangTan().
+ */
+function _lamTronTan(tan) {
+  return Math.round((Number(tan) || 0) * 100) / 100;
+}
+
+/**
+ * Quy đổi cột "KhoiLuongKg" của sheet ngoài PhanTichNhapTT_DRAFT sang
+ * TẤN. LƯU Ý QUAN TRỌNG: dù tên cột là "KhoiLuongKg", đơn vị THẬT SỰ
+ * trong sheet nguồn này KHÔNG đồng nhất giữa 2 loại dòng — dòng NHẬP
+ * (Loại='NHAP') lưu theo KG (phải chia 1000 mới ra tấn), còn dòng
+ * THANH TOÁN (Loại='THANHTOAN') đã lưu SẴN theo TẤN (không được chia
+ * thêm lần nữa, nếu không số hiển thị sẽ sai nhỏ đi 1000 lần — đây
+ * chính là lỗi đã gặp phải). Mọi nơi đọc cột "KhoiLuongKg" từ sheet
+ * PhanTichNhapTT_DRAFT phải gọi qua hàm này (truyền đúng loai), KHÔNG
+ * được gọi thẳng _kgSangTan().
+ */
+function _klPhanTichSangTan(giaTri, loai) {
+  return loai === 'THANHTOAN' ? _lamTronTan(giaTri) : _kgSangTan(giaTri);
 }
 
 /*************************************************
@@ -346,12 +370,12 @@ function getBaoCaoNgayKeo(ngay) {
     function gomNhom(loai, phanLoai) {
       return rowsPhanTich
         .filter(r => r['Loại'] === loai && r['PhanLoai'] === phanLoai)
-        .map(r => ({ ten: _safeText(r['Ten']), kl: _kgSangTan(r['KhoiLuongKg']), gt: Number(r['GiaTri']) || 0 }))
+        .map(r => ({ ten: _safeText(r['Ten']), kl: _klPhanTichSangTan(r['KhoiLuongKg'], loai), gt: Number(r['GiaTri']) || 0 }))
         .sort((a, b) => b.gt - a.gt);
     }
     function tongCua(loai) {
       const t = rowsPhanTich.find(r => r['Loại'] === loai && r['PhanLoai'] === 'TONG');
-      return { kl: t ? _kgSangTan(t['KhoiLuongKg']) : 0, gt: t ? Number(t['GiaTri']) || 0 : 0 };
+      return { kl: t ? _klPhanTichSangTan(t['KhoiLuongKg'], loai) : 0, gt: t ? Number(t['GiaTri']) || 0 : 0 };
     }
 
     const nhap = { theo_nguon_goc: gomNhom('NHAP', 'NG'), theo_dai_ly: gomNhom('NHAP', 'DL'), tong: tongCua('NHAP') };

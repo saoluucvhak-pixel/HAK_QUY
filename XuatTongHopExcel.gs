@@ -110,8 +110,12 @@ function getBaoCaoThangTongHop(nam, thang) {
       nam: nam, thang: thang, tu_ngay: tuNgay, den_ngay: denNgay,
       ton_quy_tien_mat_cuoi_thang: tonTienMat,
       ton_quy_cong_doan_cuoi_thang: tonCongDoan,
+      // keoNhapKg cộng dồn số KG thật (Loại='NHAP') nên phải chia 1000;
+      // keoTTKg cộng dồn số TẤN đã sẵn (Loại='THANHTOAN', xem chú thích
+      // ở _klPhanTichSangTan() trong BaoCaoNgayKeo.gs) nên chỉ làm tròn,
+      // KHÔNG chia 1000 thêm lần nữa.
       keo_nhap: { kl: _kgSangTan(keoNhapKg), gt: keoNhapGt },
-      keo_thanh_toan: { kl: _kgSangTan(keoTTKg), gt: keoTTGt },
+      keo_thanh_toan: { kl: _lamTronTan(keoTTKg), gt: keoTTGt },
       loi_keo: loiKeo,
       com_tong_suat: com.tong_suat,
       com_thanh_tien: com.tong_thanh_tien,
@@ -425,11 +429,11 @@ function _veSheetKeoCalendar(ss, idx, tenSheet, loai, nam, thang, rowsPhanTich, 
     // vốn cộng dồn từ các dòng ngày này) âm thầm hiện 0/rỗng dù dữ liệu
     // theo từng Đại lý/Nguồn gốc bên cạnh vẫn đúng.
     if (r['PhanLoai'] === 'TONG') {
-      tongByDay[d] = { kl: _kgSangTan(r['KhoiLuongKg']), gt: Number(r['GiaTri']) || 0 };
+      tongByDay[d] = { kl: _klPhanTichSangTan(r['KhoiLuongKg'], loai), gt: Number(r['GiaTri']) || 0 };
       return;
     }
     if (!byDay[d]) byDay[d] = {};
-    byDay[d][r['PhanLoai'] + '|' + _safeText(r['Ten'])] = { kl: _kgSangTan(r['KhoiLuongKg']), gt: Number(r['GiaTri']) || 0 };
+    byDay[d][r['PhanLoai'] + '|' + _safeText(r['Ten'])] = { kl: _klPhanTichSangTan(r['KhoiLuongKg'], loai), gt: Number(r['GiaTri']) || 0 };
   });
 
   sh.getRange(1, 1, 1, soCot).merge().setValue(
