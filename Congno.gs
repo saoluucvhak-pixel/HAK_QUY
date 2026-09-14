@@ -161,3 +161,53 @@ function _capNhatCongNoSauThanhToan(maCongNo, soTienThanhToan, loaiThanhToan, so
 
   return conLaiMoi;
 }
+
+/**
+ * Hoàn tác lại khoản công nợ đã thanh toán qua 1 phiếu Thu/Chi, dùng
+ * khi Hủy phiếu đó (loại giao dịch "Thu công nợ"/"Trả công nợ"). Cộng
+ * lại đúng số tiền vào "còn lại", trừ lại "đã thanh toán", và ghi 1
+ * dòng đảo ngược vào THANH_TOAN_CONG_NO để giữ đầy đủ lịch sử (không
+ * xóa dòng thanh toán cũ). Hàm nội bộ — được gọi từ trong lock đã giữ
+ * sẵn ở huyPhieuThu/huyPhieuChi.
+ */
+function _huyThanhToanCongNoTheoPhieu(soPhieu, nguoiLap) {
+  const danhSachThanhToan = _sheetToObjects(SHEET_THANH_TOAN_CONG_NO)
+    .filter(t => t.so_phieu_lien_quan === soPhieu);
+  if (danhSachThanhToan.length === 0) return [];
+
+  const shCongNo = _sheet(SHEET_CONG_NO);
+  const data = shCongNo.getDataRange().getValues();
+  const headers = data[0].map(h => String(h).trim());
+  const idxMa = headers.indexOf('ma_cong_no');
+  const idxDaTT = headers.indexOf('da_thanh_toan');
+  const idxConLai = headers.indexOf('con_lai');
+  const idxTrangThai = headers.indexOf('trang_thai');
+
+  const shThanhToan = _sheet(SHEET_THANH_TOAN_CONG_NO);
+  const maCongNoDaXuLy = [];
+
+  danhSachThanhToan.forEach(t => {
+    const soTien = Number(t.so_tien_thanh_toan) || 0;
+    let rowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][idxMa]) === String(t.ma_cong_no)) { rowIndex = i; break; }
+    }
+    if (rowIndex === -1) return;
+
+    const daTTMoi = (Number(data[rowIndex][idxDaTT]) || 0) - soTien;
+    const conLaiMoi = (Number(data[rowIndex][idxConLai]) || 0) + soTien;
+    shCongNo.getRange(rowIndex + 1, idxDaTT + 1).setValue(daTTMoi);
+    shCongNo.getRange(rowIndex + 1, idxConLai + 1).setValue(conLaiMoi);
+    shCongNo.getRange(rowIndex + 1, idxTrangThai + 1).setValue(conLaiMoi > 0 ? 'Còn nợ' : 'Đã tất toán');
+    data[rowIndex][idxDaTT] = daTTMoi;
+    data[rowIndex][idxConLai] = conLaiMoi;
+
+    shThanhToan.appendRow([
+      'TT' + new Date().getTime(), t.ma_cong_no, new Date(), -soTien,
+      'Hủy ' + t.loai, soPhieu + ' (hủy)', nguoiLap, new Date()
+    ]);
+    maCongNoDaXuLy.push(t.ma_cong_no);
+  });
+
+  return maCongNoDaXuLy;
+}
