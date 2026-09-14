@@ -185,9 +185,28 @@ function _hashPassword(password) {
 function _getCauHinh(key) {
   const list = _sheetToObjects(SHEET_CAU_HINH);
   for (let i = list.length - 1; i >= 0; i--) {
-    if (String(list[i].key) === String(key)) return list[i].value;
+    if (String(list[i].key) === String(key)) return _chuanHoaGiaTriCauHinh(list[i].value);
   }
   return null;
+}
+
+/**
+ * Google Sheets có thể tự động diễn giải 1 chuỗi trông giống ngày giờ
+ * (vd giá trị KEO_DONGBO_LUC dạng "yyyy-MM-dd HH:mm:ss" do
+ * _setCauHinh() ghi bằng setValue()) thành 1 ô kiểu Date thật sự —
+ * dù cột value trong CAU_HINH vốn chỉ để chứa chuỗi. Khi đọc lại,
+ * _sheetToObjects() trả về nguyên object Date đó thay vì chuỗi. Nếu
+ * để lọt 1 Date (nhất là Date không hợp lệ) vào JSON trả về trình
+ * duyệt qua google.script.run, request có thể âm thầm hỏng và client
+ * nhận về null dù server chạy thành công (xem thêm _isValidDate()) —
+ * nên luôn chuẩn hoá về chuỗi ngay tại nguồn đọc, cho mọi nơi gọi
+ * _getCauHinh() dùng chung, thay vì phải tự phòng thủ riêng lẻ.
+ */
+function _chuanHoaGiaTriCauHinh(v) {
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    return _isValidDate(v) ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss') : '';
+  }
+  return v;
 }
 
 /**
@@ -207,11 +226,17 @@ function _setCauHinh(key, value) {
   }
   if (dongTrung.length > 0) {
     const dongGhi = dongTrung[dongTrung.length - 1];
-    sh.getRange(dongGhi, 2).setValue(value);
+    // Đặt định dạng ô về "Văn bản thuần" (@) TRƯỚC khi ghi giá trị —
+    // nếu ghi trước rồi mới đổi định dạng, Sheets đã kịp tự diễn giải
+    // chuỗi thành Date/Number mất rồi, đổi định dạng sau không cứu lại
+    // được chuỗi gốc. Xem thêm chú thích ở _chuanHoaGiaTriCauHinh().
+    sh.getRange(dongGhi, 2).setNumberFormat('@').setValue(value);
     dongTrung.slice(0, -1).sort((a, b) => b - a).forEach(dong => sh.deleteRow(dong));
     return;
   }
-  sh.appendRow([key, value, '']);
+  const dongMoi = sh.getLastRow() + 1;
+  sh.getRange(dongMoi, 2).setNumberFormat('@');
+  sh.getRange(dongMoi, 1, 1, 3).setValues([[key, value, '']]);
 }
 
 /**
