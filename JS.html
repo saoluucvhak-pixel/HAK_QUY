@@ -2205,9 +2205,10 @@
           ⚠ Chưa cài đặt đồng bộ tự động. Vào Apps Script Editor, chọn hàm <b>thietLapDongBoHangNgay</b> ở dropdown trên cùng và bấm Run 1 lần (chỉ cần làm 1 lần duy nhất) để bật lịch chạy tự động — sau đó có thể đổi giờ ngay tại đây.
         </div>
 
+        <div class="text-sm text-gray-600 mb-2">Giờ đang áp dụng thật sự (lấy trực tiếp từ dữ liệu lưu, không phụ thuộc ô chọn bên dưới): <span id="qtBcnk_gioThatSu" class="font-semibold text-gray-800">--</span></div>
         <div class="flex items-end gap-2 mb-3">
           <div>
-            <label class="block text-sm font-medium text-gray-600 mb-1">Giờ chạy đồng bộ tự động mỗi ngày</label>
+            <label class="block text-sm font-medium text-gray-600 mb-1">Đổi giờ chạy đồng bộ tự động mỗi ngày</label>
             <select id="qtBcnk_gio" class="border rounded-lg px-3 py-2 text-sm">
               ${Array.from({ length: 24 }, (_, h) => `<option value="${h}">${String(h).padStart(2, '0')}:00</option>`).join('')}
             </select>
@@ -2230,7 +2231,7 @@
         document.getElementById('qtBcnk_idPhieuCan').value = res.data.id_sheet_phieucan;
         document.getElementById('qtBcnk_email').value = res.data.email_bao_cao;
         document.getElementById('qtBcnk_dongBoLuc').textContent = res.data.dong_bo_luc || 'Chưa đồng bộ lần nào';
-        document.getElementById('qtBcnk_gio').value = String(res.data.dong_bo_gio);
+        _apDungGioVaoODropdown(res.data.dong_bo_gio);
         if (res.data.dong_bo_da_cai_dat === null) {
           const canhBao = document.getElementById('qtBcnk_chuaCaiDat');
           canhBao.classList.remove('hidden');
@@ -2248,6 +2249,40 @@
       .getCauHinhBaoCaoNgay(currentUserInfo());
   }
 
+  /**
+   * Áp giờ đã lưu (đọc từ server) vào cả ô chữ "Giờ đang áp dụng thật
+   * sự" LẪN ô dropdown — cố ý KHÔNG chỉ dựa vào việc set select.value
+   * rồi tin là nó đã đúng. Đặt trực tiếp .selected=true trên đúng
+   * <option> khớp (chắc chắn hơn set .value, vốn có thể bị bỏ qua âm
+   * thầm không báo lỗi nếu có sai lệch kiểu dữ liệu), rồi ĐỌC LẠI để
+   * xác nhận có khớp không — nếu không khớp, báo ngay bằng chữ thay vì
+   * để người dùng phải tự đoán hoặc mở Google Sheet ra xem.
+   */
+  function _apDungGioVaoODropdown(gioServer) {
+    const gio = Number(gioServer);
+    const chuGioThatSu = document.getElementById('qtBcnk_gioThatSu');
+    chuGioThatSu.textContent = Number.isInteger(gio) && gio >= 0 && gio <= 23
+      ? String(gio).padStart(2, '0') + ':00'
+      : '(chưa cấu hình)';
+
+    const select = document.getElementById('qtBcnk_gio');
+    let khopOption = null;
+    for (let i = 0; i < select.options.length; i++) {
+      if (Number(select.options[i].value) === gio) { khopOption = select.options[i]; break; }
+    }
+    if (khopOption) {
+      khopOption.selected = true;
+    }
+
+    // Đọc lại ngay sau khi set để xác nhận — nếu vì lý do gì đó ô
+    // dropdown không nhận đúng giá trị, ít nhất chữ "Giờ đang áp dụng
+    // thật sự" ở trên vẫn luôn đúng, không phụ thuộc vào dropdown này.
+    if (Number(select.value) !== gio) {
+      chuGioThatSu.innerHTML = (Number.isInteger(gio) ? String(gio).padStart(2, '0') + ':00' : '(chưa cấu hình)') +
+        ' <span class="text-amber-600 font-normal">(⚠ ô chọn bên dưới hiển thị sai, dùng đúng giờ ghi ở đây)</span>';
+    }
+  }
+
   function luuGioDongBoKeo() {
     const gio = Number(document.getElementById('qtBcnk_gio').value);
     const msg = document.getElementById('qtBcnkGioMsg');
@@ -2263,6 +2298,7 @@
         }
         msg.className = 'mb-3 p-3 rounded-lg text-sm bg-green-50 text-green-700';
         msg.textContent = 'Đã đổi giờ đồng bộ tự động sang ' + String(res.data.gio).padStart(2, '0') + ':00 mỗi ngày.';
+        _apDungGioVaoODropdown(res.data.gio);
       })
       .withFailureHandler(function (err) {
         msg.classList.remove('hidden');
