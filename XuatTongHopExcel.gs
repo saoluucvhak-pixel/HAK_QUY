@@ -412,8 +412,22 @@ function _veSheetKeoCalendar(ss, idx, tenSheet, loai, nam, thang, rowsPhanTich, 
   const soCot = soCotTrai + 1 + soCotPhai;
 
   const byDay = {};
+  const tongByDay = {};
   rows.forEach(r => {
     const d = _ngayKeyLinhHoat(r['Ngày']);
+    // Dòng TỔNG của ngày tách riêng, khớp theo PhanLoai==='TONG' — GIỐNG
+    // cách tongCua() ở BaoCaoNgayKeo.gs và getBaoCaoThangTongHop() ở
+    // trên đọc dòng TONG, KHÔNG phụ thuộc vào việc cột "Ten" của dòng đó
+    // có đúng chữ "Tổng cộng" hay không. Trước đây so khớp cả PhanLoai
+    // lẫn Ten='Tổng cộng' — nếu sheet nguồn đặt tên khác (hoặc để trống,
+    // hoặc dư khoảng trắng vì _safeText không trim) thì tra không ra,
+    // cột "Tổng ... (tấn)"/"Thành tiền" mỗi ngày (và cả tổng cuối tháng,
+    // vốn cộng dồn từ các dòng ngày này) âm thầm hiện 0/rỗng dù dữ liệu
+    // theo từng Đại lý/Nguồn gốc bên cạnh vẫn đúng.
+    if (r['PhanLoai'] === 'TONG') {
+      tongByDay[d] = { kl: _kgSangTan(r['KhoiLuongKg']), gt: Number(r['GiaTri']) || 0 };
+      return;
+    }
     if (!byDay[d]) byDay[d] = {};
     byDay[d][r['PhanLoai'] + '|' + _safeText(r['Ten'])] = { kl: _kgSangTan(r['KhoiLuongKg']), gt: Number(r['GiaTri']) || 0 };
   });
@@ -431,7 +445,7 @@ function _veSheetKeoCalendar(ss, idx, tenSheet, loai, nam, thang, rowsPhanTich, 
   let tongKlAll = 0, tongGtAll = 0;
   for (let day = 1; day <= cuoiThang; day++) {
     const dKey = monthPrefix + '-' + String(day).padStart(2, '0');
-    const tong = (byDay[dKey] && byDay[dKey]['TONG|Tổng cộng']) || { kl: 0, gt: 0 };
+    const tong = tongByDay[dKey] || { kl: 0, gt: 0 };
     tongKlAll += tong.kl;
     tongGtAll += tong.gt;
 
