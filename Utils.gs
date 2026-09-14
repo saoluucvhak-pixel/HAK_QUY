@@ -93,6 +93,22 @@ function _ngayKeyLinhHoat(v) {
   return String(v).trim();
 }
 
+/**
+ * Tương tự _ngayKeyLinhHoat() nhưng cho cột GIỜ (vd gio_thu/gio_chi
+ * lưu "HH:mm"). Google Sheets cũng tự ý hiểu chuỗi "14:35" là 1 giá
+ * trị Giờ và lưu thành Date thật y hệt cách nó tự hiểu ngày tháng —
+ * nếu không ép về lại chuỗi "HH:mm" trước khi trả cho client, 1 Date
+ * lọt thẳng vào JSON trả về của google.script.run có thể khiến toàn
+ * bộ phản hồi bị hỏng, client nhận về null dù server chạy đúng.
+ */
+function _gioLinhHoat(v) {
+  if (!v) return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    return _isValidDate(v) ? Utilities.formatDate(v, Session.getScriptTimeZone(), 'HH:mm') : '';
+  }
+  return String(v).trim();
+}
+
 function _jsonOk(data) {
   return { success: true, data: data };
 }

@@ -83,7 +83,7 @@ function getChiTietGiaoDich(soPhieu, loai) {
       const row = _getPhieuThuData().find(p => p.so_phieu_thu === soPhieu);
       if (row) {
         phieu = {
-          so_phieu: row.so_phieu_thu, loai: 'Thu', ngay: _fmtDate(row.ngay_thu), gio: row.gio_thu,
+          so_phieu: row.so_phieu_thu, loai: 'Thu', ngay: _fmtDate(row.ngay_thu), gio: _gioLinhHoat(row.gio_thu),
           loai_giao_dich: row.loai_giao_dich, nguoi_nop_nhan: row.nguoi_nop_tien,
           doi_tuong: doiTuongMap[row.ma_doi_tuong] || '', noi_dung: row.noi_dung_thu,
           so_tien: Number(row.so_tien) || 0, chung_tu: row.chung_tu_lien_quan, ghi_chu: row.ghi_chu,
@@ -97,7 +97,7 @@ function getChiTietGiaoDich(soPhieu, loai) {
       const row = _getPhieuChiData().find(p => p.so_phieu_chi === soPhieu);
       if (row) {
         phieu = {
-          so_phieu: row.so_phieu_chi, loai: 'Chi', ngay: _fmtDate(row.ngay_chi), gio: row.gio_chi,
+          so_phieu: row.so_phieu_chi, loai: 'Chi', ngay: _fmtDate(row.ngay_chi), gio: _gioLinhHoat(row.gio_chi),
           loai_giao_dich: row.loai_giao_dich, nguoi_nop_nhan: row.nguoi_nhan_tien,
           doi_tuong: doiTuongMap[row.ma_doi_tuong] || '', noi_dung: row.noi_dung_chi,
           so_tien: Number(row.so_tien) || 0, chung_tu: row.chung_tu_lien_quan, ghi_chu: row.ghi_chu,
