@@ -2179,6 +2179,7 @@
         <h3 class="font-semibold text-gray-700 mb-1">Cấu hình Báo cáo ngày (Keo)</h3>
         <p class="text-xs text-gray-500 mb-4">Báo cáo ngày lấy dữ liệu từ 2 Google Sheet ngoài. Tài khoản Google đang chạy hệ thống này phải có quyền Xem trên cả 2 sheet đó.</p>
         <div id="qtBcnkMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
+        <div id="qtBcnkLoading" class="mb-3 p-3 rounded-lg text-sm bg-blue-50 text-blue-700">⏳ Đang tải cấu hình từ máy chủ...</div>
         <div class="space-y-4">
           <div>
             <label class="block text-sm font-medium text-gray-600 mb-1">ID Google Sheet "PhanTichNhapTT_DRAFT"</label>
@@ -2226,7 +2227,15 @@
 
     google.script.run
       .withSuccessHandler(function (res) {
-        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        const loading = document.getElementById('qtBcnkLoading');
+        if (loading) loading.classList.add('hidden');
+        if (!res.success) {
+          const msg = document.getElementById('qtBcnkMsg');
+          msg.classList.remove('hidden');
+          msg.className = 'mb-3 p-3 rounded-lg text-sm bg-red-50 text-red-700';
+          msg.textContent = '❌ Không tải được cấu hình: ' + res.message;
+          return;
+        }
         const d = res.data;
         // Mỗi ô cập nhật riêng, tự bắt lỗi của chính nó — 1 ô bị lỗi
         // (vd thiếu phần tử, dữ liệu bất thường) không được phép làm
@@ -2257,7 +2266,14 @@
           }
         });
       })
-      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .withFailureHandler(function (err) {
+        const loading = document.getElementById('qtBcnkLoading');
+        if (loading) loading.classList.add('hidden');
+        const msg = document.getElementById('qtBcnkMsg');
+        msg.classList.remove('hidden');
+        msg.className = 'mb-3 p-3 rounded-lg text-sm bg-red-50 text-red-700';
+        msg.textContent = '❌ Lỗi hệ thống khi tải cấu hình: ' + err.message;
+      })
       .getCauHinhBaoCaoNgay(currentUserInfo());
   }
 
