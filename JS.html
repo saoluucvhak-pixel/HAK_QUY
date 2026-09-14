@@ -396,7 +396,7 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">Số tiền</label>
-          <input type="number" id="thuSoTien" min="0" step="1000" class="w-full border rounded-lg px-3 py-2">
+          <input type="text" inputmode="numeric" id="thuSoTien" placeholder="0" class="w-full border rounded-lg px-3 py-2">
         </div>
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-600 mb-1">Nội dung thu</label>
@@ -447,6 +447,7 @@
         <button id="btnSaveThu" onclick="saveThu()" class="px-5 py-2 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700">💾 Lưu Phiếu Thu</button>
       </div>
     `;
+    _ganDinhDangSoTien('thuSoTien');
   }
 
   function onThuLoaiGDChange() {
@@ -520,7 +521,7 @@
       ma_doi_tuong: document.getElementById('thuDoiTuong').value,
       ma_cong_no: document.getElementById('thuCongNo').value,
       ma_loai_thu: document.getElementById('thuLoai').value,
-      so_tien: document.getElementById('thuSoTien').value,
+      so_tien: _soTienTuInput('thuSoTien'),
       noi_dung_thu: document.getElementById('thuNoiDung').value.trim(),
       chung_tu_lien_quan: document.getElementById('thuChungTu').value.trim(),
       ghi_chu: document.getElementById('thuGhiChu').value.trim(),
@@ -633,7 +634,7 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-600 mb-1">Số tiền</label>
-          <input type="number" id="chiSoTien" min="0" step="1000" class="w-full border rounded-lg px-3 py-2">
+          <input type="text" inputmode="numeric" id="chiSoTien" placeholder="0" class="w-full border rounded-lg px-3 py-2">
         </div>
         <div class="md:col-span-2">
           <label class="block text-sm font-medium text-gray-600 mb-1">Nội dung chi</label>
@@ -684,6 +685,7 @@
         <button id="btnSaveChi" onclick="saveChi()" class="px-5 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700">💾 Lưu Phiếu Chi</button>
       </div>
     `;
+    _ganDinhDangSoTien('chiSoTien');
   }
 
   function onChiLoaiGDChange() {
@@ -757,7 +759,7 @@
       ma_doi_tuong: document.getElementById('chiDoiTuong').value,
       ma_cong_no: document.getElementById('chiCongNo').value,
       ma_loai_chi: document.getElementById('chiLoai').value,
-      so_tien: document.getElementById('chiSoTien').value,
+      so_tien: _soTienTuInput('chiSoTien'),
       noi_dung_chi: document.getElementById('chiNoiDung').value.trim(),
       chung_tu_lien_quan: document.getElementById('chiChungTu').value.trim(),
       ghi_chu: document.getElementById('chiGhiChu').value.trim(),
@@ -3143,14 +3145,18 @@
         html += '<div><span class="text-gray-400">Người lập:</span> ' + p.nguoi_lap + '</div>';
         html += '<div><span class="text-gray-400">Thời gian lập:</span> ' + p.thoi_gian_lap + '</div>';
         html += '<div><span class="text-gray-400">Trạng thái:</span> <span class="px-2 py-0.5 rounded-full text-xs font-medium ' + (p.trang_thai === 'Hợp lệ' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') + '">' + p.trang_thai + '</span></div>';
-        html += '<div><span class="text-gray-400">Đối soát:</span> ' + _doiSoatBadge(p.doi_soat) + '</div>';
+
+        const coQuyenHuy = ['ADMIN', 'THU_QUY'].indexOf(CURRENT_USER.role) !== -1;
+        const trangThaiDoiSoatKhac = p.doi_soat === 'Chờ hoàn' ? 'Hoàn ứng' : 'Chờ hoàn';
+        html += '<div><span class="text-gray-400">Đối soát:</span> ' + _doiSoatBadge(p.doi_soat) +
+          (coQuyenHuy ? ' <button onclick="doiTrangThaiDoiSoatTraCuu(\'' + p.so_phieu + '\',\'' + p.loai + '\',\'' + trangThaiDoiSoatKhac + '\')" class="ml-1 text-blue-600 text-xs hover:underline">Đổi thành "' + trangThaiDoiSoatKhac + '"</button>' : '') +
+          '</div>';
         if (p.ly_do_huy) html += '<div class="md:col-span-2"><span class="text-gray-400">Lý do hủy:</span> ' + p.ly_do_huy + '</div>';
         html += '</div>';
 
         html += '<div class="mb-4 flex gap-2"><button onclick="inPhieuTraCuu()" ' +
           'class="px-4 py-2 rounded-lg border text-gray-700 text-sm font-medium hover:bg-gray-50">🖨️ In phiếu</button>';
 
-        const coQuyenHuy = ['ADMIN', 'THU_QUY'].indexOf(CURRENT_USER.role) !== -1;
         if (p.trang_thai === 'Hợp lệ' && coQuyenHuy) {
           html += '<button onclick="huyPhieuTraCuu(\'' + p.so_phieu + '\',\'' + p.loai + '\')" ' +
             'class="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700">🗑️ Hủy phiếu này</button>';
@@ -3170,6 +3176,25 @@
       })
       .withFailureHandler(function (err) { body.textContent = 'Lỗi hệ thống: ' + err.message; })
       .getChiTietGiaoDich(soPhieu, loai);
+  }
+
+  /**
+   * Đổi trạng thái Đối soát (Hoàn ứng <-> Chờ hoàn) ngay tại màn Xem chi
+   * tiết chứng từ trong Tra Cứu — ví dụ Phiếu Chi tạm ứng đang "Chờ
+   * hoàn", khi có hóa đơn về thì đổi sang "Hoàn ứng" mà không cần vào
+   * riêng tab Sổ Đối Soát. Không đổi số tiền/ngày tháng, không bị chặn
+   * bởi Khóa Sổ (xem ghi chú thiết kế ở capNhatDoiSoat, Thuchi.gs).
+   */
+  function doiTrangThaiDoiSoatTraCuu(soPhieu, loai, trangThaiMoi) {
+    if (!confirm('Đổi trạng thái đối soát phiếu ' + soPhieu + ' thành "' + trangThaiMoi + '"?')) return;
+
+    google.script.run
+      .withSuccessHandler(function (res) {
+        if (!res.success) { alert('Lỗi: ' + res.message); return; }
+        xemChiTietGiaoDich(soPhieu, loai);
+      })
+      .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
+      .capNhatDoiSoat(soPhieu, loai, trangThaiMoi, currentUserInfo());
   }
 
   /**
@@ -3286,6 +3311,28 @@
   function formatMoney(n) {
     n = Number(n) || 0;
     return n.toLocaleString('vi-VN') + ' đ';
+  }
+
+  /**
+   * Gắn định dạng số có phân cách hàng nghìn (vd 1.000.000) ngay khi
+   * gõ vào ô Số tiền — input phải là type="text" (input type="number"
+   * của trình duyệt không cho phép hiển thị dấu chấm phân cách). Chỉ
+   * giữ lại chữ số, luôn đặt con trỏ về cuối ô sau khi định dạng lại
+   * (đơn giản, đủ dùng cho ô chỉ gõ số từ trái sang phải).
+   */
+  function _ganDinhDangSoTien(inputId) {
+    const el = document.getElementById(inputId);
+    if (!el) return;
+    el.addEventListener('input', function () {
+      const raw = el.value.replace(/[^\d]/g, '');
+      el.value = raw ? Number(raw).toLocaleString('vi-VN') : '';
+    });
+  }
+
+  /** Đọc lại số tiền thật (bỏ dấu phân cách) từ 1 ô đã gắn _ganDinhDangSoTien(). */
+  function _soTienTuInput(inputId) {
+    const raw = (document.getElementById(inputId).value || '').replace(/[^\d]/g, '');
+    return raw ? Number(raw) : 0;
   }
 
   function formatTan(n) {
