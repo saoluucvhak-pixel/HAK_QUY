@@ -185,7 +185,7 @@ function dongBoDuLieuKeo() {
 function dongBoDuLieuKeoTuGiaoDien(currentUser) {
   try {
     if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
-    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN]);
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN, ROLE_THU_QUY]);
     const ketQua = dongBoDuLieuKeo();
     return _jsonOk({
       so_dong_phantich: ketQua.so_dong_phantich,
