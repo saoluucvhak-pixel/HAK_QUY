@@ -174,24 +174,42 @@ function _hashPassword(password) {
 
 /**
  * Lấy giá trị cấu hình từ sheet CAU_HINH theo key.
+ *
+ * Đọc từ CUỐI sheet lên (không phải từ đầu xuống) — nếu vì lý do nào
+ * đó (sửa tay, lỗi cũ...) có nhiều dòng cùng trùng 1 key, dòng nằm ở
+ * dưới luôn là dòng được ghi gần đây nhất nên đáng tin hơn dòng phía
+ * trên. _setCauHinh() bên dưới cũng tự dọn dòng trùng mỗi khi ghi, nên
+ * theo thời gian sheet sẽ tự hết trùng, nhưng hàm đọc vẫn cần an toàn
+ * cho cả những dòng trùng cũ chưa kịp dọn.
  */
 function _getCauHinh(key) {
   const list = _sheetToObjects(SHEET_CAU_HINH);
-  const found = list.find(c => String(c.key) === String(key));
-  return found ? found.value : null;
+  for (let i = list.length - 1; i >= 0; i--) {
+    if (String(list[i].key) === String(key)) return list[i].value;
+  }
+  return null;
 }
 
 /**
  * Cập nhật hoặc tạo mới 1 dòng cấu hình trong CAU_HINH.
+ *
+ * Nếu phát hiện NHIỀU dòng cùng key (dữ liệu trùng lặp tồn đọng), chỉ
+ * ghi giá trị mới vào dòng CUỐI CÙNG rồi xoá các dòng trùng phía trên —
+ * tự dọn dẹp, không để tích tụ thêm, khớp với thứ tự đọc của
+ * _getCauHinh() ở trên (luôn ưu tiên dòng dưới cùng).
  */
 function _setCauHinh(key, value) {
   const sh = _sheet(SHEET_CAU_HINH);
   const data = sh.getDataRange().getValues();
+  const dongTrung = [];
   for (let i = 1; i < data.length; i++) {
-    if (String(data[i][0]) === String(key)) {
-      sh.getRange(i + 1, 2).setValue(value);
-      return;
-    }
+    if (String(data[i][0]) === String(key)) dongTrung.push(i + 1); // số dòng thật (1-based)
+  }
+  if (dongTrung.length > 0) {
+    const dongGhi = dongTrung[dongTrung.length - 1];
+    sh.getRange(dongGhi, 2).setValue(value);
+    dongTrung.slice(0, -1).sort((a, b) => b - a).forEach(dong => sh.deleteRow(dong));
+    return;
   }
   sh.appendRow([key, value, '']);
 }
