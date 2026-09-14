@@ -2,6 +2,39 @@
   let CURRENT_USER = null;
 
   /**
+   * LƯỚI AN TOÀN CHUNG: một số màn hình từng bị đứng mãi ở "Đang tải..."
+   * mà không có bất kỳ thông báo lỗi nào hiện ra — nguyên nhân là phản
+   * hồi từ máy chủ (qua google.script.run) đôi lúc về null thay vì dữ
+   * liệu thật (mất kết nối tạm thời, môi trường nhúng chặn iframe nội
+   * bộ của Apps Script, v.v.), khiến đoạn code xử lý kết quả (thường
+   * đang đọc res.success) bị ném lỗi JS ngay lập tức — lỗi này KHÔNG
+   * đi qua .withFailureHandler() (đó là dành cho lỗi phía server), nên
+   * không có alert nào hiện ra, người dùng chỉ thấy "Đang tải..." đứng
+   * yên vô thời hạn. Thay vì phải mở F12 mới biết, lưới này bắt MỌI lỗi
+   * JS không được xử lý và hiện ngay 1 banner rõ ràng + nút tải lại
+   * trang, để không bao giờ phải đoán màn hình có đang treo hay không.
+   */
+  (function () {
+    let daHienBanner = false;
+    function hienBannerLoi(chiTiet) {
+      if (daHienBanner) return;
+      daHienBanner = true;
+      const banner = document.createElement('div');
+      banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#dc2626;color:#fff;padding:12px 16px;font-size:14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
+      banner.innerHTML = '⚠ Mất kết nối / lỗi khi tải dữ liệu, trang có thể đang đứng ở "Đang tải...". ' +
+        '<button onclick="location.reload()" style="margin-left:10px;padding:4px 12px;border-radius:6px;background:#fff;color:#dc2626;font-weight:600;border:none;cursor:pointer;">🔄 Tải lại trang</button>';
+      document.body.appendChild(banner);
+      console.error('Lỗi JS không xử lý được (đã hiện banner cho người dùng):', chiTiet);
+    }
+    window.addEventListener('error', function (e) {
+      hienBannerLoi(e.error || e.message);
+    });
+    window.addEventListener('unhandledrejection', function (e) {
+      hienBannerLoi(e.reason);
+    });
+  })();
+
+  /**
    * Định dạng 1 Date thành 'yyyy-MM-dd' theo GIỜ ĐỊA PHƯƠNG của trình duyệt.
    * KHÔNG dùng toISOString() cho việc này vì nó quy đổi sang giờ UTC —
    * ở múi giờ Việt Nam (UTC+7), điều đó khiến ngày bị lùi 1 hôm mỗi khi
