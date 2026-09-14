@@ -268,6 +268,14 @@ function getCauHinhBaoCaoNgay(currentUser) {
       daCaiDatTrigger = null; // null = chưa xác định được do thiếu quyền, khác với false (đã xác định là chưa cài)
     }
 
+    // LƯU Ý: KEO_DONGBO_GIO === '0' (0 giờ = nửa đêm) là giá trị hợp lệ
+    // đã lưu, không phải "chưa cấu hình" — dùng "Number(x) || 1" ở đây
+    // sẽ coi 0 là falsy và ÂM THẦM đổi về mặc định 1, khiến người dùng
+    // lưu giờ 00:00 xong tải lại trang lại thấy hiện 01:00. Phải kiểm
+    // tra rõ ràng "chưa có giá trị nào được lưu" (null/'') mới dùng mặc định.
+    const gioDaLuu = _getCauHinh('KEO_DONGBO_GIO');
+    const dongBoGio = (gioDaLuu !== null && gioDaLuu !== '') ? Number(gioDaLuu) : 1;
+
     return _jsonOk({
       id_sheet_phantich: _getCauHinh('ID_SHEET_PHANTICH_NHAP_TT') || '',
       id_sheet_phieucan: _getCauHinh('ID_SHEET_PHIEU_CAN_DN') || '',
@@ -275,7 +283,7 @@ function getCauHinhBaoCaoNgay(currentUser) {
       dong_bo_luc: _getCauHinh('KEO_DONGBO_LUC') || '',
       dong_bo_loi: _getCauHinh('KEO_DONGBO_LOI') || '',
       dong_bo_loi_luc: _getCauHinh('KEO_DONGBO_LOI_LUC') || '',
-      dong_bo_gio: Number(_getCauHinh('KEO_DONGBO_GIO')) || 1,
+      dong_bo_gio: dongBoGio,
       dong_bo_da_cai_dat: daCaiDatTrigger
     });
   } catch (err) {

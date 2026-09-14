@@ -232,7 +232,10 @@ function _caiDatTriggerDongBoKeo(gio) {
  * khi Run xong).
  */
 function thietLapDongBoHangNgay() {
-  const gio = Number(_getCauHinh('KEO_DONGBO_GIO')) || 1;
+  // 0 giờ (nửa đêm) là giá trị hợp lệ đã lưu, không phải "chưa cấu
+  // hình" — không dùng "Number(x) || 1" vì sẽ coi 0 là falsy.
+  const gioDaLuu = _getCauHinh('KEO_DONGBO_GIO');
+  const gio = (gioDaLuu !== null && gioDaLuu !== '') ? Number(gioDaLuu) : 1;
   _caiDatTriggerDongBoKeo(gio);
 
   Logger.log(
