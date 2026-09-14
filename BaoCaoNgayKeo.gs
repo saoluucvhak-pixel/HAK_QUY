@@ -415,7 +415,7 @@ function getBaoCaoNgayKeo(ngay) {
 /*************************************************
  * API: XUẤT BÁO CÁO NGÀY (KEO) RA EXCEL
  *************************************************/
-function xuatBaoCaoNgayKeoExcel(ngay) {
+function xuatBaoCaoNgayKeoExcel(ngay, currentUser) {
   try {
     const res = getBaoCaoNgayKeo(ngay);
     if (!res.success) throw new Error(res.message);
@@ -455,7 +455,12 @@ function xuatBaoCaoNgayKeoExcel(ngay) {
       soThapPhan: [5]
     };
 
-    const file = _taoFileExcel('BaoCaoNgayKeo_' + ngay, [tongQuan, nhapNguonGoc, nhapDaiLy, ttNguonGoc, ttDaiLy, chiTiet]);
+    // Tên file: HAK_BAO_CAO_NGAY_DDMMYYYY_TÊNNGƯỜIXUẤT (ngay ở dạng
+    // "yyyy-MM-dd" từ ô chọn ngày trên giao diện — đảo lại thành
+    // DDMMYYYY theo đúng yêu cầu).
+    const ddmmyyyy = String(ngay).split('-').reverse().join('');
+    const tenFile = 'HAK_BAO_CAO_NGAY_' + ddmmyyyy + '_' + _tenNguoiDungChoFile(currentUser);
+    const file = _taoFileExcel(tenFile, [tongQuan, nhapNguonGoc, nhapDaiLy, ttNguonGoc, ttDaiLy, chiTiet]);
 
     return _jsonOk(file);
   } catch (err) {
@@ -479,7 +484,7 @@ function guiBaoCaoNgayKeoEmail(ngay, currentUser) {
       throw new Error('Chưa thiết lập email nhận báo cáo. Vào Quản Trị > "Báo cáo ngày (Keo)" để thiết lập.');
     }
 
-    const fileRes = xuatBaoCaoNgayKeoExcel(ngay);
+    const fileRes = xuatBaoCaoNgayKeoExcel(ngay, currentUser);
     if (!fileRes.success) throw new Error(fileRes.message);
 
     const blob = Utilities.newBlob(

@@ -1609,7 +1609,7 @@
     const nam = document.getElementById('bcth_nam').value;
     const thang = document.getElementById('bcth_thang').value;
     if (!nam || !thang) { alert('Vui lòng chọn Tháng/Năm.'); return; }
-    xuatExcelTuServer(btn, 'xuatTongHopExcel', [nam, thang]);
+    xuatExcelTuServer(btn, 'xuatTongHopExcel', [nam, thang, currentUserInfo()]);
   }
 
   /**
@@ -1920,7 +1920,7 @@
   function exportBaoCaoNgayKeoExcel(btn) {
     if (!BAOCAO_NGAYKEO_DATA) { alert('Chưa có dữ liệu để xuất. Bấm "Xem báo cáo" trước.'); return; }
     const ngay = document.getElementById('bcnk_ngay').value;
-    xuatExcelTuServer(btn, 'xuatBaoCaoNgayKeoExcel', [ngay]);
+    xuatExcelTuServer(btn, 'xuatBaoCaoNgayKeoExcel', [ngay, currentUserInfo()]);
   }
 
   function guiEmailBaoCaoNgayKeo(btn) {

@@ -42,13 +42,18 @@ function _ngayTuKey(ngayKey) {
 /*************************************************
  * API: XUẤT FILE EXCEL TỔNG HỢP
  *************************************************/
-function xuatTongHopExcel(nam, thang) {
+function xuatTongHopExcel(nam, thang, currentUser) {
   try {
     nam = Number(nam);
     thang = Number(thang);
     if (!nam || !thang || thang < 1 || thang > 12) throw new Error('Vui lòng chọn Tháng/Năm hợp lệ.');
 
-    const tenFile = 'BaoCaoTongHop_' + nam + '_' + String(thang).padStart(2, '0');
+    // Tên file: HAK_BAO_CAO_THANG_MMYYYY_NGAY_DD_TÊNNGƯỜIXUẤT — "NGAY_DD"
+    // là ngày TRONG THÁNG tại thời điểm xuất file (báo cáo tháng không
+    // có 1 ngày cụ thể như báo cáo ngày, nên lấy ngày thực xuất báo cáo).
+    const mmyyyy = String(thang).padStart(2, '0') + nam;
+    const ngayXuatDD = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd');
+    const tenFile = 'HAK_BAO_CAO_THANG_' + mmyyyy + '_NGAY_' + ngayXuatDD + '_' + _tenNguoiDungChoFile(currentUser);
     const ss = SpreadsheetApp.create(tenFile);
 
     let rowsPhanTich = [];
@@ -143,7 +148,7 @@ function guiBaoCaoThangEmail(nam, thang, currentUser) {
       throw new Error('Chưa thiết lập email nhận báo cáo. Vào Quản Trị > "Báo cáo ngày (Keo)" để thiết lập.');
     }
 
-    const fileRes = xuatTongHopExcel(nam, thang);
+    const fileRes = xuatTongHopExcel(nam, thang, currentUser);
     if (!fileRes.success) throw new Error(fileRes.message);
 
     const blob = Utilities.newBlob(

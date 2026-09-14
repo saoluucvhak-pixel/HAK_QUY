@@ -146,6 +146,17 @@ function _safeText(v) {
   return String(v);
 }
 
+/**
+ * Chuẩn hoá tên người dùng để ghép vào tên file Excel xuất ra — thay
+ * khoảng trắng bằng "_" và bỏ các ký tự không hợp lệ trong tên file
+ * (/ \ : * ? " < > |). Thiếu currentUser/full_name thì trả về
+ * 'KhongRo' thay vì để tên file thiếu 1 đoạn hoặc ném lỗi.
+ */
+function _tenNguoiDungChoFile(currentUser) {
+  const ten = (currentUser && (currentUser.full_name || currentUser.username)) || 'KhongRo';
+  return String(ten).trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, '_');
+}
+
 function _fmtDate(d) {
   if (!d) return '';
   if (_isValidDate(d)) {
