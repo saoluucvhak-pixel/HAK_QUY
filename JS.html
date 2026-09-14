@@ -2227,23 +2227,35 @@
     google.script.run
       .withSuccessHandler(function (res) {
         if (!res.success) { alert('Lỗi: ' + res.message); return; }
-        document.getElementById('qtBcnk_idPhanTich').value = res.data.id_sheet_phantich;
-        document.getElementById('qtBcnk_idPhieuCan').value = res.data.id_sheet_phieucan;
-        document.getElementById('qtBcnk_email').value = res.data.email_bao_cao;
-        document.getElementById('qtBcnk_dongBoLuc').textContent = res.data.dong_bo_luc || 'Chưa đồng bộ lần nào';
-        _apDungGioVaoODropdown(res.data.dong_bo_gio);
-        if (res.data.dong_bo_da_cai_dat === null) {
-          const canhBao = document.getElementById('qtBcnk_chuaCaiDat');
-          canhBao.classList.remove('hidden');
-          canhBao.innerHTML = '⚠ Chưa cấp đủ quyền cho hệ thống quản lý lịch chạy tự động. Vào Apps Script Editor, chọn hàm <b>thietLapDongBoHangNgay</b> ở dropdown trên cùng, bấm Run, và đồng ý cấp quyền khi được hỏi (chỉ cần làm 1 lần duy nhất) — sau đó tải lại trang này.';
-        } else if (!res.data.dong_bo_da_cai_dat) {
-          document.getElementById('qtBcnk_chuaCaiDat').classList.remove('hidden');
+        const d = res.data;
+        // Mỗi ô cập nhật riêng, tự bắt lỗi của chính nó — 1 ô bị lỗi
+        // (vd thiếu phần tử, dữ liệu bất thường) không được phép làm
+        // các ô còn lại đứng bánh theo, khiến cả trang trông như "rỗng
+        // hết" trong khi thật ra chỉ có 1 chỗ hỏng.
+        function anToan(nhan, fn) {
+          try { fn(); } catch (e) { console.error('Lỗi khi cập nhật "' + nhan + '":', e); }
         }
-        if (res.data.dong_bo_loi) {
-          document.getElementById('qtBcnk_dongBoLoiWrap').classList.remove('hidden');
-          document.getElementById('qtBcnk_dongBoLoi').textContent = res.data.dong_bo_loi;
-          document.getElementById('qtBcnk_dongBoLoiLuc').textContent = res.data.dong_bo_loi_luc || '';
-        }
+        anToan('id_sheet_phantich', function () { document.getElementById('qtBcnk_idPhanTich').value = d.id_sheet_phantich || ''; });
+        anToan('id_sheet_phieucan', function () { document.getElementById('qtBcnk_idPhieuCan').value = d.id_sheet_phieucan || ''; });
+        anToan('email_bao_cao', function () { document.getElementById('qtBcnk_email').value = d.email_bao_cao || ''; });
+        anToan('dong_bo_luc', function () { document.getElementById('qtBcnk_dongBoLuc').textContent = d.dong_bo_luc || 'Chưa đồng bộ lần nào'; });
+        anToan('dong_bo_gio', function () { _apDungGioVaoODropdown(d.dong_bo_gio); });
+        anToan('dong_bo_da_cai_dat', function () {
+          if (d.dong_bo_da_cai_dat === null) {
+            const canhBao = document.getElementById('qtBcnk_chuaCaiDat');
+            canhBao.classList.remove('hidden');
+            canhBao.innerHTML = '⚠ Chưa cấp đủ quyền cho hệ thống quản lý lịch chạy tự động. Vào Apps Script Editor, chọn hàm <b>thietLapDongBoHangNgay</b> ở dropdown trên cùng, bấm Run, và đồng ý cấp quyền khi được hỏi (chỉ cần làm 1 lần duy nhất) — sau đó tải lại trang này.';
+          } else if (!d.dong_bo_da_cai_dat) {
+            document.getElementById('qtBcnk_chuaCaiDat').classList.remove('hidden');
+          }
+        });
+        anToan('dong_bo_loi', function () {
+          if (d.dong_bo_loi) {
+            document.getElementById('qtBcnk_dongBoLoiWrap').classList.remove('hidden');
+            document.getElementById('qtBcnk_dongBoLoi').textContent = d.dong_bo_loi;
+            document.getElementById('qtBcnk_dongBoLoiLuc').textContent = d.dong_bo_loi_luc || '';
+          }
+        });
       })
       .withFailureHandler(function (err) { alert('Lỗi hệ thống: ' + err.message); })
       .getCauHinhBaoCaoNgay(currentUserInfo());
