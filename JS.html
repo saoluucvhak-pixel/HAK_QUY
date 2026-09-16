@@ -328,7 +328,7 @@
   }
 
   /* ================= PHIẾU THU ================= */
-  function renderThuForm() {
+  function renderThuForm(khiXongCallback) {
     document.getElementById('mainContent').innerHTML = `
       <div class="card max-w-2xl">
         <div class="flex justify-between items-center mb-4">
@@ -338,10 +338,10 @@
         <div id="thuFormBody" class="text-gray-400 text-sm">Đang tải danh mục...</div>
       </div>
     `;
-    getFormOptionsCached(function (data) { renderThuFormBody(data); });
+    getFormOptionsCached(function (data) { renderThuFormBody(data, khiXongCallback); });
   }
 
-  function renderThuFormBody(opts) {
+  function renderThuFormBody(opts, khiXongCallback) {
     const today = _localDateStr(new Date());
     const doiTuongOpts = opts.doiTuong.map(d => `<option value="${d.ma}">${d.ten}</option>`).join('');
     const loaiThuOpts = opts.loaiThu.map(l => `<option value="${l.ma}">${l.ten}</option>`).join('');
@@ -448,6 +448,7 @@
       </div>
     `;
     _ganDinhDangSoTien('thuSoTien');
+    if (khiXongCallback) khiXongCallback();
   }
 
   function onThuLoaiGDChange() {
@@ -552,10 +553,17 @@
         btn.textContent = '💾 Lưu Phiếu Thu';
         if (!res.success) { showFormMsg('thuMsg', res.message, true); return; }
         const soPhieu = res.data.so_phieu_thu;
-        renderThuForm();
-        setTimeout(function () {
-          if (document.getElementById('thuMsg')) _thongBaoLuuPhieuKemNutIn('thuMsg', soPhieu, 'Thu', 'phiếu thu');
-        }, 300);
+        // Gọi renderThuForm() KÈM callback chạy đúng lúc form mới đã
+        // dựng xong (thay vì setTimeout() cố định trước đây) — nếu
+        // cache danh mục (getFormOptionsCached) đã hết hạn (vd người
+        // dùng nhập phiếu quá 60 giây), renderThuForm() phải gọi lại
+        // server, độ trễ thực tế đổi từng lần chứ không cố định, dùng
+        // setTimeout() có thể bắn ra TRƯỚC khi #thuMsg tồn tại trong
+        // DOM — khiến nút "In phiếu vừa lập" bị bỏ qua âm thầm, không
+        // báo lỗi gì, y hệt hiện tượng "lập phiếu xong không thấy in".
+        renderThuForm(function () {
+          _thongBaoLuuPhieuKemNutIn('thuMsg', soPhieu, 'Thu', 'phiếu thu');
+        });
       })
       .withFailureHandler(function (err) {
         btn.disabled = false;
@@ -566,7 +574,7 @@
   }
 
   /* ================= PHIẾU CHI ================= */
-  function renderChiForm() {
+  function renderChiForm(khiXongCallback) {
     document.getElementById('mainContent').innerHTML = `
       <div class="card max-w-2xl">
         <div class="flex justify-between items-center mb-4">
@@ -576,10 +584,10 @@
         <div id="chiFormBody" class="text-gray-400 text-sm">Đang tải danh mục...</div>
       </div>
     `;
-    getFormOptionsCached(function (data) { renderChiFormBody(data); });
+    getFormOptionsCached(function (data) { renderChiFormBody(data, khiXongCallback); });
   }
 
-  function renderChiFormBody(opts) {
+  function renderChiFormBody(opts, khiXongCallback) {
     const today = _localDateStr(new Date());
     const doiTuongOpts = opts.doiTuong.map(d => `<option value="${d.ma}">${d.ten}</option>`).join('');
     const loaiChiOpts = opts.loaiChi.map(l => `<option value="${l.ma}">${l.ten}</option>`).join('');
@@ -686,6 +694,7 @@
       </div>
     `;
     _ganDinhDangSoTien('chiSoTien');
+    if (khiXongCallback) khiXongCallback();
   }
 
   function onChiLoaiGDChange() {
@@ -790,10 +799,13 @@
         btn.textContent = '💾 Lưu Phiếu Chi';
         if (!res.success) { showFormMsg('chiMsg', res.message, true); return; }
         const soPhieu = res.data.so_phieu_chi;
-        renderChiForm();
-        setTimeout(function () {
-          if (document.getElementById('chiMsg')) _thongBaoLuuPhieuKemNutIn('chiMsg', soPhieu, 'Chi', 'phiếu chi');
-        }, 300);
+        // Xem chú thích ở nhánh Phiếu Thu (saveThu()) — cùng lý do:
+        // callback chạy đúng lúc form mới dựng xong, không dùng
+        // setTimeout() cố định vốn có thể bắn ra trước khi #chiMsg
+        // tồn tại trong DOM nếu cache danh mục đã hết hạn.
+        renderChiForm(function () {
+          _thongBaoLuuPhieuKemNutIn('chiMsg', soPhieu, 'Chi', 'phiếu chi');
+        });
       })
       .withFailureHandler(function (err) {
         btn.disabled = false;
