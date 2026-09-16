@@ -2434,7 +2434,7 @@
       </div>
 
       <div id="addUserFormWrap" class="card mb-4 hidden">
-        <h3 class="font-semibold text-gray-700 mb-3">Thêm người dùng mới</h3>
+        <h3 class="font-semibold text-gray-700 mb-3" id="userFormTitle">Thêm người dùng mới</h3>
         <div id="addUserMsg" class="hidden mb-3 p-3 rounded-lg text-sm"></div>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -2458,8 +2458,9 @@
             </select>
           </div>
         </div>
-        <div class="flex justify-end mt-4">
-          <button id="btnAddUser" onclick="addUser()" class="px-5 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">💾 Tạo tài khoản</button>
+        <div class="flex justify-end gap-2 mt-4">
+          <button onclick="dongFormNguoiDung()" class="px-4 py-2 rounded-lg border text-sm font-medium hover:bg-gray-50">Hủy</button>
+          <button id="btnAddUser" onclick="luuNguoiDung()" class="px-5 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700">💾 Tạo tài khoản</button>
         </div>
       </div>
 
@@ -2483,11 +2484,54 @@
     loadUserList();
   }
 
+  // null = form đang ở chế độ "Thêm mới"; là 1 username = đang sửa
+  // đúng tài khoản đó (username giữ nguyên, không cho đổi khi sửa).
+  let NGUOI_DUNG_DANG_SUA = null;
+
   function toggleAddUserForm() {
-    document.getElementById('addUserFormWrap').classList.toggle('hidden');
+    const wrap = document.getElementById('addUserFormWrap');
+    if (wrap.classList.contains('hidden')) {
+      moCheDoThemNguoiDung();
+    } else {
+      wrap.classList.add('hidden');
+    }
   }
 
-  function addUser() {
+  function moCheDoThemNguoiDung() {
+    NGUOI_DUNG_DANG_SUA = null;
+    document.getElementById('userFormTitle').textContent = 'Thêm người dùng mới';
+    document.getElementById('nuUsername').value = '';
+    document.getElementById('nuUsername').disabled = false;
+    document.getElementById('nuPassword').value = '';
+    document.getElementById('nuPassword').placeholder = 'Tối thiểu 6 ký tự';
+    document.getElementById('nuFullName').value = '';
+    document.getElementById('nuRole').value = 'THU_QUY';
+    document.getElementById('btnAddUser').textContent = '💾 Tạo tài khoản';
+    document.getElementById('addUserMsg').classList.add('hidden');
+    document.getElementById('addUserFormWrap').classList.remove('hidden');
+  }
+
+  function moCheDoSuaNguoiDung(username, fullName, role) {
+    NGUOI_DUNG_DANG_SUA = username;
+    document.getElementById('userFormTitle').textContent = 'Sửa người dùng: ' + username;
+    document.getElementById('nuUsername').value = username;
+    document.getElementById('nuUsername').disabled = true;
+    document.getElementById('nuPassword').value = '';
+    document.getElementById('nuPassword').placeholder = 'Để trống nếu không đổi mật khẩu';
+    document.getElementById('nuFullName').value = fullName;
+    document.getElementById('nuRole').value = role;
+    document.getElementById('btnAddUser').textContent = '💾 Lưu thay đổi';
+    document.getElementById('addUserMsg').classList.add('hidden');
+    document.getElementById('addUserFormWrap').classList.remove('hidden');
+    document.getElementById('addUserFormWrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function dongFormNguoiDung() {
+    document.getElementById('addUserFormWrap').classList.add('hidden');
+  }
+
+  function luuNguoiDung() {
+    const dangSua = !!NGUOI_DUNG_DANG_SUA;
     const payload = {
       username: document.getElementById('nuUsername').value.trim(),
       password: document.getElementById('nuPassword').value,
@@ -2496,27 +2540,36 @@
     };
 
     if (!payload.username) return showFormMsg('addUserMsg', 'Vui lòng nhập Tên đăng nhập.', true);
-    if (!payload.password || payload.password.length < 6) return showFormMsg('addUserMsg', 'Mật khẩu tối thiểu 6 ký tự.', true);
     if (!payload.full_name) return showFormMsg('addUserMsg', 'Vui lòng nhập Họ tên.', true);
+    // Thêm mới bắt buộc có mật khẩu; sửa thì để trống nghĩa là giữ
+    // nguyên mật khẩu cũ, chỉ bắt buộc đủ 6 ký tự NẾU có nhập.
+    if (!dangSua && (!payload.password || payload.password.length < 6)) {
+      return showFormMsg('addUserMsg', 'Mật khẩu tối thiểu 6 ký tự.', true);
+    }
+    if (dangSua && payload.password && payload.password.length < 6) {
+      return showFormMsg('addUserMsg', 'Mật khẩu mới tối thiểu 6 ký tự (để trống nếu không đổi).', true);
+    }
 
     const btn = document.getElementById('btnAddUser');
     btn.disabled = true;
-    btn.textContent = '⏳ Đang tạo...';
+    btn.textContent = dangSua ? '⏳ Đang lưu...' : '⏳ Đang tạo...';
 
-    google.script.run
+    const call = google.script.run
       .withSuccessHandler(function (res) {
         btn.disabled = false;
-        btn.textContent = '💾 Tạo tài khoản';
+        btn.textContent = dangSua ? '💾 Lưu thay đổi' : '💾 Tạo tài khoản';
         if (!res.success) { showFormMsg('addUserMsg', res.message, true); return; }
-        showFormMsg('addUserMsg', 'Đã tạo tài khoản ' + payload.username + '!', false);
+        showFormMsg('addUserMsg', dangSua ? 'Đã lưu thay đổi cho ' + payload.username + '!' : 'Đã tạo tài khoản ' + payload.username + '!', false);
         loadUserList();
       })
       .withFailureHandler(function (err) {
         btn.disabled = false;
-        btn.textContent = '💾 Tạo tài khoản';
+        btn.textContent = dangSua ? '💾 Lưu thay đổi' : '💾 Tạo tài khoản';
         showFormMsg('addUserMsg', 'Lỗi hệ thống: ' + err.message, true);
-      })
-      .addUserByAdmin(payload, currentUserInfo());
+      });
+
+    if (dangSua) call.suaNguoiDungByAdmin(payload, currentUserInfo());
+    else call.addUserByAdmin(payload, currentUserInfo());
   }
 
   function loadUserList() {
@@ -2526,12 +2579,16 @@
         const body = document.getElementById('userListBody');
         body.innerHTML = res.data.map(function (u) {
           const isSelf = u.username === CURRENT_USER.username;
+          const argSua = "'" + escStr(u.username) + "','" + escStr(u.full_name) + "','" + escStr(u.role) + "'";
           return '<tr class="border-b hover:bg-gray-50">' +
             '<td class="py-2 pr-3 font-medium">' + u.username + (isSelf ? ' <span class="text-xs text-gray-400">(bạn)</span>' : '') + '</td>' +
             '<td class="py-2 pr-3">' + u.full_name + '</td>' +
             '<td class="py-2 pr-3">' + u.role + '</td>' +
             '<td class="py-2 pr-3"><span class="px-2 py-0.5 rounded-full text-xs font-medium ' + (u.status === 'Hoạt động' ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-500') + '">' + u.status + '</span></td>' +
-            '<td class="py-2 pr-3">' + (isSelf ? '' : '<button onclick="toggleUserStatus(\'' + u.username + '\')" class="text-blue-600 text-xs hover:underline">' + (u.status === 'Hoạt động' ? 'Khóa' : 'Mở khóa') + '</button>') + '</td>' +
+            '<td class="py-2 pr-3 whitespace-nowrap">' +
+              '<button onclick="moCheDoSuaNguoiDung(' + argSua + ')" class="text-blue-600 text-xs hover:underline mr-3">Sửa</button>' +
+              (isSelf ? '' : '<button onclick="toggleUserStatus(\'' + u.username + '\')" class="text-blue-600 text-xs hover:underline">' + (u.status === 'Hoạt động' ? 'Khóa' : 'Mở khóa') + '</button>') +
+            '</td>' +
           '</tr>';
         }).join('');
       })

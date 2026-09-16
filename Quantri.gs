@@ -204,6 +204,73 @@ function addUserByAdmin(payload, currentUser) {
 }
 
 /**
+ * Sửa thông tin 1 người dùng đã có (Họ tên, Vai trò, và Mật khẩu NẾU
+ * có nhập mật khẩu mới — để trống thì giữ nguyên mật khẩu cũ). KHÔNG
+ * cho đổi Tên đăng nhập (dùng làm khoá tra cứu tài khoản ở khắp hệ
+ * thống — addUserByAdmin/toggleUserStatus/Auth.gs đều tra theo đúng
+ * username này). Không cho tự hạ quyền ADMIN của chính tài khoản đang
+ * đăng nhập — cùng lý do với toggleUserStatus() không cho tự khoá
+ * chính mình, tránh tình huống ADMIN duy nhất tự mất quyền truy cập.
+ */
+function suaNguoiDungByAdmin(payload, currentUser) {
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(15000);
+
+    if (!currentUser || !currentUser.username) throw new Error('Thiếu thông tin người dùng.');
+    _yeuCauQuyen(currentUser.username, [ROLE_ADMIN]);
+
+    if (!payload) throw new Error('Thiếu dữ liệu người dùng.');
+    const username = String(payload.username || '').trim();
+    if (!username) throw new Error('Thiếu Tên đăng nhập cần sửa.');
+    if (!payload.full_name) throw new Error('Vui lòng nhập Họ tên.');
+    if ([ROLE_ADMIN, ROLE_THU_QUY, ROLE_XEM].indexOf(payload.role) === -1) throw new Error('Vai trò không hợp lệ.');
+    if (payload.password && payload.password.length < 6) throw new Error('Mật khẩu mới tối thiểu 6 ký tự.');
+
+    if (username.toLowerCase() === String(currentUser.username).toLowerCase() && payload.role !== ROLE_ADMIN) {
+      throw new Error('Không thể tự hạ quyền ADMIN của chính tài khoản đang đăng nhập.');
+    }
+
+    const sh = _sheet(SHEET_USERS);
+    const data = sh.getDataRange().getValues();
+    const headers = data[0].map(h => String(h).trim());
+    const idxUsername = headers.indexOf('username');
+    const idxPassword = headers.indexOf('password_hash');
+    const idxFullName = headers.indexOf('full_name');
+    const idxRole = headers.indexOf('role');
+
+    let rowIndex = -1;
+    for (let i = 1; i < data.length; i++) {
+      if (String(data[i][idxUsername]).toLowerCase() === username.toLowerCase()) { rowIndex = i; break; }
+    }
+    if (rowIndex === -1) throw new Error('Không tìm thấy tài khoản: ' + username);
+
+    const fullNameCu = data[rowIndex][idxFullName];
+    const roleCu = data[rowIndex][idxRole];
+
+    sh.getRange(rowIndex + 1, idxFullName + 1).setValue(payload.full_name);
+    sh.getRange(rowIndex + 1, idxRole + 1).setValue(payload.role);
+    if (payload.password) {
+      sh.getRange(rowIndex + 1, idxPassword + 1).setValue(_hashPassword(payload.password));
+    }
+
+    const thayDoi = [];
+    if (String(fullNameCu) !== String(payload.full_name)) thayDoi.push('Họ tên: "' + fullNameCu + '" -> "' + payload.full_name + '"');
+    if (String(roleCu) !== String(payload.role)) thayDoi.push('Vai trò: ' + roleCu + ' -> ' + payload.role);
+    if (payload.password) thayDoi.push('Đã đổi mật khẩu');
+
+    _writeAuditLog(currentUser.full_name, 'Quản Trị', 'Sửa', username, '', thayDoi.join('; ') || '(không có thay đổi)');
+
+    return _jsonOk({ username: username });
+
+  } catch (err) {
+    return _jsonErr(err);
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+/**
  * Khóa/Mở khóa 1 tài khoản. Không cho tự khóa chính mình để
  * tránh tình huống ADMIN duy nhất tự khóa mất quyền truy cập.
  */
