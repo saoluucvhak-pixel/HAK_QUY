@@ -48,6 +48,284 @@
     return y + '-' + m + '-' + day;
   }
 
+  /*************************************************
+   * ĐỊNH DẠNG HIỂN THỊ CHUẨN VIỆT NAM (áp dụng tự động toàn hệ thống)
+   *  1. Số: canh PHẢI, có phân cách hàng nghìn (1.000.000)
+   *  2. Chuỗi: canh TRÁI
+   *  3. Ngày: canh GIỮA
+   *  4. Ngày luôn hiện dd/mm/yyyy — server vẫn trả/nhận khóa ngày
+   *     'yyyy-MM-dd' (dùng để lọc/so sánh), chỉ đổi ở tầng HIỂN THỊ.
+   * Thay vì sửa tay hàng trăm chỗ dựng bảng, 1 MutationObserver theo
+   * dõi mọi nội dung mới được vẽ ra và chuẩn hóa ngay:
+   *  - Đổi mọi chuỗi ngày ISO trong văn bản sang dd/mm/yyyy.
+   *  - Tự nhận diện kiểu dữ liệu từng cột của bảng để canh lề.
+   *  - Thay <input type="date"> (hiển thị theo ngôn ngữ trình duyệt,
+   *    có máy ra mm/dd/yyyy) bằng ô gõ dd/mm/yyyy + nút lịch 📅; thuộc
+   *    tính .value của ô vẫn đọc/ghi dạng 'yyyy-MM-dd' như cũ nên
+   *    code hiện có không cần đổi.
+   * Bảng/khối nào không muốn tự canh lề: thêm class "no-auto-align".
+   *************************************************/
+  const _RE_ISO_TRONG_CHU = /\b(\d{4})-(\d{2})-(\d{2})\b/g;
+  const _RE_NGAY_VN = /^\d{2}\/\d{2}\/\d{4}( \d{2}:\d{2}(:\d{2})?)?$/;
+  const _RE_GIO = /^\d{2}:\d{2}(:\d{2})?$/;
+  // 0 | 1-3 chữ số | có phân cách hàng nghìn bằng dấu chấm; phần lẻ sau
+  // dấu phẩy; đơn vị tuỳ chọn. Số trơn >= 4 chữ số KHÔNG có phân cách
+  // (vd tài khoản 1111, mã 01.006.001) được coi là MÃ -> canh trái.
+  const _RE_SO = /^[-−+]?(0|[1-9]\d{0,2}(\.\d{3})*)(,\d+)?\s*(đ|%|tấn|kg|suất|ngày|lần|phiếu)?$/i;
+  const _RE_TIEU_DE_SO = /^(thu|chi|tồn|số tiền|thành tiền|đơn giá|còn lại|phát sinh|đầu kỳ|cuối kỳ|đã thu|đã trả|tổng|giá trị|kl|khối lượng|chênh lệch|tạm ứng|trưa|tối|số lượng|số ngày)\b/i;
+  const _RE_TIEU_DE_NGAY = /^(ngày|hạn|thời gian)/i;
+  const _RE_TIEU_DE_MA = /^(số phiếu|số pt|số pc|số ct|mã|tk|tài khoản|biển số|sđt|mst|số điện thoại|id)\b/i;
+
+  function ngayVN(v) {
+    if (v === null || v === undefined || v === '') return '';
+    return String(v).replace(_RE_ISO_TRONG_CHU, '$3/$2/$1');
+  }
+
+  function _isoSangVN(iso) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || '').trim());
+    return m ? m[3] + '/' + m[2] + '/' + m[1] : String(iso || '');
+  }
+
+  /** 'd/m/yyyy', 'dd-mm-yyyy', 'ddmmyyyy' ... -> 'yyyy-MM-dd' ('' nếu sai). */
+  function _vnSangIso(txt) {
+    const t = String(txt || '').trim();
+    if (!t) return '';
+    let m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/.exec(t) || /^(\d{2})(\d{2})(\d{4})$/.exec(t);
+    if (!m) {
+      const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+      if (iso) m = [t, iso[3], iso[2], iso[1]];
+    }
+    if (!m) return '';
+    const d = Number(m[1]), mo = Number(m[2]), y = Number(m[3]);
+    const dt = new Date(y, mo - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) return '';
+    return y + '-' + String(mo).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  }
+
+  // alert/confirm/prompt cũng hiện ngày dd/mm/yyyy (vd thông báo lỗi
+  // "Ngày 2026-09-29 đã bị khóa sổ" trả về từ server).
+  ['alert', 'confirm', 'prompt'].forEach(function (ten) {
+    const goc = window[ten];
+    window[ten] = function (msg) {
+      const args = Array.prototype.slice.call(arguments);
+      if (typeof msg === 'string') args[0] = ngayVN(msg);
+      return goc.apply(window, args);
+    };
+  });
+
+  const _VALUE_GOC = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+
+  function _nangCapONgay(el) {
+    if (el.dataset.vnDate) return;
+    const isoBanDau = _VALUE_GOC.get.call(el);
+    el.dataset.vnDate = '1';
+    el.type = 'text';
+    el.setAttribute('inputmode', 'numeric');
+    el.setAttribute('autocomplete', 'off');
+    el.setAttribute('maxlength', '10');
+    if (!el.placeholder) el.placeholder = 'dd/mm/yyyy';
+    _VALUE_GOC.set.call(el, _isoSangVN(isoBanDau));
+
+    Object.defineProperty(el, 'value', {
+      configurable: true,
+      get: function () { return _vnSangIso(_VALUE_GOC.get.call(el)); },
+      set: function (v) { _VALUE_GOC.set.call(el, _isoSangVN(v)); el.classList.remove('vn-date-loi'); }
+    });
+
+    const wrap = document.createElement('span');
+    wrap.className = 'vn-date-wrap';
+    el.parentNode.insertBefore(wrap, el);
+    wrap.appendChild(el);
+
+    const picker = document.createElement('input');
+    picker.type = 'date';
+    picker.tabIndex = -1;
+    picker.className = 'vn-date-picker';
+    picker.setAttribute('aria-hidden', 'true');
+    wrap.appendChild(picker);
+
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'vn-date-btn no-print';
+    btn.tabIndex = -1;
+    btn.title = 'Chọn ngày';
+    btn.textContent = '📅';
+    wrap.appendChild(btn);
+
+    btn.addEventListener('click', function () {
+      if (el.disabled || el.readOnly) return;
+      _VALUE_GOC.set.call(picker, el.value || _localDateStr(new Date()));
+      try { picker.showPicker(); } catch (e) { picker.focus(); picker.click(); }
+    });
+    picker.addEventListener('change', function () {
+      if (!picker.value) return;
+      el.value = picker.value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    // Gõ liền 8 chữ số (vd 29092026) tự chèn dấu "/"
+    // (chỉ khi dấu "/" đang nằm đúng vị trí tự chèn; người dùng tự gõ
+    // kiểu "5/9/2026" thì để nguyên, lúc rời ô sẽ chuẩn hóa thành 05/09/2026)
+    el.addEventListener('input', function (e) {
+      if (!e.isTrusted) return;
+      if (e.inputType && e.inputType.indexOf('insert') !== 0) return;
+      const raw = _VALUE_GOC.get.call(el);
+      if (!/^\d*$/.test(raw) && !/^\d{2}\/(\d{2}\/?)?\d*$/.test(raw)) return;
+      const so = raw.replace(/\D/g, '').slice(0, 8);
+      let out = so.slice(0, 2);
+      if (so.length > 2) out += '/' + so.slice(2, 4);
+      if (so.length > 4) out += '/' + so.slice(4);
+      _VALUE_GOC.set.call(el, out);
+    });
+    el.addEventListener('blur', function () {
+      const raw = _VALUE_GOC.get.call(el).trim();
+      if (!raw) { el.classList.remove('vn-date-loi'); return; }
+      const iso = _vnSangIso(raw);
+      if (iso) { _VALUE_GOC.set.call(el, _isoSangVN(iso)); el.classList.remove('vn-date-loi'); }
+      else el.classList.add('vn-date-loi');
+    });
+  }
+
+  function _kieuGiaTriO(td) {
+    if (td.querySelector('button, input, select, textarea')) return '';
+    const t = (td.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!t || t === '-' || t === '--') return '';
+    if (_RE_NGAY_VN.test(t) || _RE_GIO.test(t)) return 'date';
+    if (_RE_SO.test(t)) return 'num';
+    return 'text';
+  }
+
+  function _datCanhLe(cell, kieu) {
+    cell.classList.remove('text-left', 'text-right', 'text-center', 'al-num', 'al-text', 'al-date');
+    cell.classList.add(kieu === 'num' ? 'al-num' : kieu === 'date' ? 'al-date' : 'al-text');
+  }
+
+  function _canhLeBang(table) {
+    if (table.closest('.no-auto-align')) return;
+    const rows = Array.prototype.slice.call(table.rows);
+    const coThead = !!table.tHead;
+    // Bảng dạng "nhãn: giá trị" (không có thead) -> canh theo từng ô
+    if (!coThead) {
+      rows.forEach(function (tr) {
+        Array.prototype.forEach.call(tr.cells, function (c) {
+          if (c.colSpan > 1) return;
+          const k = _kieuGiaTriO(c);
+          if (k) _datCanhLe(c, k);
+        });
+      });
+      return;
+    }
+    // Bảng có tiêu đề cột -> canh theo kiểu dữ liệu chiếm đa số của cột
+    const demCot = {};   // idx -> {num, date, text}
+    const oTheoCot = {}; // idx -> [cell]
+    const cotMa = {};
+    const goiYCot = {}; // gợi ý kiểu theo tiêu đề cột, dùng khi cột chưa có dữ liệu
+    rows.forEach(function (tr) {
+      const laHeader = tr.parentNode && tr.parentNode.tagName === 'THEAD';
+      let idx = 0;
+      Array.prototype.forEach.call(tr.cells, function (c) {
+        const span = c.colSpan || 1;
+        if (span === 1) {
+          (oTheoCot[idx] = oTheoCot[idx] || []).push(c);
+          if (laHeader) {
+            const tieuDe = (c.textContent || '').trim();
+            if (_RE_TIEU_DE_MA.test(tieuDe)) cotMa[idx] = true;
+            else if (_RE_TIEU_DE_NGAY.test(tieuDe)) goiYCot[idx] = 'date';
+            else if (_RE_TIEU_DE_SO.test(tieuDe)) goiYCot[idx] = 'num';
+          } else {
+            const k = _kieuGiaTriO(c);
+            if (k) {
+              const d = (demCot[idx] = demCot[idx] || { num: 0, date: 0, text: 0 });
+              d[k]++;
+            }
+          }
+        }
+        idx += span;
+      });
+    });
+    Object.keys(oTheoCot).forEach(function (idx) {
+      const d = demCot[idx];
+      let kieu = 'text';
+      if (!d) {
+        if (cotMa[idx]) kieu = 'text';
+        else if (goiYCot[idx]) kieu = goiYCot[idx];
+        else return;
+      } else if (!cotMa[idx]) {
+        if (d.num >= d.text && d.num >= d.date && d.num > 0) kieu = 'num';
+        else if (d.date >= d.text && d.date > 0) kieu = 'date';
+      }
+      oTheoCot[idx].forEach(function (c) {
+        if (c.querySelector('button, input, select, textarea')) return;
+        _datCanhLe(c, kieu);
+      });
+    });
+  }
+
+  function _doiNgayTrongNut(root) {
+    if (root.nodeType === 3) {
+      if (_RE_ISO_TRONG_CHU.test(root.data)) root.data = ngayVN(root.data);
+      _RE_ISO_TRONG_CHU.lastIndex = 0;
+      return;
+    }
+    if (root.nodeType !== 1) return;
+    const tag = root.tagName;
+    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA') return;
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        const p = n.parentNode && n.parentNode.tagName;
+        if (p === 'SCRIPT' || p === 'STYLE' || p === 'TEXTAREA') return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_ACCEPT;
+      }
+    });
+    const ds = [];
+    while (walker.nextNode()) ds.push(walker.currentNode);
+    ds.forEach(function (n) {
+      _RE_ISO_TRONG_CHU.lastIndex = 0;
+      if (_RE_ISO_TRONG_CHU.test(n.data)) n.data = ngayVN(n.data);
+    });
+    _RE_ISO_TRONG_CHU.lastIndex = 0;
+  }
+
+  function _chuanHoaVung(root) {
+    if (!root || !root.querySelectorAll) return;
+    _doiNgayTrongNut(root);
+    const inputsNgay = root.matches && root.matches('input[type="date"]') ? [root] : root.querySelectorAll('input[type="date"]:not(.vn-date-picker)');
+    Array.prototype.forEach.call(inputsNgay, function (el) { if (!el.classList.contains('vn-date-picker')) _nangCapONgay(el); });
+    const bang = root.tagName === 'TABLE' ? [root] : root.querySelectorAll('table');
+    Array.prototype.forEach.call(bang, _canhLeBang);
+  }
+
+  (function khoiDongDinhDangVN() {
+    let hangDoi = new Set();
+    let daLenLich = false;
+    function xuLy() {
+      daLenLich = false;
+      const ds = Array.from(hangDoi);
+      hangDoi = new Set();
+      ds.forEach(function (n) {
+        if (n.nodeType === 3) { _doiNgayTrongNut(n); n = n.parentNode; }
+        if (!n || !n.isConnected) return;
+        _chuanHoaVung(n);
+        const t = n.closest && n.closest('table');
+        if (t) _canhLeBang(t);
+      });
+    }
+    const obs = new MutationObserver(function (mutations) {
+      mutations.forEach(function (m) {
+        if (m.type === 'characterData') { hangDoi.add(m.target); return; }
+        Array.prototype.forEach.call(m.addedNodes, function (n) { hangDoi.add(n); });
+      });
+      if (!daLenLich && hangDoi.size) { daLenLich = true; Promise.resolve().then(xuLy); }
+    });
+    function batDau() {
+      _chuanHoaVung(document.body);
+      obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', batDau);
+    else batDau();
+  })();
+
   const ROLE_MENUS = {
     ADMIN: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'congno', 'doituong', 'danhmuc', 'baocao', 'tracuu', 'quantri', 'huongdan'],
     THU_QUY: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'baocao', 'tracuu', 'huongdan'],
@@ -330,12 +608,15 @@
   /* ================= PHIẾU THU ================= */
   function renderThuForm(khiXongCallback) {
     document.getElementById('mainContent').innerHTML = `
-      <div class="card max-w-2xl">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-semibold text-gray-700">Lập Phiếu Thu</h2>
-          <button onclick="switchMenu('tracuu')" class="px-3 py-1.5 rounded-lg border text-sm text-gray-600 hover:bg-gray-50">🔍 Tra cứu</button>
+      <div class="card pf-card">
+        <div class="pf-head thu">
+          <div>
+            <h2>💵 Lập Phiếu Thu</h2>
+            <div class="pf-sub">Ghi nhận tiền nhập quỹ — các ô có dấu <b>*</b> là bắt buộc</div>
+          </div>
+          <button onclick="switchMenu('tracuu')">🔍 Tra cứu</button>
         </div>
-        <div id="thuFormBody" class="text-gray-400 text-sm">Đang tải danh mục...</div>
+        <div id="thuFormBody" class="pf-body"><div class="text-gray-500 text-sm">Đang tải danh mục...</div></div>
       </div>
     `;
     getFormOptionsCached(function (data) { renderThuFormBody(data, khiXongCallback); });
@@ -346,109 +627,168 @@
     const doiTuongOpts = opts.doiTuong.map(d => `<option value="${d.ma}">${d.ten}</option>`).join('');
     const loaiThuOpts = opts.loaiThu.map(l => `<option value="${l.ma}">${l.ten}</option>`).join('');
 
-    document.getElementById('thuFormBody').innerHTML = `
-      <div id="thuMsg" class="hidden mb-4 p-3 rounded-lg text-sm"></div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Quỹ</label>
-          <select id="thuQuy" onchange="onThuQuyChange()" class="w-full border rounded-lg px-3 py-2">
-            <option value="Quỹ tiền mặt">Quỹ tiền mặt</option>
-            <option value="Quỹ công đoàn">Quỹ công đoàn</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Loại giao dịch</label>
-          <select id="thuLoaiGD" onchange="onThuLoaiGDChange()" class="w-full border rounded-lg px-3 py-2">
-            <option value="Thu thường">Thu thường</option>
-            <option value="Thu công nợ">Thu công nợ</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Ngày thu (ngày chứng từ)</label>
-          <input type="date" id="thuNgay" value="${today}" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Người nộp tiền</label>
-          <input type="text" id="thuNguoiNop" placeholder="Tên người nộp tiền" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Đối tượng</label>
-          <select id="thuDoiTuong" onchange="onThuDoiTuongChange()" class="w-full border rounded-lg px-3 py-2">
-            <option value="">-- Không chọn --</option>
-            ${doiTuongOpts}
-          </select>
-        </div>
+    document.getElementById('thuFormBody').innerHTML = _phieuFormHtml('thu', today, doiTuongOpts, loaiThuOpts);
+    _ganDinhDangSoTien('thuSoTien');
+    _ganSoTienBangChu('thuSoTien', 'thuBangChu');
+    if (khiXongCallback) khiXongCallback();
+  }
 
-        <div class="md:col-span-2 hidden" id="thuCongNoBox">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Khoản công nợ cần thu</label>
-          <select id="thuCongNo" class="w-full border rounded-lg px-3 py-2">
-            <option value="">-- Chọn Đối tượng trước --</option>
-          </select>
-          <div class="text-xs text-gray-400 mt-1" id="thuCongNoHint"></div>
-        </div>
+  /**
+   * Dựng HTML form lập Phiếu Thu / Phiếu Chi (dùng chung 1 khuôn cho
+   * cả 2 loại, GIỮ NGUYÊN toàn bộ id ô nhập cũ để saveThu()/saveChi()
+   * và các hàm onXxxChange() không phải đổi). Chữ trong ô nhập luôn
+   * màu đậm (#111827) — trước đây form nằm trong khung có class
+   * "text-gray-400" nên chữ gõ vào bị kế thừa màu xám, trông rất mờ.
+   */
+  function _phieuFormHtml(p, today, doiTuongOpts, loaiOpts) {
+    const laThu = p === 'thu';
+    const idNguoi = laThu ? 'thuNguoiNop' : 'chiNguoiNhan';
+    const nhanNguoi = laThu ? 'Người nộp tiền' : 'Người nhận tiền';
+    const lgdThuong = laThu ? 'Thu thường' : 'Chi thường';
+    const lgdCongNo = laThu ? 'Thu công nợ' : 'Trả công nợ';
+    const cap = laThu ? 'Thu' : 'Chi';
+    const onQuy = laThu ? 'onThuQuyChange()' : 'onChiQuyChange()';
+    const onLgd = laThu ? 'onThuLoaiGDChange()' : 'onChiLoaiGDChange()';
+    const onDt = laThu ? 'onThuDoiTuongChange()' : 'onChiDoiTuongChange()';
+    const btnCls = laThu ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700';
+    const renderLai = laThu ? 'renderThuForm()' : 'renderChiForm()';
+    return `
+      <div id="${p}Msg" class="hidden mb-4 p-3 rounded-lg text-sm"></div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Loại thu</label>
-          <select id="thuLoai" class="w-full border rounded-lg px-3 py-2">
-            <option value="">-- Chọn loại thu --</option>
-            ${loaiThuOpts}
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Số tiền</label>
-          <input type="text" inputmode="numeric" id="thuSoTien" placeholder="0" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div class="md:col-span-2">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Nội dung thu</label>
-          <input type="text" id="thuNoiDung" class="w-full border rounded-lg px-3 py-2">
-        </div>
-
-        <div class="md:col-span-2 border-t pt-3 mt-1">
-          <div class="text-xs font-semibold text-gray-500 uppercase">Thông tin hạch toán Sổ Quỹ (tuỳ chọn)</div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Ngày hạch toán</label>
-          <input type="date" id="thuNgayHachToan" value="${today}" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Tài khoản</label>
-          <input type="text" id="thuTaiKhoan" value="1111" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">TK đối ứng</label>
-          <input type="text" id="thuTkDoiUng" placeholder="vd: 7113" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Mã nhân viên</label>
-          <input type="text" id="thuMaNhanVien" placeholder="vd: 01.006.001" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Chi nhánh</label>
-          <input type="text" id="thuChiNhanh" placeholder="Chi nhánh (nếu có)" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Đối soát</label>
-          <select id="thuDoiSoat" class="w-full border rounded-lg px-3 py-2">
-            <option value="Hoàn ứng" selected>Hoàn ứng</option>
-            <option value="Chờ hoàn">Chờ hoàn</option>
-          </select>
-        </div>
-
-        <div class="md:col-span-2">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Chứng từ liên quan</label>
-          <input type="text" id="thuChungTu" placeholder="Link ảnh / mô tả chứng từ" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div class="md:col-span-2">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Ghi chú</label>
-          <textarea id="thuGhiChu" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
+      <div class="pf-sec">
+        <div class="pf-sec-title">1. Thông tin phiếu</div>
+        <div class="pf-grid">
+          <div>
+            <label class="pf-label">Quỹ <span class="req">*</span></label>
+            <select id="${p}Quy" onchange="${onQuy}" class="pf-input">
+              <option value="Quỹ tiền mặt">Quỹ tiền mặt</option>
+              <option value="Quỹ công đoàn">Quỹ công đoàn</option>
+            </select>
+          </div>
+          <div>
+            <label class="pf-label">Loại giao dịch <span class="req">*</span></label>
+            <select id="${p}LoaiGD" onchange="${onLgd}" class="pf-input">
+              <option value="${lgdThuong}">${lgdThuong}</option>
+              <option value="${lgdCongNo}">${lgdCongNo}</option>
+            </select>
+          </div>
+          <div>
+            <label class="pf-label">Ngày ${cap.toLowerCase()} (ngày chứng từ) <span class="req">*</span></label>
+            <input type="date" id="${p}Ngay" value="${today}" class="pf-input">
+          </div>
+          <div>
+            <label class="pf-label">Loại ${cap.toLowerCase()} <span class="req">*</span></label>
+            <select id="${p}Loai" class="pf-input">
+              <option value="">-- Chọn loại ${cap.toLowerCase()} --</option>
+              ${loaiOpts}
+            </select>
+          </div>
         </div>
       </div>
-      <div class="flex justify-end mt-4">
-        <button id="btnSaveThu" onclick="saveThu()" class="px-5 py-2 rounded-lg bg-green-600 text-white font-medium hover:bg-green-700">💾 Lưu Phiếu Thu</button>
+
+      <div class="pf-sec">
+        <div class="pf-sec-title">2. ${nhanNguoi} / Đối tượng</div>
+        <div class="pf-grid">
+          <div>
+            <label class="pf-label">${nhanNguoi} <span class="req">*</span></label>
+            <input type="text" id="${idNguoi}" placeholder="Họ tên ${nhanNguoi.toLowerCase()}" class="pf-input" autocomplete="off">
+          </div>
+          <div>
+            <label class="pf-label">Đối tượng</label>
+            <select id="${p}DoiTuong" onchange="${onDt}" class="pf-input">
+              <option value="">-- Không chọn --</option>
+              ${doiTuongOpts}
+            </select>
+          </div>
+          <div class="pf-span2 hidden" id="${p}CongNoBox">
+            <label class="pf-label">Khoản công nợ cần ${laThu ? 'thu' : 'trả'} <span class="req">*</span></label>
+            <select id="${p}CongNo" class="pf-input">
+              <option value="">-- Chọn Đối tượng trước --</option>
+            </select>
+            <div class="pf-hint" id="${p}CongNoHint"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pf-sec">
+        <div class="pf-sec-title">3. Số tiền & nội dung</div>
+        <div class="pf-grid">
+          <div class="pf-span2">
+            <label class="pf-label">Số tiền <span class="req">*</span></label>
+            <div class="pf-money-wrap">
+              <input type="text" inputmode="numeric" id="${p}SoTien" placeholder="0" class="pf-input pf-money" autocomplete="off">
+              <span class="pf-money-unit">đ</span>
+            </div>
+            <div class="pf-bang-chu" id="${p}BangChu"></div>
+          </div>
+          <div class="pf-span2">
+            <label class="pf-label">Nội dung ${cap.toLowerCase()}</label>
+            <input type="text" id="${p}NoiDung" placeholder="Diễn giải nội dung ${cap.toLowerCase()}" class="pf-input">
+          </div>
+        </div>
+      </div>
+
+      <div class="pf-sec">
+        <details>
+          <summary class="pf-sec-title" style="margin-bottom:0">4. Hạch toán Sổ Quỹ & chứng từ (tuỳ chọn) ▾</summary>
+          <div class="pf-grid" style="margin-top:12px">
+            <div>
+              <label class="pf-label">Ngày hạch toán</label>
+              <input type="date" id="${p}NgayHachToan" value="${today}" class="pf-input">
+            </div>
+            <div>
+              <label class="pf-label">Đối soát</label>
+              <select id="${p}DoiSoat" class="pf-input">
+                <option value="Hoàn ứng" selected>Hoàn ứng</option>
+                <option value="Chờ hoàn">Chờ hoàn</option>
+              </select>
+            </div>
+            <div>
+              <label class="pf-label">Tài khoản</label>
+              <input type="text" id="${p}TaiKhoan" value="1111" class="pf-input">
+            </div>
+            <div>
+              <label class="pf-label">TK đối ứng</label>
+              <input type="text" id="${p}TkDoiUng" placeholder="vd: ${laThu ? '7113' : '6426'}" class="pf-input">
+            </div>
+            <div>
+              <label class="pf-label">Mã nhân viên</label>
+              <input type="text" id="${p}MaNhanVien" placeholder="vd: ${laThu ? '01.006.001' : '01.009.001'}" class="pf-input">
+            </div>
+            <div>
+              <label class="pf-label">Chi nhánh</label>
+              <input type="text" id="${p}ChiNhanh" placeholder="Chi nhánh (nếu có)" class="pf-input">
+            </div>
+            <div class="pf-span2">
+              <label class="pf-label">Chứng từ liên quan</label>
+              <input type="text" id="${p}ChungTu" placeholder="Link ảnh / mô tả chứng từ" class="pf-input">
+            </div>
+            <div class="pf-span2">
+              <label class="pf-label">Ghi chú</label>
+              <textarea id="${p}GhiChu" rows="2" class="pf-input"></textarea>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <div class="pf-actions">
+        <button type="button" onclick="${renderLai}" class="pf-btn pf-btn-sub">↺ Làm mới</button>
+        <button id="btnSave${cap}" onclick="save${cap}()" class="pf-btn text-white ${btnCls}">💾 Lưu Phiếu ${cap}</button>
       </div>
     `;
-    _ganDinhDangSoTien('thuSoTien');
-    if (khiXongCallback) khiXongCallback();
+  }
+
+  /** Hiện dòng "Bằng chữ: ..." ngay dưới ô Số tiền khi đang gõ. */
+  function _ganSoTienBangChu(inputId, boxId) {
+    const el = document.getElementById(inputId);
+    const box = document.getElementById(boxId);
+    if (!el || !box) return;
+    const capNhat = function () {
+      const so = _soTienTuInput(inputId);
+      box.textContent = so > 0 ? 'Bằng chữ: ' + soTienBangChu(so) : '';
+    };
+    el.addEventListener('input', capNhat);
+    capNhat();
   }
 
   function onThuLoaiGDChange() {
@@ -576,12 +916,15 @@
   /* ================= PHIẾU CHI ================= */
   function renderChiForm(khiXongCallback) {
     document.getElementById('mainContent').innerHTML = `
-      <div class="card max-w-2xl">
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-lg font-semibold text-gray-700">Lập Phiếu Chi</h2>
-          <button onclick="switchMenu('tracuu')" class="px-3 py-1.5 rounded-lg border text-sm text-gray-600 hover:bg-gray-50">🔍 Tra cứu</button>
+      <div class="card pf-card">
+        <div class="pf-head chi">
+          <div>
+            <h2>💸 Lập Phiếu Chi</h2>
+            <div class="pf-sub">Ghi nhận tiền xuất quỹ — các ô có dấu <b>*</b> là bắt buộc</div>
+          </div>
+          <button onclick="switchMenu('tracuu')">🔍 Tra cứu</button>
         </div>
-        <div id="chiFormBody" class="text-gray-400 text-sm">Đang tải danh mục...</div>
+        <div id="chiFormBody" class="pf-body"><div class="text-gray-500 text-sm">Đang tải danh mục...</div></div>
       </div>
     `;
     getFormOptionsCached(function (data) { renderChiFormBody(data, khiXongCallback); });
@@ -592,108 +935,9 @@
     const doiTuongOpts = opts.doiTuong.map(d => `<option value="${d.ma}">${d.ten}</option>`).join('');
     const loaiChiOpts = opts.loaiChi.map(l => `<option value="${l.ma}">${l.ten}</option>`).join('');
 
-    document.getElementById('chiFormBody').innerHTML = `
-      <div id="chiMsg" class="hidden mb-4 p-3 rounded-lg text-sm"></div>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Quỹ</label>
-          <select id="chiQuy" onchange="onChiQuyChange()" class="w-full border rounded-lg px-3 py-2">
-            <option value="Quỹ tiền mặt">Quỹ tiền mặt</option>
-            <option value="Quỹ công đoàn">Quỹ công đoàn</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Loại giao dịch</label>
-          <select id="chiLoaiGD" onchange="onChiLoaiGDChange()" class="w-full border rounded-lg px-3 py-2">
-            <option value="Chi thường">Chi thường</option>
-            <option value="Trả công nợ">Trả công nợ</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Ngày chi (ngày chứng từ)</label>
-          <input type="date" id="chiNgay" value="${today}" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Người nhận tiền</label>
-          <input type="text" id="chiNguoiNhan" placeholder="Tên người nhận tiền" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Đối tượng</label>
-          <select id="chiDoiTuong" onchange="onChiDoiTuongChange()" class="w-full border rounded-lg px-3 py-2">
-            <option value="">-- Không chọn --</option>
-            ${doiTuongOpts}
-          </select>
-        </div>
-
-        <div class="md:col-span-2 hidden" id="chiCongNoBox">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Khoản công nợ cần trả</label>
-          <select id="chiCongNo" class="w-full border rounded-lg px-3 py-2">
-            <option value="">-- Chọn Đối tượng trước --</option>
-          </select>
-          <div class="text-xs text-gray-400 mt-1" id="chiCongNoHint"></div>
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Loại chi</label>
-          <select id="chiLoai" class="w-full border rounded-lg px-3 py-2">
-            <option value="">-- Chọn loại chi --</option>
-            ${loaiChiOpts}
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Số tiền</label>
-          <input type="text" inputmode="numeric" id="chiSoTien" placeholder="0" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div class="md:col-span-2">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Nội dung chi</label>
-          <input type="text" id="chiNoiDung" class="w-full border rounded-lg px-3 py-2">
-        </div>
-
-        <div class="md:col-span-2 border-t pt-3 mt-1">
-          <div class="text-xs font-semibold text-gray-500 uppercase">Thông tin hạch toán Sổ Quỹ (tuỳ chọn)</div>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Ngày hạch toán</label>
-          <input type="date" id="chiNgayHachToan" value="${today}" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Tài khoản</label>
-          <input type="text" id="chiTaiKhoan" value="1111" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">TK đối ứng</label>
-          <input type="text" id="chiTkDoiUng" placeholder="vd: 6426" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Mã nhân viên</label>
-          <input type="text" id="chiMaNhanVien" placeholder="vd: 01.009.001" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Chi nhánh</label>
-          <input type="text" id="chiChiNhanh" placeholder="Chi nhánh (nếu có)" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-600 mb-1">Đối soát</label>
-          <select id="chiDoiSoat" class="w-full border rounded-lg px-3 py-2">
-            <option value="Hoàn ứng" selected>Hoàn ứng</option>
-            <option value="Chờ hoàn">Chờ hoàn</option>
-          </select>
-        </div>
-
-        <div class="md:col-span-2">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Chứng từ liên quan</label>
-          <input type="text" id="chiChungTu" placeholder="Link ảnh / mô tả chứng từ" class="w-full border rounded-lg px-3 py-2">
-        </div>
-        <div class="md:col-span-2">
-          <label class="block text-sm font-medium text-gray-600 mb-1">Ghi chú</label>
-          <textarea id="chiGhiChu" rows="2" class="w-full border rounded-lg px-3 py-2"></textarea>
-        </div>
-      </div>
-      <div class="flex justify-end mt-4">
-        <button id="btnSaveChi" onclick="saveChi()" class="px-5 py-2 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700">💾 Lưu Phiếu Chi</button>
-      </div>
-    `;
+    document.getElementById('chiFormBody').innerHTML = _phieuFormHtml('chi', today, doiTuongOpts, loaiChiOpts);
     _ganDinhDangSoTien('chiSoTien');
+    _ganSoTienBangChu('chiSoTien', 'chiBangChu');
     if (khiXongCallback) khiXongCallback();
   }
 
@@ -1224,7 +1468,7 @@
   }
 
   function renderSoComTable(data) {
-    document.getElementById('com_tongSuat').textContent = data.tong_suat;
+    document.getElementById('com_tongSuat').textContent = formatSo(data.tong_suat);
     document.getElementById('com_tongThanhTien').textContent = formatMoney(data.tong_thanh_tien);
     document.getElementById('com_tongTamUng').textContent = formatMoney(data.tong_tam_ung);
     document.getElementById('com_tonHienTai').textContent = formatMoney(data.ton_hien_tai);
@@ -1238,9 +1482,9 @@
     body.innerHTML = SOCOM_ROWS_CACHE.map((r, idx) => `
       <tr class="border-b hover:bg-gray-50">
         <td class="py-2 pr-3 whitespace-nowrap">${r.ngay}</td>
-        <td class="py-2 pr-3 text-right">${r.buoi_trua || ''}</td>
-        <td class="py-2 pr-3 text-right">${r.buoi_toi || ''}</td>
-        <td class="py-2 pr-3 text-right">${r.tong_suat || ''}</td>
+        <td class="py-2 pr-3 text-right">${r.buoi_trua ? formatSo(r.buoi_trua) : ''}</td>
+        <td class="py-2 pr-3 text-right">${r.buoi_toi ? formatSo(r.buoi_toi) : ''}</td>
+        <td class="py-2 pr-3 text-right">${r.tong_suat ? formatSo(r.tong_suat) : ''}</td>
         <td class="py-2 pr-3 text-right">${formatMoney(r.don_gia)}</td>
         <td class="py-2 pr-3 text-right">${formatMoney(r.thanh_tien)}</td>
         <td class="py-2 pr-3 whitespace-nowrap">${r.ngay_tam_ung || ''}</td>
@@ -2144,7 +2388,7 @@
             '<td class="py-2 pr-3">' + r.loai_cong_no + '</td>' +
             '<td class="py-2 pr-3">' + r.ngay_phat_sinh + '</td>' +
             '<td class="py-2 pr-3">' + r.han_thanh_toan + '</td>' +
-            '<td class="py-2 pr-3 text-right text-red-600 font-semibold">' + r.so_ngay_qua_han + ' ngày</td>' +
+            '<td class="py-2 pr-3 text-right text-red-600 font-semibold">' + formatSo(r.so_ngay_qua_han) + ' ngày</td>' +
             '<td class="py-2 pr-3 text-right font-semibold">' + formatMoney(r.con_lai) + '</td>' +
           '</tr>';
         }).join('');
@@ -3425,7 +3669,7 @@
         <button onclick="renderTraCuu()" class="px-3 py-1.5 rounded-lg border text-sm hover:bg-gray-50">← Quay lại Tra Cứu</button>
         <button onclick="window.print()" class="px-3 py-1.5 rounded-lg bg-gray-800 text-white text-sm font-medium hover:bg-gray-900">🖨 In phiếu</button>
       </div>
-      <div class="card" style="max-width:820px;margin:0 auto;font-family:'Times New Roman',Times,serif;">
+      <div class="card no-auto-align" style="max-width:820px;margin:0 auto;font-family:'Times New Roman',Times,serif;">
         <div class="flex justify-between items-start text-sm mb-2">
           <div>
             <div class="font-semibold">Đơn vị: HAK_QUY</div>
@@ -3483,6 +3727,12 @@
   }
 
   /* ================= TIỆN ÍCH ================= */
+  /** Số có phân cách hàng nghìn kiểu Việt Nam (1.234.567), không kèm đơn vị. */
+  function formatSo(n) {
+    n = Number(n) || 0;
+    return n.toLocaleString('vi-VN');
+  }
+
   function formatMoney(n) {
     n = Number(n) || 0;
     return n.toLocaleString('vi-VN') + ' đ';

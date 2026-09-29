@@ -64,7 +64,7 @@ function _timTonThapNhat(giaoDichGiaDinh, loaiQuy) {
   _sheetToObjects(SHEET_PHIEU_THU).forEach(p => {
     if (p.trang_thai === TRANG_THAI_HOP_LE && _chuanHoaLoaiQuy(p.loai_quy) === loaiQuy) {
       list.push({
-        ngay: _fmtDate(p.ngay_thu), gio: p.gio_thu || '00:00',
+        ngay: _fmtDate(p.ngay_thu), gio: _gioLinhHoat(p.gio_thu) || '00:00',
         thoiGianLap: p.thoi_gian_lap, soTien: Number(p.so_tien) || 0, loai: 'Thu'
       });
     }
@@ -72,7 +72,7 @@ function _timTonThapNhat(giaoDichGiaDinh, loaiQuy) {
   _sheetToObjects(SHEET_PHIEU_CHI).forEach(p => {
     if (p.trang_thai === TRANG_THAI_HOP_LE && _chuanHoaLoaiQuy(p.loai_quy) === loaiQuy) {
       list.push({
-        ngay: _fmtDate(p.ngay_chi), gio: p.gio_chi || '00:00',
+        ngay: _fmtDate(p.ngay_chi), gio: _gioLinhHoat(p.gio_chi) || '00:00',
         thoiGianLap: p.thoi_gian_lap, soTien: Number(p.so_tien) || 0, loai: 'Chi'
       });
     }
@@ -82,7 +82,8 @@ function _timTonThapNhat(giaoDichGiaDinh, loaiQuy) {
     list.push({
       ngay: giaoDichGiaDinh.ngay, gio: '23:59',
       thoiGianLap: new Date(8640000000000000),
-      soTien: giaoDichGiaDinh.soTien, loai: giaoDichGiaDinh.loai
+      soTien: giaoDichGiaDinh.soTien, loai: giaoDichGiaDinh.loai,
+      giaDinh: true
     });
   }
 
@@ -95,11 +96,17 @@ function _timTonThapNhat(giaoDichGiaDinh, loaiQuy) {
     return tA - tB;
   });
 
+  // Giao dịch giả định chỉ làm thay đổi tồn Ở/SAU thời điểm của nó,
+  // nên chỉ xét mức thấp nhất từ thời điểm đó trở đi — tránh việc dữ
+  // liệu cũ (vd nhập từ sổ quỹ cũ) từng âm trong quá khứ chặn vĩnh viễn
+  // mọi phiếu chi mới dù tồn hiện tại đang dương.
   let running = soDuKhoiTao;
-  let min = running;
+  let dangXet = !giaoDichGiaDinh;
+  let min = dangXet ? running : Infinity;
   list.forEach(t => {
     running += (t.loai === 'Thu' ? t.soTien : -t.soTien);
-    if (running < min) min = running;
+    if (t.giaDinh) dangXet = true;
+    if (dangXet && running < min) min = running;
   });
 
   return min;
@@ -176,7 +183,7 @@ function addPhieuThu(payload, currentUser) {
     const now = new Date();
     const nguoiLap = currentUser.full_name || 'N/A';
 
-    _sheet(SHEET_PHIEU_THU).appendRow([
+    _appendRowVN(_sheet(SHEET_PHIEU_THU), [
       'PT_' + now.getTime(), soPhieuThu, new Date(payload.ngay_thu),
       payload.gio_thu || Utilities.formatDate(now, Session.getScriptTimeZone(), 'HH:mm'),
       loaiGiaoDich, payload.nguoi_nop_tien, payload.ma_doi_tuong || '',
@@ -268,7 +275,7 @@ function addPhieuChi(payload, currentUser) {
     const now = new Date();
     const nguoiLap = currentUser.full_name || 'N/A';
 
-    _sheet(SHEET_PHIEU_CHI).appendRow([
+    _appendRowVN(_sheet(SHEET_PHIEU_CHI), [
       'PC_' + now.getTime(), soPhieuChi, new Date(payload.ngay_chi),
       payload.gio_chi || Utilities.formatDate(now, Session.getScriptTimeZone(), 'HH:mm'),
       loaiGiaoDich, payload.nguoi_nhan_tien, payload.ma_doi_tuong || '',

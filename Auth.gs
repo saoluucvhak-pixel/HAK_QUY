@@ -54,7 +54,7 @@ function _taoNguoiDungMoi_ChayThuCong() {
     role: ROLE_THU_QUY              // <-- ROLE_ADMIN / ROLE_THU_QUY / ROLE_XEM
   };
 
-  sh.appendRow([
+  _appendRowVN(sh, [
     newUser.user_id,
     newUser.username,
     _hashPassword(newUser.password),

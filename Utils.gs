@@ -113,7 +113,7 @@ function _jsonOk(data) {
   return { success: true, data: data };
 }
 function _jsonErr(err) {
-  return { success: false, message: (err && err.message) ? err.message : String(err) };
+  return { success: false, message: _ngayVN((err && err.message) ? err.message : String(err)) };
 }
 
 /**
@@ -273,7 +273,7 @@ function _generateNextNumber(configKey, prefix) {
 function _writeAuditLog(nguoiThaoTac, chucNang, loaiThaoTac, maChungTu, duLieuTruoc, duLieuSau) {
   try {
     const sh = _sheet(SHEET_AUDIT_LOG);
-    sh.appendRow([
+    _appendRowVN(sh, [
       'LOG' + new Date().getTime(),
       new Date(),
       nguoiThaoTac || 'N/A',
@@ -327,4 +327,191 @@ function _yeuCauQuyen(username, allowedRoles) {
   if (!_laVaiTroHopLe(username, allowedRoles)) {
     throw new Error('Bạn không có quyền thực hiện thao tác này.');
   }
+}
+
+/*************************************************
+ * ĐỊNH DẠNG CHUẨN VIỆT NAM — dùng chung cho ghi Sheet dữ liệu và
+ * kết xuất báo cáo Excel:
+ *   1. Số: canh PHẢI, có phân cách hàng nghìn (#,##0)
+ *   2. Chuỗi: canh TRÁI
+ *   3. Ngày: canh GIỮA
+ *   4. Ngày: dd/MM/yyyy (ngày giờ: dd/MM/yyyy HH:mm:ss)
+ * Nội bộ server/client vẫn trao đổi khóa ngày 'yyyy-MM-dd' để lọc/so
+ * sánh (sắp xếp chuỗi đúng thứ tự thời gian); chỉ tầng hiển thị/ghi
+ * ô mới đổi sang dd/MM/yyyy.
+ *************************************************/
+const DINH_DANG_NGAY_VN = 'dd/MM/yyyy';
+const DINH_DANG_NGAY_GIO_VN = 'dd/MM/yyyy HH:mm:ss';
+const DINH_DANG_GIO_VN = 'HH:mm';
+const DINH_DANG_SO_VN = '#,##0';
+const DINH_DANG_SO_LE_VN = '#,##0.00';
+
+/** Đổi mọi khóa ngày 'yyyy-MM-dd' nằm trong 1 chuỗi (hoặc 1 Date) sang 'dd/MM/yyyy'. */
+function _ngayVN(v) {
+  if (v === null || v === undefined || v === '') return '';
+  if (_isValidDate(v)) return Utilities.formatDate(v, Session.getScriptTimeZone(), DINH_DANG_NGAY_VN);
+  return String(v).replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, '$3/$2/$1');
+}
+
+/**
+ * Chuẩn hóa 1 giá trị trước khi ghi vào ô: chuỗi 'yyyy-MM-dd' /
+ * 'yyyy-MM-dd HH:mm(:ss)' được đổi thành Date thật để định dạng
+ * dd/MM/yyyy và sắp xếp được trong Excel.
+ */
+function _giaTriOVN(v) {
+  if (typeof v !== 'string') return v;
+  const t = v.trim();
+  const tz = Session.getScriptTimeZone();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return Utilities.parseDate(t, tz, 'yyyy-MM-dd');
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(t)) return Utilities.parseDate(t, tz, 'yyyy-MM-dd HH:mm:ss');
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(t)) return Utilities.parseDate(t, tz, 'yyyy-MM-dd HH:mm');
+  return v;
+}
+
+function _coGioTrongNgay(d) {
+  return Utilities.formatDate(d, Session.getScriptTimeZone(), 'HH:mm:ss') !== '00:00:00';
+}
+
+/**
+ * Ghi 1 bảng dữ liệu vào range (kích thước = rows) theo chuẩn VN:
+ * tự nhận diện kiểu từng ô (Date / số / chuỗi) để đặt định dạng số và
+ * canh lề. Định dạng được đặt TRƯỚC khi ghi giá trị để chuỗi dạng mã
+ * (vd tài khoản "1111", số phiếu "000123") giữ nguyên là chữ, không
+ * bị Sheets tự đổi thành số.
+ * @param {Range} range
+ * @param {Array<Array>} rows
+ * @param {{cotTien?:number[], cotThapPhan?:number[]}} [opts] chỉ số cột 0-based
+ */
+function _ghiBangVN(range, rows, opts) {
+  opts = opts || {};
+  const cotTien = {}, cotLe = {};
+  (opts.cotTien || []).forEach(function (c) { cotTien[c] = true; });
+  (opts.cotThapPhan || []).forEach(function (c) { cotLe[c] = true; });
+
+  const values = [], formats = [], aligns = [];
+  rows.forEach(function (r) {
+    const v = [], f = [], a = [];
+    r.forEach(function (cell, c) {
+      const x = _giaTriOVN(cell);
+      if (_isValidDate(x)) {
+        v.push(x); f.push(_coGioTrongNgay(x) ? DINH_DANG_NGAY_GIO_VN : DINH_DANG_NGAY_VN); a.push('center');
+      } else if (typeof x === 'number' && isFinite(x)) {
+        v.push(x);
+        f.push(cotLe[c] ? DINH_DANG_SO_LE_VN : (Math.round(x) === x || cotTien[c] ? DINH_DANG_SO_VN : DINH_DANG_SO_LE_VN));
+        a.push('right');
+      } else if (x === '' || x === null || x === undefined) {
+        v.push('');
+        f.push(cotLe[c] ? DINH_DANG_SO_LE_VN : cotTien[c] ? DINH_DANG_SO_VN : '@');
+        a.push(cotLe[c] || cotTien[c] ? 'right' : 'left');
+      } else {
+        v.push(typeof x === 'boolean' ? (x ? 'Có' : 'Không') : String(x));
+        f.push('@'); a.push('left');
+      }
+    });
+    values.push(v); formats.push(f); aligns.push(a);
+  });
+  if (!values.length) return range;
+  range.setNumberFormats(formats);
+  range.setValues(values);
+  range.setHorizontalAlignments(aligns);
+  return range;
+}
+
+/*************************************************
+ * ĐỊNH DẠNG CỘT CÁC SHEET DỮ LIỆU (PHIEU_THU, PHIEU_CHI, CONG_NO...)
+ * Kiểu cột suy ra từ TÊN CỘT ở dòng tiêu đề.
+ *************************************************/
+const _COT_SO_SHEET = {
+  so_tien: 1, so_tien_phat_sinh: 1, da_thanh_toan: 1, con_lai: 1, so_tien_thanh_toan: 1,
+  ton_he_thong: 1, tien_thuc_te: 1, chenh_lech: 1, buoi_trua: 1, buoi_toi: 1, tong_suat: 1,
+  don_gia: 1, thanh_tien: 1, so_tien_tam_ung: 1
+};
+
+function _kieuCotSheet(tenCot) {
+  const h = String(tenCot || '').trim();
+  if (/^(ngay|han_)/.test(h)) return 'ngay';
+  if (/^thoi_gian|^created_at$|^updated_at$/.test(h)) return 'ngaygio';
+  if (/^gio_/.test(h)) return 'gio';
+  if (_COT_SO_SHEET[h]) return 'so';
+  return 'chu';
+}
+
+function _dinhDangTheoKieu(kieu) {
+  if (kieu === 'ngay') return { f: DINH_DANG_NGAY_VN, a: 'center' };
+  if (kieu === 'ngaygio') return { f: DINH_DANG_NGAY_GIO_VN, a: 'center' };
+  if (kieu === 'gio') return { f: DINH_DANG_GIO_VN, a: 'center' };
+  if (kieu === 'so') return { f: DINH_DANG_SO_VN, a: 'right' };
+  return { f: null, a: 'left' };
+}
+
+/** Định dạng toàn bộ cột dữ liệu (từ dòng 2 tới hết lưới) của 1 sheet. */
+function _dinhDangSheetVN(sh) {
+  if (!sh || sh.getName() === SHEET_CAU_HINH) return;
+  const soCot = sh.getLastColumn();
+  const soDong = sh.getMaxRows() - 1;
+  if (soCot < 1 || soDong < 1) return;
+  const headers = sh.getRange(1, 1, 1, soCot).getValues()[0];
+  headers.forEach(function (h, i) {
+    const dd = _dinhDangTheoKieu(_kieuCotSheet(h));
+    const rg = sh.getRange(2, i + 1, soDong, 1);
+    if (dd.f) rg.setNumberFormat(dd.f);
+    rg.setHorizontalAlignment(dd.a);
+  });
+  sh.getRange(1, 1, 1, soCot).setHorizontalAlignment('center');
+}
+
+/** Định dạng 1 dòng dữ liệu vừa ghi (dùng sau appendRow / ghi đè dòng). */
+function _dinhDangDongVN(sh, dong) {
+  if (!sh || sh.getName() === SHEET_CAU_HINH || dong < 2) return;
+  const soCot = sh.getLastColumn();
+  const headers = sh.getRange(1, 1, 1, soCot).getValues()[0];
+  const rg = sh.getRange(dong, 1, 1, soCot);
+  const fmtCu = rg.getNumberFormats()[0];
+  const f = [], a = [];
+  headers.forEach(function (h, i) {
+    const dd = _dinhDangTheoKieu(_kieuCotSheet(h));
+    f.push(dd.f || fmtCu[i]);
+    a.push(dd.a);
+  });
+  rg.setNumberFormats([f]);
+  rg.setHorizontalAlignments([a]);
+}
+
+/** appendRow + định dạng chuẩn VN cho dòng vừa thêm. */
+function _appendRowVN(sh, rowValues) {
+  sh.appendRow(rowValues);
+  try {
+    _dinhDangDongVN(sh, sh.getLastRow());
+  } catch (err) {
+    Logger.log('Lỗi định dạng dòng mới (' + sh.getName() + '): ' + err.message);
+  }
+}
+
+/**
+ * CHẠY 1 LẦN (Apps Script Editor > chọn hàm > Run, hoặc menu "HAK_QUY"
+ * trên Google Sheet): định dạng lại toàn bộ dữ liệu đã có theo chuẩn
+ * VN — ngày dd/MM/yyyy canh giữa, số #,##0 canh phải, chữ canh trái.
+ * Không thay đổi bất kỳ giá trị nào, chỉ đổi cách hiển thị.
+ */
+function dinhDangLaiDuLieuVN() {
+  const ss = _ss();
+  [SHEET_USERS, SHEET_DOITUONG, SHEET_LOAI_THU, SHEET_LOAI_CHI, SHEET_PHIEU_THU, SHEET_PHIEU_CHI,
+    SHEET_CONG_NO, SHEET_THANH_TOAN_CONG_NO, SHEET_KIEM_KE_QUY, SHEET_KHOA_SO, SHEET_AUDIT_LOG, SHEET_SO_COM
+  ].forEach(function (ten) {
+    const sh = ss.getSheetByName(ten);
+    if (sh) _dinhDangSheetVN(sh);
+  });
+  ss.setSpreadsheetLocale('vi_VN');
+  try {
+    SpreadsheetApp.getUi().alert('Đã định dạng lại dữ liệu: ngày dd/mm/yyyy (canh giữa), số có phân cách (canh phải), chữ canh trái.');
+  } catch (e) { /* chạy từ trigger/không có UI */ }
+}
+
+/** Thêm menu "HAK_QUY" trên Google Sheet dữ liệu. */
+function onOpen() {
+  try {
+    SpreadsheetApp.getUi().createMenu('HAK_QUY')
+      .addItem('Định dạng lại dữ liệu (dd/mm/yyyy, số có phân cách)', 'dinhDangLaiDuLieuVN')
+      .addToUi();
+  } catch (e) { /* không có UI */ }
 }

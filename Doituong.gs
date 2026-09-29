@@ -52,7 +52,7 @@ function addDoiTuong(payload, currentUser) {
 
     const maDoiTuong = _generateNextNumber('SO_DOI_TUONG_TIEP_THEO', 'DT');
 
-    _sheet(SHEET_DOITUONG).appendRow([
+    _appendRowVN(_sheet(SHEET_DOITUONG), [
       maDoiTuong,
       payload.ten_doi_tuong,
       payload.loai_doi_tuong,

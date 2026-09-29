@@ -55,6 +55,7 @@ function _styleHeader(sh, numCols) {
   headerRange.setFontColor('#ffffff');
   headerRange.setFontWeight('bold');
   sh.setFrozenRows(1);
+  _dinhDangSheetVN(sh);
   sh.autoResizeColumns(1, numCols);
 }
 
@@ -137,9 +138,9 @@ function _setupPhieuThuSheet(ss) {
     'doi_soat'
   ];
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sh.getRange(2, 3, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, 3, sh.getMaxRows() - 1, 1).setNumberFormat('dd/MM/yyyy');
   sh.getRange(2, 10, sh.getMaxRows() - 1, 1).setNumberFormat('#,##0');
-  sh.getRange(2, 20, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, 20, sh.getMaxRows() - 1, 1).setNumberFormat('dd/MM/yyyy');
   _styleHeader(sh, headers.length);
 }
 
@@ -155,9 +156,9 @@ function _setupPhieuChiSheet(ss) {
     'doi_soat'
   ];
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sh.getRange(2, 3, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, 3, sh.getMaxRows() - 1, 1).setNumberFormat('dd/MM/yyyy');
   sh.getRange(2, 10, sh.getMaxRows() - 1, 1).setNumberFormat('#,##0');
-  sh.getRange(2, 20, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, 20, sh.getMaxRows() - 1, 1).setNumberFormat('dd/MM/yyyy');
   _styleHeader(sh, headers.length);
 }
 
@@ -170,7 +171,7 @@ function _setupCongNoSheet(ss) {
     'trang_thai', 'nguoi_lap', 'thoi_gian_lap'
   ];
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sh.getRange(2, 2, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, 2, sh.getMaxRows() - 1, 1).setNumberFormat('dd/MM/yyyy');
   sh.getRange(2, 6, sh.getMaxRows() - 1, 4).setNumberFormat('#,##0');
   _styleHeader(sh, headers.length);
 }
@@ -183,7 +184,7 @@ function _setupThanhToanCongNoSheet(ss) {
     'so_phieu_lien_quan', 'nguoi_lap', 'thoi_gian_lap'
   ];
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sh.getRange(2, 3, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, 3, sh.getMaxRows() - 1, 1).setNumberFormat('dd/MM/yyyy');
   sh.getRange(2, 4, sh.getMaxRows() - 1, 1).setNumberFormat('#,##0');
   _styleHeader(sh, headers.length);
 }
@@ -196,7 +197,7 @@ function _setupKiemKeQuySheet(ss) {
     'ly_do', 'nguoi_kiem_ke', 'thoi_gian_lap'
   ];
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sh.getRange(2, 2, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, 2, sh.getMaxRows() - 1, 1).setNumberFormat('dd/MM/yyyy');
   sh.getRange(2, 3, sh.getMaxRows() - 1, 3).setNumberFormat('#,##0');
   _styleHeader(sh, headers.length);
 }
@@ -209,7 +210,7 @@ function _setupKhoaSoSheet(ss) {
     'nguoi_mo_khoa', 'thoi_gian_mo_khoa', 'ly_do_mo_khoa'
   ];
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sh.getRange(2, 1, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, 1, sh.getMaxRows() - 1, 1).setNumberFormat('dd/MM/yyyy');
   _styleHeader(sh, headers.length);
 }
 
@@ -256,9 +257,9 @@ function _setupSoComSheet(ss) {
     'ngay_tam_ung', 'so_tien_tam_ung', 'nguoi_lap', 'thoi_gian_lap', 'ghi_chu'
   ];
   sh.getRange(1, 1, 1, headers.length).setValues([headers]);
-  sh.getRange(2, 2, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, 2, sh.getMaxRows() - 1, 1).setNumberFormat('dd/MM/yyyy');
   sh.getRange(2, 6, sh.getMaxRows() - 1, 2).setNumberFormat('#,##0');
-  sh.getRange(2, 8, sh.getMaxRows() - 1, 1).setNumberFormat('yyyy-mm-dd');
+  sh.getRange(2, 8, sh.getMaxRows() - 1, 1).setNumberFormat('dd/MM/yyyy');
   sh.getRange(2, 9, sh.getMaxRows() - 1, 1).setNumberFormat('#,##0');
   _styleHeader(sh, headers.length);
 }

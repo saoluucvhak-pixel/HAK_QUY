@@ -55,7 +55,7 @@ function addDanhMuc(loai, tenDanhMuc, currentUser) {
     if (!tenDanhMuc) throw new Error('Vui lòng nhập tên danh mục.');
 
     const ma = _generateNextNumber(_cauHinhSoDanhMuc(loai), _prefixDanhMuc(loai));
-    _sheet(_sheetDanhMuc(loai)).appendRow([ma, tenDanhMuc, 'Hoạt động']);
+    _appendRowVN(_sheet(_sheetDanhMuc(loai)), [ma, tenDanhMuc, 'Hoạt động']);
 
     _writeAuditLog(currentUser.full_name, 'Danh Mục ' + (loai === 'Thu' ? 'Loại Thu' : 'Loại Chi'), 'Thêm', ma, '', tenDanhMuc);
 

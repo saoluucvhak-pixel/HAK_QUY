@@ -75,6 +75,74 @@
     #sidebar.open { transform: translateX(0); }
   }
 
+
+  /* ---------- Ô nhập liệu: chữ ĐẬM, RÕ (tránh bị mờ do kế thừa màu xám
+     từ khung chứa) — áp dụng cho mọi form trong hệ thống ---------- */
+  input, select, textarea {
+    color: #111827 !important;
+    background-color: #fff;
+  }
+  input::placeholder, textarea::placeholder { color: #9ca3af !important; font-weight: 400; }
+  input:disabled, select:disabled, textarea:disabled { background: #f3f4f6; color: #4b5563 !important; }
+
+  /* ---------- Căn lề chuẩn: số phải, chữ trái, ngày giữa ---------- */
+  .al-num  { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .al-text { text-align: left !important; }
+  .al-date { text-align: center !important; white-space: nowrap; }
+  input.al-num { text-align: right !important; }
+  input.al-date { text-align: center !important; }
+
+  /* ---------- Ô ngày dd/mm/yyyy (thay cho input type=date phụ thuộc
+     ngôn ngữ trình duyệt) ---------- */
+  .vn-date-wrap { position: relative; display: block; width: 100%; }
+  .vn-date-wrap > input[data-vn-date] { padding-right: 34px !important; text-align: center; }
+  .vn-date-btn {
+    position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    border: 0; background: transparent; cursor: pointer; font-size: 15px;
+    padding: 2px 6px; line-height: 1; border-radius: 6px;
+  }
+  .vn-date-btn:hover { background: #f3f4f6; }
+  .vn-date-picker {
+    position: absolute; right: 0; bottom: 0; width: 1px; height: 1px;
+    opacity: 0; pointer-events: none; border: 0; padding: 0;
+  }
+  input[data-vn-date].vn-date-loi { border-color: #dc2626 !important; background: #fef2f2; }
+
+  /* ---------- Form lập Phiếu Thu / Phiếu Chi ---------- */
+  .pf-card, .pf-card *, .vn-date-wrap, .vn-date-wrap * { box-sizing: border-box; }
+  .pf-card { max-width: 860px; padding: 0; overflow: hidden; }
+  .pf-head { padding: 16px 22px; color: #fff; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .pf-head.thu { background: linear-gradient(135deg, #15803d, #16a34a); }
+  .pf-head.chi { background: linear-gradient(135deg, #b91c1c, #dc2626); }
+  .pf-head h2 { font-size: 18px; font-weight: 700; margin: 0; }
+  .pf-head .pf-sub { font-size: 12px; opacity: .9; }
+  .pf-head button { background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.45); color: #fff; border-radius: 8px; padding: 6px 12px; font-size: 13px; }
+  .pf-head button:hover { background: rgba(255,255,255,.28); }
+  .pf-body { padding: 18px 22px 22px; }
+  .pf-sec { border: 1px solid #e5e7eb; border-radius: 12px; padding: 14px 16px 16px; margin-bottom: 14px; background: #fcfcfd; }
+  .pf-sec-title { font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #374151; margin-bottom: 10px; }
+  .pf-grid { display: grid; grid-template-columns: 1fr; gap: 12px 16px; }
+  @media (min-width: 768px) { .pf-grid { grid-template-columns: 1fr 1fr; } .pf-span2 { grid-column: span 2; } }
+  .pf-label { display: block; font-size: 13.5px; font-weight: 600; color: #1f2937; margin-bottom: 5px; }
+  .pf-label .req { color: #dc2626; margin-left: 2px; }
+  .pf-input {
+    width: 100%; border: 1px solid #cbd5e1; border-radius: 8px; padding: 9px 12px;
+    font-size: 15px; font-weight: 500; color: #111827; background: #fff;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  .pf-input:focus { outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.18); }
+  .pf-money-wrap { position: relative; }
+  .pf-money { font-size: 22px; font-weight: 700; text-align: right; padding-right: 36px; letter-spacing: .02em; }
+  .pf-money-unit { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); font-weight: 700; color: #6b7280; }
+  .pf-bang-chu { font-size: 12.5px; color: #374151; font-style: italic; margin-top: 5px; min-height: 18px; }
+  .pf-hint { font-size: 12px; color: #6b7280; margin-top: 4px; }
+  .pf-sec details > summary { cursor: pointer; list-style: none; }
+  .pf-sec details > summary::-webkit-details-marker { display: none; }
+  .pf-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px; }
+  .pf-btn { padding: 10px 20px; border-radius: 10px; font-weight: 600; font-size: 15px; }
+  .pf-btn-sub { border: 1px solid #cbd5e1; color: #374151; background: #fff; }
+  .pf-btn-sub:hover { background: #f9fafb; }
+
   /* ---------- Khi In (Ctrl+P) / Xuất PDF từ trình duyệt ---------- */
   /* Class "no-print" đặt trên nút bấm/bộ lọc để ẩn khi in, chỉ giữ lại bảng báo cáo */
   @media print {
