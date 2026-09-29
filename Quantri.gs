@@ -50,7 +50,7 @@ function khoaSo(ngayKhoa, currentUser) {
     if (rowIndex !== -1) {
       sh.getRange(rowIndex + 1, 1, 1, rowValues.length).setValues([rowValues]);
     } else {
-      sh.appendRow(rowValues);
+      _appendRowVN(sh, rowValues);
     }
 
     _writeAuditLog(nguoiLap, 'Khóa Sổ', 'Thêm', ngayKey, '', 'Khóa sổ ngày ' + ngayKey);
@@ -182,7 +182,7 @@ function addUserByAdmin(payload, currentUser) {
     const existed = _sheetToObjects(SHEET_USERS).find(u => String(u.username).toLowerCase() === username.toLowerCase());
     if (existed) throw new Error('Tên đăng nhập "' + username + '" đã tồn tại.');
 
-    _sheet(SHEET_USERS).appendRow([
+    _appendRowVN(_sheet(SHEET_USERS), [
       'USR' + new Date().getTime(),
       username,
       _hashPassword(payload.password),

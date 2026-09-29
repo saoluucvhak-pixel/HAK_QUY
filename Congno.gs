@@ -70,7 +70,7 @@ function addCongNo(payload, currentUser) {
     const now = new Date();
     const nguoiLap = currentUser.full_name || 'N/A';
 
-    _sheet(SHEET_CONG_NO).appendRow([
+    _appendRowVN(_sheet(SHEET_CONG_NO), [
       maCongNo,
       new Date(payload.ngay_phat_sinh),
       payload.ma_doi_tuong,
@@ -148,7 +148,7 @@ function _capNhatCongNoSauThanhToan(maCongNo, soTienThanhToan, loaiThanhToan, so
   sh.getRange(rowIndex + 1, idxConLai + 1).setValue(conLaiMoi);
   sh.getRange(rowIndex + 1, idxTrangThai + 1).setValue(trangThaiMoi);
 
-  _sheet(SHEET_THANH_TOAN_CONG_NO).appendRow([
+  _appendRowVN(_sheet(SHEET_THANH_TOAN_CONG_NO), [
     'TT' + new Date().getTime(),
     maCongNo,
     new Date(),
@@ -202,7 +202,7 @@ function _huyThanhToanCongNoTheoPhieu(soPhieu, nguoiLap) {
     data[rowIndex][idxDaTT] = daTTMoi;
     data[rowIndex][idxConLai] = conLaiMoi;
 
-    shThanhToan.appendRow([
+    _appendRowVN(shThanhToan, [
       'TT' + new Date().getTime(), t.ma_cong_no, new Date(), -soTien,
       'Hủy ' + t.loai, soPhieu + ' (hủy)', nguoiLap, new Date()
     ]);

@@ -183,7 +183,7 @@ function addPhieuThu(payload, currentUser) {
     const now = new Date();
     const nguoiLap = currentUser.full_name || 'N/A';
 
-    _sheet(SHEET_PHIEU_THU).appendRow([
+    _appendRowVN(_sheet(SHEET_PHIEU_THU), [
       'PT_' + now.getTime(), soPhieuThu, new Date(payload.ngay_thu),
       payload.gio_thu || Utilities.formatDate(now, Session.getScriptTimeZone(), 'HH:mm'),
       loaiGiaoDich, payload.nguoi_nop_tien, payload.ma_doi_tuong || '',
@@ -275,7 +275,7 @@ function addPhieuChi(payload, currentUser) {
     const now = new Date();
     const nguoiLap = currentUser.full_name || 'N/A';
 
-    _sheet(SHEET_PHIEU_CHI).appendRow([
+    _appendRowVN(_sheet(SHEET_PHIEU_CHI), [
       'PC_' + now.getTime(), soPhieuChi, new Date(payload.ngay_chi),
       payload.gio_chi || Utilities.formatDate(now, Session.getScriptTimeZone(), 'HH:mm'),
       loaiGiaoDich, payload.nguoi_nhan_tien, payload.ma_doi_tuong || '',

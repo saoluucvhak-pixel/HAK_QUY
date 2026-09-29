@@ -20,7 +20,7 @@
  * @returns {{base64:string, filename:string}}
  */
 function _taoFileExcel(tenFile, dsSheet) {
-  const ss = SpreadsheetApp.create(tenFile);
+  const ss = _taoSpreadsheetTamVN(tenFile);
 
   dsSheet.forEach(function (sd, idx) {
     const sh = idx === 0 ? ss.getSheets()[0].setName(sd.tenSheet) : ss.insertSheet(sd.tenSheet);
@@ -28,12 +28,12 @@ function _taoFileExcel(tenFile, dsSheet) {
     let dong = 1;
 
     if (sd.tieuDe) {
-      sh.getRange(dong, 1, 1, soCot).merge().setValue(sd.tieuDe)
+      sh.getRange(dong, 1, 1, soCot).merge().setValue(_ngayVN(sd.tieuDe))
         .setFontWeight('bold').setFontSize(13).setHorizontalAlignment('center');
       dong++;
     }
     if (sd.phuDe) {
-      sh.getRange(dong, 1, 1, soCot).merge().setValue(sd.phuDe)
+      sh.getRange(dong, 1, 1, soCot).merge().setValue(_ngayVN(sd.phuDe))
         .setFontStyle('italic').setFontSize(10).setHorizontalAlignment('center').setFontColor('#555555');
       dong++;
     }
@@ -47,14 +47,11 @@ function _taoFileExcel(tenFile, dsSheet) {
     dong++;
 
     if (sd.rows.length > 0) {
-      sh.getRange(dong, 1, sd.rows.length, soCot).setValues(sd.rows);
+      // Ngày -> dd/MM/yyyy canh giữa; số -> có phân cách canh phải;
+      // chữ -> canh trái (xem _ghiBangVN trong Utils.gs)
+      _ghiBangVN(sh.getRange(dong, 1, sd.rows.length, soCot), sd.rows,
+        { cotTien: sd.condoTien, cotThapPhan: sd.soThapPhan });
       sh.getRange(dong, 1, sd.rows.length, soCot).setVerticalAlignment('middle');
-      (sd.condoTien || []).forEach(function (colIdx) {
-        sh.getRange(dong, colIdx + 1, sd.rows.length, 1).setNumberFormat('#,##0').setHorizontalAlignment('right');
-      });
-      (sd.soThapPhan || []).forEach(function (colIdx) {
-        sh.getRange(dong, colIdx + 1, sd.rows.length, 1).setNumberFormat('#,##0.00').setHorizontalAlignment('right');
-      });
       sh.getRange(dong, 1, sd.rows.length, soCot)
         .setBorder(true, true, true, true, true, true, '#999999', SpreadsheetApp.BorderStyle.SOLID);
     }
@@ -67,6 +64,18 @@ function _taoFileExcel(tenFile, dsSheet) {
   });
 
   return _xuatVaXoaFile(ss, tenFile);
+}
+
+/**
+ * Tạo Spreadsheet tạm dùng để dựng file Excel, đặt cùng múi giờ với
+ * script (tránh lệch ngày khi ghi Date) và ngôn ngữ Việt Nam (số hiển
+ * thị 1.000.000, ngày dd/MM/yyyy).
+ */
+function _taoSpreadsheetTamVN(tenFile) {
+  const ss = SpreadsheetApp.create(tenFile);
+  ss.setSpreadsheetTimeZone(Session.getScriptTimeZone());
+  ss.setSpreadsheetLocale('vi_VN');
+  return ss;
 }
 
 /**

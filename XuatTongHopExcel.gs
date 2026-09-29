@@ -54,7 +54,7 @@ function xuatTongHopExcel(nam, thang, currentUser) {
     const mmyyyy = String(thang).padStart(2, '0') + nam;
     const ngayXuatDD = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'dd');
     const tenFile = 'HAK_BAO_CAO_THANG_' + mmyyyy + '_NGAY_' + ngayXuatDD + '_' + _tenNguoiDungChoFile(currentUser);
-    const ss = SpreadsheetApp.create(tenFile);
+    const ss = _taoSpreadsheetTamVN(tenFile);
 
     let rowsPhanTich = [];
     let loiNguonKeo = '';
@@ -253,7 +253,8 @@ function _veSheetSoKeToan(ss, idx, cfg) {
 
   const dong = 5;
   const toanBoDuLieu = [cfg.tonDauKyRow].concat(dataRowsCoCong);
-  sh.getRange(dong, 1, toanBoDuLieu.length, soCot).setValues(toanBoDuLieu);
+  _ghiBangVN(sh.getRange(dong, 1, toanBoDuLieu.length, soCot), toanBoDuLieu,
+    { cotTien: (cfg.condoTienCols || []).map(c => c - 1) });
   sh.getRange(dong, 1, 1, soCot).setFontWeight('bold').setBackground('#eef2ff');
   sh.getRange(dong, 1, toanBoDuLieu.length, soCot).setVerticalAlignment('middle');
   (cfg.condoTienCols || []).forEach(c => {
@@ -372,8 +373,10 @@ function _veSheetCom(ss, idx, nam, thang) {
     }
   }
 
-  sh.getRange(4, 1, dataRows.length, soCot).setValues(dataRows).setVerticalAlignment('middle');
-  sh.getRange(4, 1, dataRows.length, 4).setHorizontalAlignment('center');
+  _ghiBangVN(sh.getRange(4, 1, dataRows.length, soCot), dataRows, { cotTien: [4, 5, 7] }).setVerticalAlignment('middle');
+  // Cột NGÀY (số thứ tự ngày trong tháng) canh giữa; Trưa/Tối/Tổng là số -> canh phải
+  sh.getRange(4, 1, dataRows.length, 1).setHorizontalAlignment('center');
+  sh.getRange(4, 2, dataRows.length, 3).setNumberFormat('#,##0').setHorizontalAlignment('right');
   sh.getRange(4, 5, dataRows.length, 2).setNumberFormat('#,##0').setHorizontalAlignment('right');
   sh.getRange(4, 7, dataRows.length, 1).setHorizontalAlignment('center');
   sh.getRange(4, 8, dataRows.length, 1).setNumberFormat('#,##0').setHorizontalAlignment('right');
@@ -477,7 +480,7 @@ function _veSheetKeoCalendar(ss, idx, tenSheet, loai, nam, thang, rowsPhanTich, 
   totalRow[soCotTrai + 3] = tongGtAll;
   dataRows.push(totalRow);
 
-  sh.getRange(3, 1, dataRows.length, soCot).setValues(dataRows).setVerticalAlignment('middle');
+  _ghiBangVN(sh.getRange(3, 1, dataRows.length, soCot), dataRows).setVerticalAlignment('middle');
 
   // Cột "Ngày" (trái: cột 1, phải: cột soCotTrai+2) căn giữa
   sh.getRange(3, 1, dataRows.length, 1).setHorizontalAlignment('center');

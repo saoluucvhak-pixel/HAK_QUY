@@ -429,7 +429,7 @@ function xuatBaoCaoNgayKeoExcel(ngay, currentUser) {
     const tongQuan = {
       tenSheet: 'Tổng quan',
       tieuDe: 'BÁO CÁO NGÀY - THU MUA KEO',
-      phuDe: 'Ngày ' + ngay,
+      phuDe: 'Ngày ' + _ngayVN(ngay),
       headers: ['Chỉ tiêu', 'Khối lượng (tấn)', 'Giá trị (đ)'],
       rows: [
         ['Tổng NHẬP trong ngày', d.nhap.tong.kl, d.nhap.tong.gt],
@@ -448,7 +448,7 @@ function xuatBaoCaoNgayKeoExcel(ngay, currentUser) {
 
     const chiTiet = {
       tenSheet: 'Chi tiết phiếu cân',
-      tieuDe: 'CHI TIẾT PHIẾU CÂN NGÀY ' + ngay,
+      tieuDe: 'CHI TIẾT PHIẾU CÂN NGÀY ' + _ngayVN(ngay),
       headers: ['Số phiếu', 'Biển số', 'Khách hàng', 'Đại lý', 'Nguồn gốc', 'KL (tấn)', 'Đơn giá', 'Thành tiền', 'Trạng thái'],
       rows: d.chi_tiet_phieu_can.map(r => [r.so_phieu, r.bien_so, r.khach_hang, r.dai_ly, r.nguon_goc, r.kl, r.don_gia, r.thanh_tien, r.trang_thai]),
       condoTien: [6, 7],
@@ -495,7 +495,7 @@ function guiBaoCaoNgayKeoEmail(ngay, currentUser) {
 
     const dataRes = getBaoCaoNgayKeo(ngay);
     const d = dataRes.success ? dataRes.data : null;
-    let noiDung = 'Kính gửi Anh/Chị,\n\nHệ thống HAK_QUY gửi Báo cáo ngày (thu mua Keo) ngày ' + ngay + ', chi tiết xem file Excel đính kèm.';
+    let noiDung = 'Kính gửi Anh/Chị,\n\nHệ thống HAK_QUY gửi Báo cáo ngày (thu mua Keo) ngày ' + _ngayVN(ngay) + ', chi tiết xem file Excel đính kèm.';
     if (d) {
       noiDung += '\n\n- Tổng nhập: ' + Math.round(d.nhap.tong.gt).toLocaleString('vi-VN') + ' đ (' + d.nhap.tong.kl.toLocaleString('vi-VN') + ' kg)' +
         '\n- Tổng thanh toán: ' + Math.round(d.thanh_toan.tong.gt).toLocaleString('vi-VN') + ' đ (' + d.thanh_toan.tong.kl.toLocaleString('vi-VN') + ' kg)' +
@@ -503,7 +503,7 @@ function guiBaoCaoNgayKeoEmail(ngay, currentUser) {
     }
     noiDung += '\n\n(Email được gửi tự động từ hệ thống HAK_QUY)';
 
-    GmailApp.sendEmail(danhSachEmail.join(','), 'Báo cáo ngày Keo - ' + ngay, noiDung, {
+    GmailApp.sendEmail(danhSachEmail.join(','), 'Báo cáo ngày Keo - ' + _ngayVN(ngay), noiDung, {
       attachments: [blob],
       name: 'HAK_QUY - Báo cáo tự động'
     });

@@ -133,7 +133,7 @@ function upsertSoComNgay(payload, currentUser) {
     ];
 
     if (rowIndex === -1) {
-      sh.appendRow(rowValues);
+      _appendRowVN(sh, rowValues);
     } else {
       sh.getRange(rowIndex + 1, 1, 1, rowValues.length).setValues([rowValues]);
     }
