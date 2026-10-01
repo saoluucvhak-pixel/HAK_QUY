@@ -696,18 +696,19 @@
       </div>
 
       <div class="pf-sec">
-        <div class="pf-sec-title"><span class="pf-sec-num">2</span>${nhanNguoi} / Đối tượng</div>
+        <div class="pf-sec-title"><span class="pf-sec-num">2</span>Đối tượng / ${nhanNguoi}</div>
         <div class="pf-grid">
-          <div>
-            <label class="pf-label">${nhanNguoi} <span class="req">*</span></label>
-            <input type="text" id="${idNguoi}" placeholder="Họ tên ${nhanNguoi.toLowerCase()}" class="pf-input" autocomplete="off">
-          </div>
           <div>
             <label class="pf-label">Đối tượng</label>
             <select id="${p}DoiTuong" onchange="${onDt}" class="pf-input">
               <option value="">-- Không chọn --</option>
               ${doiTuongOpts}
             </select>
+          </div>
+          <div>
+            <label class="pf-label">${nhanNguoi} <span class="req">*</span></label>
+            <input type="text" id="${idNguoi}" placeholder="Họ tên ${nhanNguoi.toLowerCase()}" class="pf-input" autocomplete="off">
+            <div class="pf-hint">Tự điền theo Đối tượng đã chọn — có thể sửa lại nếu người ${laThu ? 'nộp' : 'nhận'} khác.</div>
           </div>
           <div class="pf-span2 hidden" id="${p}CongNoBox">
             <label class="pf-label">Khoản công nợ cần ${laThu ? 'thu' : 'trả'} <span class="req">*</span></label>
@@ -821,7 +822,25 @@
     }
   }
 
+  /**
+   * Mặc định Người nộp/nhận tiền = tên Đối tượng vừa chọn, nhưng vẫn cho
+   * sửa tay: chỉ ghi đè khi ô đang trống hoặc vẫn còn giữ đúng tên do
+   * lần chọn trước tự điền (người dùng chưa sửa) — đã gõ tên khác thì giữ nguyên.
+   */
+  function _dienNguoiTheoDoiTuong(selectId, inputId) {
+    const sel = document.getElementById(selectId);
+    const ip = document.getElementById(inputId);
+    if (!sel || !ip) return;
+    const tenTuDien = ip.dataset.tuDien || '';
+    const giaTri = ip.value.trim();
+    if (giaTri && giaTri !== tenTuDien) return;
+    const ten = sel.value ? sel.options[sel.selectedIndex].text.trim() : '';
+    ip.value = ten;
+    ip.dataset.tuDien = ten;
+  }
+
   function onThuDoiTuongChange() {
+    _dienNguoiTheoDoiTuong('thuDoiTuong', 'thuNguoiNop');
     if (document.getElementById('thuLoaiGD').value === 'Thu công nợ') {
       loadCongNoOptionsForThu();
     }
@@ -975,6 +994,7 @@
   }
 
   function onChiDoiTuongChange() {
+    _dienNguoiTheoDoiTuong('chiDoiTuong', 'chiNguoiNhan');
     if (document.getElementById('chiLoaiGD').value === 'Trả công nợ') {
       loadCongNoOptionsForChi();
     }
