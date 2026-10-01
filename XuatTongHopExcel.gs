@@ -246,7 +246,7 @@ function _veSheetSoKeToan(ss, idx, cfg) {
     sh.getRange(3, c, 2, 1).merge();
   }
   sh.getRange(3, 1, 2, soCot)
-    .setFontWeight('bold').setBackground('#1e40af').setFontColor('#ffffff')
+    .setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff')
     .setHorizontalAlignment('center').setVerticalAlignment('middle').setWrap(true);
   sh.setRowHeight(3, 22);
   sh.setRowHeight(4, 22);
@@ -357,7 +357,7 @@ function _veSheetCom(ss, idx, nam, thang) {
   sh.getRange(2, 1, 1, soCot).merge().setValue('(Từ 01-' + cuoiThang + '/' + String(thang).padStart(2, '0') + ')')
     .setFontStyle('italic').setFontSize(10).setHorizontalAlignment('center').setFontColor('#555555');
   sh.getRange(3, 1, 1, soCot).setValues([headers])
-    .setFontWeight('bold').setBackground('#1e40af').setFontColor('#ffffff').setHorizontalAlignment('center');
+    .setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff').setHorizontalAlignment('center');
 
   const byDay = {};
   d.rows.forEach(r => { byDay[Number(r.ngay.slice(8, 10))] = r; });
@@ -451,7 +451,7 @@ function _veSheetKeoCalendar(ss, idx, tenSheet, loai, nam, thang, rowsPhanTich, 
 
   const headerRow = leftHeaders.concat(['']).concat(rightHeaders);
   sh.getRange(2, 1, 1, soCot).setValues([headerRow])
-    .setFontWeight('bold').setBackground('#1e40af').setFontColor('#ffffff').setHorizontalAlignment('center');
+    .setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff').setHorizontalAlignment('center');
 
   const dataRows = [];
   let tongKlAll = 0, tongGtAll = 0;

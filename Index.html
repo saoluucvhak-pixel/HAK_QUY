@@ -45,8 +45,9 @@
 
     <!-- SIDEBAR -->
     <div id="sidebar">
-      <div class="px-5 py-5 text-white font-bold text-lg border-b border-gray-700">
-        💰 Quản lý Quỹ
+      <div class="sb-header">
+        <div class="sb-title">HAK Group</div>
+        <div class="sb-sub">💰 Quản lý Thu - Chi - Tồn Quỹ</div>
       </div>
       <div class="py-2">
         <div class="menu-item active" data-menu="dashboard" onclick="switchMenu('dashboard')">📊 Dashboard</div>
@@ -69,7 +70,7 @@
     <div class="flex-1 flex flex-col min-w-0">
 
       <!-- Thanh trên cùng -->
-      <div class="bg-white shadow-sm px-5 py-3 flex items-center justify-between">
+      <div class="topbar">
         <div class="flex items-center gap-3">
           <button class="md:hidden text-xl" onclick="toggleSidebar()">☰</button>
           <div class="font-semibold text-gray-700" id="pageTitle">Dashboard</div>
@@ -84,7 +85,7 @@
       </div>
 
       <!-- Vùng nội dung động theo menu -->
-      <div id="mainContent" class="p-5"></div>
+      <div id="mainContent"></div>
     </div>
   </div>
 

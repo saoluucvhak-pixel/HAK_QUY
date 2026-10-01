@@ -51,7 +51,7 @@ function _getOrCreateSheet(ss, name) {
 
 function _styleHeader(sh, numCols) {
   const headerRange = sh.getRange(1, 1, 1, numCols);
-  headerRange.setBackground('#1e40af');
+  headerRange.setBackground('#1f2937');
   headerRange.setFontColor('#ffffff');
   headerRange.setFontWeight('bold');
   sh.setFrozenRows(1);

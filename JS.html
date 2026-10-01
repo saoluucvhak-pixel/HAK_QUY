@@ -610,11 +610,14 @@
     document.getElementById('mainContent').innerHTML = `
       <div class="card pf-card">
         <div class="pf-head thu">
-          <div>
-            <h2>💵 Lập Phiếu Thu</h2>
-            <div class="pf-sub">Ghi nhận tiền nhập quỹ — các ô có dấu <b>*</b> là bắt buộc</div>
+          <div class="pf-head-left">
+            <div class="pf-badge">PT</div>
+            <div>
+              <h2>Lập Phiếu Thu</h2>
+              <div class="pf-sub">Ghi nhận tiền nhập quỹ · Số phiếu PTxxxxxx được cấp tự động khi lưu</div>
+            </div>
           </div>
-          <button onclick="switchMenu('tracuu')">🔍 Tra cứu</button>
+          <button class="pf-head-btn" onclick="switchMenu('tracuu')">🔍 Tra cứu phiếu</button>
         </div>
         <div id="thuFormBody" class="pf-body"><div class="text-gray-500 text-sm">Đang tải danh mục...</div></div>
       </div>
@@ -650,14 +653,13 @@
     const onQuy = laThu ? 'onThuQuyChange()' : 'onChiQuyChange()';
     const onLgd = laThu ? 'onThuLoaiGDChange()' : 'onChiLoaiGDChange()';
     const onDt = laThu ? 'onThuDoiTuongChange()' : 'onChiDoiTuongChange()';
-    const btnCls = laThu ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700';
     const renderLai = laThu ? 'renderThuForm()' : 'renderChiForm()';
     return `
       <div id="${p}Msg" class="hidden mb-4 p-3 rounded-lg text-sm"></div>
 
       <div class="pf-sec">
-        <div class="pf-sec-title">1. Thông tin phiếu</div>
-        <div class="pf-grid">
+        <div class="pf-sec-title"><span class="pf-sec-num">1</span>Thông tin phiếu</div>
+        <div class="pf-grid pf-grid3">
           <div>
             <label class="pf-label">Quỹ <span class="req">*</span></label>
             <select id="${p}Quy" onchange="${onQuy}" class="pf-input">
@@ -673,10 +675,17 @@
             </select>
           </div>
           <div>
+            <label class="pf-label">Đối soát</label>
+            <select id="${p}DoiSoat" class="pf-input">
+              <option value="Hoàn ứng" selected>Hoàn ứng</option>
+              <option value="Chờ hoàn">Chờ hoàn (tạm ứng, chưa đủ chứng từ)</option>
+            </select>
+          </div>
+          <div>
             <label class="pf-label">Ngày ${cap.toLowerCase()} (ngày chứng từ) <span class="req">*</span></label>
             <input type="date" id="${p}Ngay" value="${today}" class="pf-input">
           </div>
-          <div>
+          <div class="pf-span2">
             <label class="pf-label">Loại ${cap.toLowerCase()} <span class="req">*</span></label>
             <select id="${p}Loai" class="pf-input">
               <option value="">-- Chọn loại ${cap.toLowerCase()} --</option>
@@ -687,7 +696,7 @@
       </div>
 
       <div class="pf-sec">
-        <div class="pf-sec-title">2. ${nhanNguoi} / Đối tượng</div>
+        <div class="pf-sec-title"><span class="pf-sec-num">2</span>${nhanNguoi} / Đối tượng</div>
         <div class="pf-grid">
           <div>
             <label class="pf-label">${nhanNguoi} <span class="req">*</span></label>
@@ -711,9 +720,9 @@
       </div>
 
       <div class="pf-sec">
-        <div class="pf-sec-title">3. Số tiền & nội dung</div>
+        <div class="pf-sec-title"><span class="pf-sec-num">3</span>Số tiền & nội dung</div>
         <div class="pf-grid">
-          <div class="pf-span2">
+          <div class="pf-span2 pf-money-box">
             <label class="pf-label">Số tiền <span class="req">*</span></label>
             <div class="pf-money-wrap">
               <input type="text" inputmode="numeric" id="${p}SoTien" placeholder="0" class="pf-input pf-money" autocomplete="off">
@@ -730,18 +739,11 @@
 
       <div class="pf-sec">
         <details>
-          <summary class="pf-sec-title" style="margin-bottom:0">4. Hạch toán Sổ Quỹ & chứng từ (tuỳ chọn) ▾</summary>
-          <div class="pf-grid" style="margin-top:12px">
+          <summary class="pf-sec-title"><span class="pf-sec-num">4</span>Hạch toán Sổ Quỹ & chứng từ <span style="text-transform:none;font-weight:500;color:#6b7280;letter-spacing:0">(tuỳ chọn)</span><span class="pf-toggle"><span class="pf-toggle-closed">Mở rộng ▾</span><span class="pf-toggle-open">Thu gọn ▴</span></span></summary>
+          <div class="pf-grid">
             <div>
               <label class="pf-label">Ngày hạch toán</label>
               <input type="date" id="${p}NgayHachToan" value="${today}" class="pf-input">
-            </div>
-            <div>
-              <label class="pf-label">Đối soát</label>
-              <select id="${p}DoiSoat" class="pf-input">
-                <option value="Hoàn ứng" selected>Hoàn ứng</option>
-                <option value="Chờ hoàn">Chờ hoàn</option>
-              </select>
             </div>
             <div>
               <label class="pf-label">Tài khoản</label>
@@ -772,8 +774,11 @@
       </div>
 
       <div class="pf-actions">
-        <button type="button" onclick="${renderLai}" class="pf-btn pf-btn-sub">↺ Làm mới</button>
-        <button id="btnSave${cap}" onclick="save${cap}()" class="pf-btn text-white ${btnCls}">💾 Lưu Phiếu ${cap}</button>
+        <div class="pf-note">Các ô có dấu <span style="color:#dc2626">*</span> là bắt buộc</div>
+        <div style="display:flex;gap:10px">
+          <button type="button" onclick="${renderLai}" class="pf-btn pf-btn-sub">↺ Làm mới</button>
+          <button id="btnSave${cap}" onclick="save${cap}()" class="pf-btn pf-btn-main">💾 Lưu Phiếu ${cap}</button>
+        </div>
       </div>
     `;
   }
@@ -918,11 +923,14 @@
     document.getElementById('mainContent').innerHTML = `
       <div class="card pf-card">
         <div class="pf-head chi">
-          <div>
-            <h2>💸 Lập Phiếu Chi</h2>
-            <div class="pf-sub">Ghi nhận tiền xuất quỹ — các ô có dấu <b>*</b> là bắt buộc</div>
+          <div class="pf-head-left">
+            <div class="pf-badge">PC</div>
+            <div>
+              <h2>Lập Phiếu Chi</h2>
+              <div class="pf-sub">Ghi nhận tiền xuất quỹ · Số phiếu PCxxxxxx được cấp tự động khi lưu</div>
+            </div>
           </div>
-          <button onclick="switchMenu('tracuu')">🔍 Tra cứu</button>
+          <button class="pf-head-btn" onclick="switchMenu('tracuu')">🔍 Tra cứu phiếu</button>
         </div>
         <div id="chiFormBody" class="pf-body"><div class="text-gray-500 text-sm">Đang tải danh mục...</div></div>
       </div>

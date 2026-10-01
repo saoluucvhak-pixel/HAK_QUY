@@ -41,7 +41,7 @@ function _taoFileExcel(tenFile, dsSheet) {
 
     const dongHeader = dong;
     sh.getRange(dongHeader, 1, 1, soCot).setValues([sd.headers])
-      .setFontWeight('bold').setBackground('#1e40af').setFontColor('#ffffff')
+      .setFontWeight('bold').setBackground('#1f2937').setFontColor('#ffffff')
       .setHorizontalAlignment('center').setVerticalAlignment('middle');
     sh.setRowHeight(dongHeader, 26);
     dong++;
