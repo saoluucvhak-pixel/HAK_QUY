@@ -424,7 +424,8 @@
     document.getElementById('loginScreen').style.display = 'none';
     document.getElementById('appShell').style.display = 'flex';
     document.getElementById('userFullName').textContent = CURRENT_USER.full_name;
-    document.getElementById('userRole').textContent = CURRENT_USER.role;
+    document.getElementById('userRole').textContent = ({ ADMIN: 'Quản trị', THU_QUY: 'Thủ quỹ', XEM: 'Xem' })[CURRENT_USER.role] || CURRENT_USER.role;
+    document.getElementById('userFullName').title = CURRENT_USER.full_name;
     applyRoleMenuVisibility();
     switchMenu('dashboard');
   }
@@ -434,24 +435,49 @@
     document.querySelectorAll('.menu-item').forEach(function (el) {
       el.style.display = allowed.indexOf(el.dataset.menu) === -1 ? 'none' : '';
     });
+    // Ẩn nhãn nhóm menu nếu cả nhóm không còn mục nào được phép xem
+    document.querySelectorAll('.app-sidebar .nav-group-label').forEach(function (lb) {
+      let el = lb.nextElementSibling, coMuc = false;
+      while (el && !el.classList.contains('nav-group-label')) {
+        if (el.classList.contains('menu-item') && el.style.display !== 'none') coMuc = true;
+        el = el.nextElementSibling;
+      }
+      lb.style.display = coMuc ? '' : 'none';
+    });
   }
 
   /* ================= MENU / ĐIỀU HƯỚNG ================= */
   const MENU_TITLES = {
-    dashboard: 'Dashboard',
-    thu: 'Thu Tiền',
-    chi: 'Chi Tiền',
-    soquy: 'Sổ Quỹ',
-    soquycongdoan: 'Sổ Quỹ Công Đoàn',
-    socom: 'Sổ Cơm',
-    congno: 'Công Nợ',
-    doituong: 'Đối Tượng',
-    danhmuc: 'Danh Mục',
-    baocao: 'Báo Cáo',
-    tracuu: 'Tra Cứu',
-    quantri: 'Quản Trị',
-    huongdan: 'Hướng Dẫn Sử Dụng'
+    dashboard: 'Tổng quan',
+    thu: 'Lập phiếu thu',
+    chi: 'Lập phiếu chi',
+    soquy: 'Sổ quỹ tiền mặt',
+    soquycongdoan: 'Sổ quỹ công đoàn',
+    socom: 'Sổ cơm',
+    congno: 'Công nợ',
+    doituong: 'Đối tượng',
+    danhmuc: 'Danh mục loại thu / chi',
+    baocao: 'Báo cáo',
+    tracuu: 'Tra cứu chứng từ',
+    quantri: 'Quản trị',
+    huongdan: 'Hướng dẫn sử dụng'
   };
+  const MENU_SUBTITLES = {
+    dashboard: 'Tồn quỹ, thu - chi trong ngày và công nợ cần chú ý.',
+    thu: 'Ghi nhận tiền nhập quỹ. Điền theo thứ tự từng thẻ rồi bấm "Lưu Phiếu Thu".',
+    chi: 'Ghi nhận tiền xuất quỹ. Hệ thống kiểm tra tồn quỹ trước khi lưu.',
+    soquy: 'Sổ kế toán chi tiết quỹ tiền mặt — lọc theo ngày, loại giao dịch, người lập.',
+    soquycongdoan: 'Sổ kế toán chi tiết quỹ công đoàn.',
+    socom: 'Theo dõi suất ăn và tạm ứng tiền cơm theo tháng.',
+    congno: 'Các khoản phải thu / phải trả theo đối tượng.',
+    doituong: 'Danh sách khách hàng, nhà cung cấp, nhân viên dùng khi lập phiếu.',
+    danhmuc: 'Loại thu và loại chi dùng khi lập phiếu.',
+    baocao: 'Báo cáo thu - chi, công nợ, báo cáo ngày (Keo) và tổng hợp tháng.',
+    tracuu: 'Tìm phiếu thu / chi, xem chi tiết, in lại hoặc huỷ phiếu.',
+    quantri: 'Người dùng, khoá sổ, nhật ký thao tác và thiết lập báo cáo.',
+    huongdan: ''
+  };
+
 
   function switchMenu(key) {
     const allowed = ROLE_MENUS[CURRENT_USER.role] || ROLE_MENUS['XEM'];
@@ -462,6 +488,7 @@
 
     document.querySelectorAll('.menu-item').forEach(el => el.classList.toggle('active', el.dataset.menu === key));
     document.getElementById('pageTitle').textContent = MENU_TITLES[key] || key;
+    document.getElementById('pageSubtitle').textContent = MENU_SUBTITLES[key] || '';
 
     if (key === 'dashboard') {
       renderDashboardPlaceholder();
@@ -608,19 +635,7 @@
   /* ================= PHIẾU THU ================= */
   function renderThuForm(khiXongCallback) {
     document.getElementById('mainContent').innerHTML = `
-      <div class="card pf-card">
-        <div class="pf-head thu">
-          <div class="pf-head-left">
-            <div class="pf-badge">PT</div>
-            <div>
-              <h2>Lập Phiếu Thu</h2>
-              <div class="pf-sub">Ghi nhận tiền nhập quỹ · Số phiếu PTxxxxxx được cấp tự động khi lưu</div>
-            </div>
-          </div>
-          <button class="pf-head-btn" onclick="switchMenu('tracuu')">🔍 Tra cứu phiếu</button>
-        </div>
-        <div id="thuFormBody" class="pf-body"><div class="text-gray-500 text-sm">Đang tải danh mục...</div></div>
-      </div>
+      <div id="thuFormBody" class="pf-wrap"><div class="card text-gray-500 text-sm">Đang tải danh mục...</div></div>
     `;
     getFormOptionsCached(function (data) { renderThuFormBody(data, khiXongCallback); });
   }
@@ -650,6 +665,7 @@
     const lgdThuong = laThu ? 'Thu thường' : 'Chi thường';
     const lgdCongNo = laThu ? 'Thu công nợ' : 'Trả công nợ';
     const cap = laThu ? 'Thu' : 'Chi';
+    const thuong = cap.toLowerCase();
     const onQuy = laThu ? 'onThuQuyChange()' : 'onChiQuyChange()';
     const onLgd = laThu ? 'onThuLoaiGDChange()' : 'onChiLoaiGDChange()';
     const onDt = laThu ? 'onThuDoiTuongChange()' : 'onChiDoiTuongChange()';
@@ -657,8 +673,9 @@
     return `
       <div id="${p}Msg" class="hidden mb-4 p-3 rounded-lg text-sm"></div>
 
-      <div class="pf-sec">
-        <div class="pf-sec-title"><span class="pf-sec-num">1</span>Thông tin phiếu</div>
+      <div class="card pf-sec">
+        <h3>🧾 Thông tin phiếu <span class="pf-loai ${p}">PHIẾU ${cap.toUpperCase()}</span>
+          <span class="hint">(số phiếu ${laThu ? 'PT' : 'PC'}xxxxxx được cấp tự động khi lưu)</span></h3>
         <div class="pf-grid pf-grid3">
           <div>
             <label class="pf-label">Quỹ <span class="req">*</span></label>
@@ -682,21 +699,21 @@
             </select>
           </div>
           <div>
-            <label class="pf-label">Ngày ${cap.toLowerCase()} (ngày chứng từ) <span class="req">*</span></label>
+            <label class="pf-label">Ngày ${thuong} (ngày chứng từ) <span class="req">*</span></label>
             <input type="date" id="${p}Ngay" value="${today}" class="pf-input">
           </div>
           <div class="pf-span2">
-            <label class="pf-label">Loại ${cap.toLowerCase()} <span class="req">*</span></label>
+            <label class="pf-label">Loại ${thuong} <span class="req">*</span></label>
             <select id="${p}Loai" class="pf-input">
-              <option value="">-- Chọn loại ${cap.toLowerCase()} --</option>
+              <option value="">-- Chọn loại ${thuong} --</option>
               ${loaiOpts}
             </select>
           </div>
         </div>
       </div>
 
-      <div class="pf-sec">
-        <div class="pf-sec-title"><span class="pf-sec-num">2</span>Đối tượng / ${nhanNguoi}</div>
+      <div class="card pf-sec">
+        <h3>👤 Đối tượng / ${nhanNguoi}</h3>
         <div class="pf-grid">
           <div>
             <label class="pf-label">Đối tượng</label>
@@ -720,10 +737,10 @@
         </div>
       </div>
 
-      <div class="pf-sec">
-        <div class="pf-sec-title"><span class="pf-sec-num">3</span>Số tiền & nội dung</div>
+      <div class="card pf-sec">
+        <h3>💰 Số tiền & nội dung</h3>
         <div class="pf-grid">
-          <div class="pf-span2 pf-money-box">
+          <div class="pf-span2">
             <label class="pf-label">Số tiền <span class="req">*</span></label>
             <div class="pf-money-wrap">
               <input type="text" inputmode="numeric" id="${p}SoTien" placeholder="0" class="pf-input pf-money" autocomplete="off">
@@ -732,15 +749,16 @@
             <div class="pf-bang-chu" id="${p}BangChu"></div>
           </div>
           <div class="pf-span2">
-            <label class="pf-label">Nội dung ${cap.toLowerCase()}</label>
-            <input type="text" id="${p}NoiDung" placeholder="Diễn giải nội dung ${cap.toLowerCase()}" class="pf-input">
+            <label class="pf-label">Nội dung ${thuong}</label>
+            <input type="text" id="${p}NoiDung" placeholder="Diễn giải nội dung ${thuong}" class="pf-input">
           </div>
         </div>
       </div>
 
-      <div class="pf-sec">
+      <div class="card pf-sec">
         <details>
-          <summary class="pf-sec-title"><span class="pf-sec-num">4</span>Hạch toán Sổ Quỹ & chứng từ <span style="text-transform:none;font-weight:500;color:#6b7280;letter-spacing:0">(tuỳ chọn)</span><span class="pf-toggle"><span class="pf-toggle-closed">Mở rộng ▾</span><span class="pf-toggle-open">Thu gọn ▴</span></span></summary>
+          <summary><h3>📒 Hạch toán Sổ Quỹ & chứng từ <span class="hint">(tuỳ chọn)</span>
+            <span class="pf-toggle"><span class="pf-toggle-closed">Mở rộng ▾</span><span class="pf-toggle-open">Thu gọn ▴</span></span></h3></summary>
           <div class="pf-grid">
             <div>
               <label class="pf-label">Ngày hạch toán</label>
@@ -762,7 +780,7 @@
               <label class="pf-label">Chi nhánh</label>
               <input type="text" id="${p}ChiNhanh" placeholder="Chi nhánh (nếu có)" class="pf-input">
             </div>
-            <div class="pf-span2">
+            <div>
               <label class="pf-label">Chứng từ liên quan</label>
               <input type="text" id="${p}ChungTu" placeholder="Link ảnh / mô tả chứng từ" class="pf-input">
             </div>
@@ -774,9 +792,10 @@
         </details>
       </div>
 
-      <div class="pf-actions">
-        <div class="pf-note">Các ô có dấu <span style="color:#dc2626">*</span> là bắt buộc</div>
-        <div style="display:flex;gap:10px">
+      <div class="card pf-actions">
+        <div class="pf-note">Các ô có dấu <span style="color:#dc2626">*</span> là bắt buộc.</div>
+        <div class="nut">
+          <button type="button" onclick="switchMenu('tracuu')" class="pf-btn pf-btn-sub">🔍 Tra cứu phiếu</button>
           <button type="button" onclick="${renderLai}" class="pf-btn pf-btn-sub">↺ Làm mới</button>
           <button id="btnSave${cap}" onclick="save${cap}()" class="pf-btn pf-btn-main">💾 Lưu Phiếu ${cap}</button>
         </div>
@@ -940,19 +959,7 @@
   /* ================= PHIẾU CHI ================= */
   function renderChiForm(khiXongCallback) {
     document.getElementById('mainContent').innerHTML = `
-      <div class="card pf-card">
-        <div class="pf-head chi">
-          <div class="pf-head-left">
-            <div class="pf-badge">PC</div>
-            <div>
-              <h2>Lập Phiếu Chi</h2>
-              <div class="pf-sub">Ghi nhận tiền xuất quỹ · Số phiếu PCxxxxxx được cấp tự động khi lưu</div>
-            </div>
-          </div>
-          <button class="pf-head-btn" onclick="switchMenu('tracuu')">🔍 Tra cứu phiếu</button>
-        </div>
-        <div id="chiFormBody" class="pf-body"><div class="text-gray-500 text-sm">Đang tải danh mục...</div></div>
-      </div>
+      <div id="chiFormBody" class="pf-wrap"><div class="card text-gray-500 text-sm">Đang tải danh mục...</div></div>
     `;
     getFormOptionsCached(function (data) { renderChiFormBody(data, khiXongCallback); });
   }
@@ -1213,11 +1220,10 @@
   }
 
   function _doiSoatBadge(doiSoat) {
-    if (doiSoat === 'Chờ hoàn') {
-      return '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-700">Chờ hoàn</span>';
-    }
-    return '<span class="px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-700">Hoàn ứng</span>';
+    if (doiSoat === 'Chờ hoàn') return '<span class="hak-tt hak-tt-cho">Chờ hoàn</span>';
+    return '<span class="hak-tt hak-tt-xong">Hoàn ứng</span>';
   }
+
 
   /* ================= SỔ ĐỐI SOÁT ================= */
   function renderSoDoiSoatGeneric(loaiQuy) {

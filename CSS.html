@@ -1,132 +1,165 @@
 <style>
-  /* ---------- BẢNG MÀU ĐỒNG BỘ VỚI MAIN_HAK (HAK Portal) ---------- */
+  /* =====================================================================
+     GIAO DIỆN ĐỒNG BỘ VỚI HDMB_HAK (GiaoDien_Chung.html, 29/09):
+     font Be Vietnam Pro; menu trái #1f2937 có logo HAK viền vàng, nhóm
+     chức năng, biểu tượng nét; mục đang chọn nền xanh #2563eb + viền trái
+     vàng #b45309; thẻ trắng bo 14px; bảng tiêu đề nền tối; nút bo 10px.
+     ===================================================================== */
   :root {
     --hak-sidebar-bg: #1f2937;
-    --hak-sidebar-hover: #2d3a4d;
+    --hak-sidebar-hover: rgba(255,255,255,.07);
     --hak-primary: #2563eb;
     --hak-primary-hover: #1d4ed8;
+    --hak-gold: #b45309;
     --hak-sidebar-text: #cbd5e1;
     --hak-sidebar-dim: #8b98ab;
     --hak-bg: #f3f4f6;
     --hak-card: #ffffff;
     --hak-border: #e5e7eb;
-    --hak-text: #111827;
+    --hak-vien: #d1d5db;
+    --hak-text: #1f2937;
     --hak-muted: #6b7280;
+    --hak-nen-phu: #f9fafb;
     --hak-danger: #dc2626;
-    --hak-warn: #b45309;
     --hak-thu: #15803d;
     --hak-chi: #b91c1c;
   }
   * { box-sizing: border-box; }
-  body {
-    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  html body {
+    font-family: "Be Vietnam Pro", -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
     background: var(--hak-bg);
     color: var(--hak-text);
     margin: 0;
   }
+  html body input, html body select, html body textarea, html body button { font-family: inherit; }
 
   /* ---------- Màn hình đăng nhập ---------- */
   #loginScreen {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    min-height: 100vh; display: flex; align-items: center; justify-content: center;
     background: var(--hak-bg);
   }
   #loginBox {
-    background: var(--hak-card);
-    border: 1px solid var(--hak-border);
-    border-top: 4px solid var(--hak-primary);
-    border-radius: 10px;
-    padding: 36px;
-    width: 100%;
-    max-width: 400px;
-    box-shadow: 0 10px 30px rgba(17,24,39,0.08);
+    background: var(--hak-card); border: 1px solid var(--hak-border); border-radius: 14px;
+    padding: 36px; width: 100%; max-width: 400px; box-shadow: 0 10px 30px rgba(17,24,39,0.08);
   }
-  #btnLogin { background: var(--hak-primary) !important; }
+  #btnLogin { background: var(--hak-primary) !important; border-radius: 10px !important; font-weight: 600; }
   #btnLogin:hover { background: var(--hak-primary-hover) !important; }
 
-  /* ---------- Layout chính (giống MAIN_HAK) ---------- */
+  /* ---------- Khung ứng dụng ---------- */
   #appShell { display: none; min-height: 100vh; }
-  #sidebar {
-    width: 260px;
-    background: var(--hak-sidebar-bg);
-    color: var(--hak-sidebar-text);
-    flex-shrink: 0;
-    transition: transform 0.2s ease;
+
+  /* Menu trái */
+  .app-sidebar {
+    width: 250px; min-width: 250px; background: var(--hak-sidebar-bg); color: var(--hak-sidebar-text);
+    display: flex; flex-direction: column; gap: 2px; padding: 20px 14px 70px;
+    position: sticky; top: 0; height: 100vh; overflow-y: auto; transition: transform 0.2s ease;
   }
-  .sb-header { padding: 20px 20px 18px; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 8px; }
-  .sb-header .sb-title { font-size: 17px; font-weight: 700; color: #fff; }
-  .sb-header .sb-sub { font-size: 12px; color: var(--hak-sidebar-dim); margin-top: 2px; }
+  .app-sidebar .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 18px 8px; }
+  .app-sidebar .brand .logo {
+    width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--hak-gold); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--hak-gold); font-size: 12px;
+  }
+  .app-sidebar .brand .title { font-weight: 700; color: #fff; font-size: 15px; line-height: 1.2; }
+  .app-sidebar .brand .subtitle { font-size: 11px; color: var(--hak-sidebar-dim); }
+  .app-sidebar .nav-group-label {
+    padding: 14px 10px 6px 10px; font-size: 10px; font-weight: 600; letter-spacing: .06em;
+    color: var(--hak-sidebar-dim); text-transform: uppercase;
+  }
   .menu-item {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 11px 20px;
-    cursor: pointer;
-    font-size: 13.5px;
-    font-weight: 600;
-    border-left: 3px solid transparent;
-    color: var(--hak-sidebar-text);
-    transition: background 0.15s;
+    display: flex; align-items: center; gap: 12px; min-height: 38px; padding: 0 10px;
+    border-radius: 8px; border-left: 3px solid transparent; cursor: pointer;
+    font-size: 14px; font-weight: 500; color: var(--hak-sidebar-text);
   }
-  .menu-item:hover { background: var(--hak-sidebar-hover); }
-  .menu-item.active {
-    background: var(--hak-sidebar-hover);
-    border-left-color: var(--hak-primary);
-    color: #fff;
+  .menu-item:hover { background: var(--hak-sidebar-hover); color: #fff; }
+  .menu-item.active { background: var(--hak-primary); color: #fff; border-left-color: var(--hak-gold); font-weight: 600; }
+  .menu-item .icon { width: 18px; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+  /* Vùng nội dung */
+  .app-main { flex: 1; min-width: 0; padding: 28px 32px; }
+  .page-head { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+  .page-title { font-size: 24px; font-weight: 700; letter-spacing: -.01em; margin-bottom: 6px; color: var(--hak-text); }
+  .page-subtitle { font-size: 14px; color: var(--hak-muted); }
+  .page-subtitle:empty { display: none; }
+  .nut-menu-dd { display: none; border: 1px solid var(--hak-vien); background: #fff; border-radius: 8px; width: 38px; height: 38px; font-size: 18px; cursor: pointer; flex-shrink: 0; }
+  #mainContent { padding: 0; }
+
+  /* Chip người dùng (góc dưới trái, giống HDMB_HAK) */
+  #hakNguoiDungChip {
+    position: fixed; left: 12px; bottom: 12px; z-index: 50; background: var(--hak-sidebar-bg); color: #e5e7eb;
+    border-radius: 20px; padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.2); max-width: 226px; border: 1px solid rgba(255,255,255,.08);
   }
+  #hakNguoiDungChip .em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px; }
+  #hakNguoiDungChip .vt { background: var(--hak-primary); color: #fff; border-radius: 10px; padding: 1px 8px; font-size: 11px; white-space: nowrap; }
+  #hakNguoiDungChip button { background: transparent; color: #fca5a5; border: 0; cursor: pointer; font-size: 12px; padding: 0; white-space: nowrap; }
 
-  .topbar {
-    height: 52px; flex-shrink: 0;
-    background: var(--hak-card);
-    border-bottom: 1px solid var(--hak-border);
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 0 20px;
-  }
-  #pageTitle { font-size: 15px; font-weight: 700; color: var(--hak-text); }
-
-  #mainContent { flex: 1; padding: 24px; }
-
+  /* Thẻ */
   .card {
-    background: var(--hak-card);
-    border: 1px solid var(--hak-border);
-    border-radius: 10px;
-    padding: 20px;
+    background: var(--hak-card); border: 1px solid var(--hak-border); border-radius: 14px;
+    padding: 20px 22px; box-shadow: none !important;
   }
+  .card h2, .card h3 { font-weight: 700; color: var(--hak-text); }
 
-  .stat-card { text-align: center; }
-  .stat-label { font-size: 12px; color: var(--hak-muted); margin-bottom: 4px; }
-  .stat-value { font-size: 22px; font-weight: 700; }
+  /* Ô chỉ số (KPI) — như .hak-kpi của HDMB_HAK */
+  .stat-card { text-align: left; display: flex; flex-direction: column; gap: 8px; padding: 16px 18px; }
+  .stat-label { font-size: 13px; font-weight: 500; color: var(--hak-muted); display: flex; align-items: center; gap: 8px; }
+  .stat-label::before { content: ''; width: 8px; height: 8px; border-radius: 4px; background: var(--hak-primary); flex-shrink: 0; }
+  .stat-value { font-size: 26px; font-weight: 700; letter-spacing: -.02em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 
-  /* Bảng dữ liệu: tiêu đề cột thống nhất */
+  /* Bảng dữ liệu: tiêu đề nền tối, chữ trắng (như data-table của HDMB_HAK) */
+  #mainContent table { border-collapse: collapse; font-size: 13px; }
   #mainContent table thead th {
-    color: var(--hak-muted); font-weight: 600; font-size: 12.5px;
-    background: #f9fafb; border-bottom: 1px solid var(--hak-border);
-    padding-top: 9px; padding-bottom: 9px;
+    background: var(--hak-sidebar-bg) !important; color: #fff !important; font-size: 12px; font-weight: 600;
+    padding: 10px 12px !important; border: 0; white-space: nowrap;
   }
-  #mainContent table thead th:first-child { padding-left: 10px; }
-  #mainContent table tbody td:first-child { padding-left: 10px; }
-  #mainContent table tbody tr { border-color: var(--hak-border); }
+  #mainContent table thead tr { border: 0 !important; }
+  #mainContent table thead th:first-child { border-top-left-radius: 8px; }
+  #mainContent table thead th:last-child { border-top-right-radius: 8px; }
+  #mainContent table tbody td { padding: 10px 12px !important; border-bottom: 1px solid #eef0f3; }
+  #mainContent table tbody tr { border: 0 !important; }
+  #mainContent table tbody tr:hover td { background: var(--hak-nen-phu); }
+  #mainContent .no-auto-align table thead th, #mainContent .no-auto-align table tbody td { background: transparent !important; color: inherit !important; padding: 4px 6px !important; border: 0; }
 
-  /* Nút chính dùng màu nhấn của MAIN_HAK */
+  /* Ô nhập trong các trang (bộ lọc, form danh mục...) — bo 9px, cao 40px */
+  #mainContent input:not([type=checkbox]):not([type=radio]):not([type=file]):not(.vn-date-picker):not(.pf-input),
+  #mainContent select:not(.pf-input), #mainContent textarea:not(.pf-input) {
+    border: 1px solid var(--hak-vien); border-radius: 9px; min-height: 40px; font-size: 14px; background-color: #fff;
+  }
+  #mainContent textarea { min-height: 0; }
+  #mainContent input:focus, #mainContent select:focus, #mainContent textarea:focus {
+    border-color: var(--hak-primary); box-shadow: 0 0 0 3px rgba(37,99,235,.15); outline: none;
+  }
+  #mainContent label { font-size: 12.5px; font-weight: 600; color: #374151; }
+
+  /* Nút: bo 10px, đậm — map các lớp Tailwind đang dùng về bảng màu HDMB_HAK */
+  #mainContent button { border-radius: 10px !important; font-weight: 600; }
   .bg-blue-600 { background-color: var(--hak-primary) !important; }
   .hover\:bg-blue-700:hover { background-color: var(--hak-primary-hover) !important; }
   .bg-gray-800 { background-color: var(--hak-sidebar-bg) !important; }
-  .hover\:bg-gray-900:hover { background-color: var(--hak-sidebar-hover) !important; }
+  .hover\:bg-gray-900:hover { background-color: #111827 !important; }
+  .bg-indigo-600, .bg-purple-600 { background-color: var(--hak-sidebar-bg) !important; }
+  .bg-amber-600, .bg-yellow-600, .bg-orange-600 { background-color: var(--hak-gold) !important; }
+
+  /* Nhãn tình trạng (giống .hak-tt của HDMB_HAK) */
+  .hak-tt { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .hak-tt-cho { background: #fef3c7; color: #92400e; }
+  .hak-tt-xong { background: #dcfce7; color: #166534; }
+  .hak-tt-huy { background: #fee2e2; color: #991b1b; }
+
+  @media (max-width: 768px) {
+    .app-sidebar { position: fixed; z-index: 40; left: 0; top: 0; transform: translateX(-100%); }
+    .app-sidebar.open { transform: translateX(0); }
+    .nut-menu-dd { display: inline-flex; align-items: center; justify-content: center; }
+    .app-main { padding: 18px 16px 70px; }
+    .page-title { font-size: 20px; }
+  }
+
+  /* Hỗ trợ bàn phím: viền rõ khi di chuyển bằng Tab */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible { outline: 2px solid #3b82f6; outline-offset: 2px; }
 
   ::-webkit-scrollbar { width: 6px; height: 6px; }
   ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 
-  @media (max-width: 768px) {
-    #sidebar {
-      position: fixed;
-      z-index: 40;
-      height: 100%;
-      transform: translateX(-100%);
-    }
-    #sidebar.open { transform: translateX(0); }
-  }
 
 
   /* ---------- Ô nhập liệu: chữ ĐẬM, RÕ (tránh bị mờ do kế thừa màu xám
@@ -161,74 +194,50 @@
   }
   input[data-vn-date].vn-date-loi { border-color: #dc2626 !important; background: #fef2f2; }
 
-  /* ---------- Form lập Phiếu Thu / Phiếu Chi (theo bảng màu MAIN_HAK) ---------- */
-  .pf-card, .pf-card *, .vn-date-wrap, .vn-date-wrap * { box-sizing: border-box; }
-  .pf-card { max-width: 920px; padding: 0; overflow: hidden; }
-  .pf-head {
-    padding: 16px 22px; display: flex; justify-content: space-between; align-items: center; gap: 12px;
-    border-bottom: 1px solid var(--hak-border); border-left: 4px solid var(--hak-primary);
+  /* ---------- Form lập Phiếu Thu / Phiếu Chi — bố cục giống trang Nhập liệu
+     của HDMB_HAK: mỗi nhóm là 1 thẻ riêng có tiêu đề kèm biểu tượng ---------- */
+  .pf-wrap, .pf-wrap *, .vn-date-wrap, .vn-date-wrap * { box-sizing: border-box; }
+  .pf-wrap { max-width: 980px; }
+  .pf-sec { margin-bottom: 18px; }
+  .pf-sec > h3, .pf-sec summary h3 {
+    margin: 0 0 14px 0; font-size: 16px; font-weight: 700; color: var(--hak-text);
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
   }
-  .pf-head.thu { border-left-color: var(--hak-thu); }
-  .pf-head.chi { border-left-color: var(--hak-chi); }
-  .pf-head-left { display: flex; align-items: center; gap: 12px; }
-  .pf-badge {
-    width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
-    font-weight: 800; font-size: 13px; letter-spacing: .03em; color: #fff;
-  }
-  .pf-head.thu .pf-badge { background: var(--hak-thu); }
-  .pf-head.chi .pf-badge { background: var(--hak-chi); }
-  .pf-head h2 { font-size: 17px; font-weight: 700; margin: 0; color: var(--hak-text); }
-  .pf-head .pf-sub { font-size: 12.5px; color: var(--hak-muted); margin-top: 2px; }
-  .pf-head-btn {
-    font-size: 12.5px; color: #374151; border: 1px solid var(--hak-border); border-radius: 6px;
-    padding: 6px 12px; background: #fafafa; cursor: pointer; white-space: nowrap;
-  }
-  .pf-head-btn:hover { background: #f0f0f0; }
-  .pf-body { padding: 20px 22px 0; }
-  .pf-sec { margin-bottom: 20px; }
-  .pf-sec-title {
-    display: flex; align-items: center; gap: 8px; font-size: 12.5px; font-weight: 700;
-    text-transform: uppercase; letter-spacing: .04em; color: #374151;
-    padding-bottom: 8px; margin-bottom: 12px; border-bottom: 1px solid var(--hak-border);
-  }
-  .pf-sec-num {
-    width: 20px; height: 20px; border-radius: 50%; background: var(--hak-sidebar-bg); color: #fff;
-    font-size: 11px; display: inline-flex; align-items: center; justify-content: center;
-  }
-  .pf-grid { display: grid; grid-template-columns: 1fr; gap: 14px 18px; }
+  .pf-sec h3 .hint { font-size: 12.5px; font-weight: 400; color: var(--hak-muted); }
+  .pf-loai { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+  .pf-loai.thu { background: #dcfce7; color: #166534; }
+  .pf-loai.chi { background: #fee2e2; color: #991b1b; }
+  .pf-grid { display: grid; grid-template-columns: 1fr; gap: 14px 16px; }
   @media (min-width: 768px) { .pf-grid { grid-template-columns: 1fr 1fr; } .pf-span2 { grid-column: span 2; } }
   @media (min-width: 1024px) { .pf-grid.pf-grid3 { grid-template-columns: 1fr 1fr 1fr; } }
-  .pf-label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 5px; }
+  #mainContent .pf-label, .pf-label { display: block; font-size: 12.5px; font-weight: 600; color: #374151; margin-bottom: 6px; }
   .pf-label .req { color: var(--hak-danger); margin-left: 2px; }
-  .pf-input {
-    width: 100%; height: 40px; border: 1px solid #d1d5db; border-radius: 6px; padding: 0 12px;
-    font-size: 14.5px; font-weight: 500; color: var(--hak-text); background: #fff;
+  #mainContent .pf-input, .pf-input {
+    width: 100%; min-height: 40px; border: 1px solid var(--hak-vien); border-radius: 9px; padding: 9px 12px;
+    font-size: 14px; font-weight: 500; color: var(--hak-text); background: #fff;
     transition: border-color .15s, box-shadow .15s;
   }
-  textarea.pf-input { height: auto; padding: 9px 12px; resize: vertical; }
+  textarea.pf-input { resize: vertical; }
   .pf-input:hover { border-color: #9ca3af; }
-  .pf-input:focus { outline: none; border-color: var(--hak-primary); box-shadow: 0 0 0 3px rgba(37,99,235,.15); }
-  .pf-money-box {
-    border: 1px solid var(--hak-border); background: #f9fafb; border-radius: 8px; padding: 12px 14px;
-  }
   .pf-money-wrap { position: relative; }
-  .pf-money { height: 48px; font-size: 22px; font-weight: 700; text-align: right; padding-right: 40px; letter-spacing: .02em; }
+  #mainContent .pf-money, .pf-money { min-height: 50px; font-size: 24px; font-weight: 700; text-align: right; padding-right: 40px; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
   .pf-money-unit { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-weight: 700; color: var(--hak-muted); }
   .pf-bang-chu { font-size: 12.5px; color: #374151; font-style: italic; margin-top: 6px; min-height: 18px; }
-  .pf-hint { font-size: 12px; color: var(--hak-muted); margin-top: 4px; }
+  .pf-hint { font-size: 12.5px; line-height: 1.5; color: var(--hak-muted); margin-top: 5px; }
   .pf-sec details > summary { cursor: pointer; list-style: none; }
   .pf-sec details > summary::-webkit-details-marker { display: none; }
-  .pf-sec details > summary .pf-toggle { margin-left: auto; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--hak-primary); font-size: 12.5px; }
-  .pf-sec details[open] > summary .pf-toggle-open { display: inline; }
-  .pf-sec details[open] > summary .pf-toggle-closed, .pf-sec details:not([open]) > summary .pf-toggle-open { display: none; }
-  .pf-actions {
-    display: flex; justify-content: space-between; align-items: center; gap: 10px;
-    margin: 4px -22px 0; padding: 14px 22px; background: #f9fafb; border-top: 1px solid var(--hak-border);
-  }
+  .pf-sec details > summary h3 { margin: 0; }
+  .pf-sec details[open] > summary h3 { margin-bottom: 14px; }
+  .pf-toggle { margin-left: auto; font-size: 13px; font-weight: 600; color: var(--hak-primary); }
+  .pf-sec details[open] .pf-toggle-closed, .pf-sec details:not([open]) .pf-toggle-open { display: none; }
+  .pf-actions { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
   .pf-actions .pf-note { font-size: 12.5px; color: var(--hak-muted); }
-  .pf-btn { padding: 9px 18px; border-radius: 6px; font-weight: 600; font-size: 14px; cursor: pointer; border: 1px solid transparent; }
-  .pf-btn-sub { border-color: #d1d5db; color: #374151; background: #fff; }
-  .pf-btn-sub:hover { background: #f3f4f6; }
+  .pf-actions .nut { display: flex; gap: 8px; }
+  /* Nút giống .btn của HDMB_HAK */
+  #mainContent .pf-btn, .pf-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border-radius: 10px !important; font-size: 14px; font-weight: 600; line-height: 1.2; cursor: pointer; border: 1px solid transparent; transition: background-color .15s; }
+  .pf-btn-sub { background: #fff; color: var(--hak-text); border-color: var(--hak-vien) !important; }
+  .pf-btn-sub:hover { background: var(--hak-nen-phu); }
+  .pf-btn-gold { background: #fff; color: var(--hak-text); border-color: var(--hak-vien) !important; }
   .pf-btn-main { background: var(--hak-primary); color: #fff; }
   .pf-btn-main:hover { background: var(--hak-primary-hover); }
   .pf-btn-main:disabled { opacity: .6; cursor: wait; }
@@ -236,9 +245,8 @@
   /* ---------- Khi In (Ctrl+P) / Xuất PDF từ trình duyệt ---------- */
   /* Class "no-print" đặt trên nút bấm/bộ lọc để ẩn khi in, chỉ giữ lại bảng báo cáo */
   @media print {
-    #sidebar, .no-print { display: none !important; }
-    #appShell .topbar { display: none !important; } /* thanh trên cùng */
-    #mainContent { padding: 0 !important; }
+    #sidebar, #hakNguoiDungChip, .page-head, .no-print { display: none !important; }
+    .app-main { padding: 0 !important; }
     body { background: #fff !important; }
     .card { box-shadow: none !important; border: 1px solid #e5e7eb; }
   }
