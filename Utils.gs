@@ -477,6 +477,28 @@ function _dinhDangDongVN(sh, dong) {
   rg.setHorizontalAlignments([a]);
 }
 
+/**
+ * Thêm 1 dòng theo TÊN CỘT (khớp dòng tiêu đề) thay vì theo vị trí cột.
+ * Ghi theo vị trí dễ lệch cột khi sheet thật có thứ tự/số cột khác mẫu
+ * (vd cột doi_soat được thêm sau bằng migrate, có cột chèn thêm) — khi
+ * đó giá trị rơi vào sai cột, đọc lại (theo tên cột) thành rỗng. Cột
+ * nào chưa có trên sheet sẽ được tự thêm vào cuối dòng tiêu đề.
+ */
+function _appendRowTheoTenCot(sh, duLieu) {
+  const lastCol = Math.max(sh.getLastColumn(), 1);
+  const headers = sh.getRange(1, 1, 1, lastCol).getValues()[0].map(h => String(h).trim());
+  Object.keys(duLieu).forEach(function (k) {
+    if (headers.indexOf(k) === -1) {
+      headers.push(k);
+      sh.getRange(1, headers.length).setValue(k);
+    }
+  });
+  const row = headers.map(function (h) {
+    return Object.prototype.hasOwnProperty.call(duLieu, h) ? duLieu[h] : '';
+  });
+  _appendRowVN(sh, row);
+}
+
 /** appendRow + định dạng chuẩn VN cho dòng vừa thêm. */
 function _appendRowVN(sh, rowValues) {
   sh.appendRow(rowValues);

@@ -183,17 +183,33 @@ function addPhieuThu(payload, currentUser) {
     const now = new Date();
     const nguoiLap = currentUser.full_name || 'N/A';
 
-    _appendRowVN(_sheet(SHEET_PHIEU_THU), [
-      'PT_' + now.getTime(), soPhieuThu, new Date(payload.ngay_thu),
-      payload.gio_thu || Utilities.formatDate(now, Session.getScriptTimeZone(), 'HH:mm'),
-      loaiGiaoDich, payload.nguoi_nop_tien, payload.ma_doi_tuong || '',
-      payload.noi_dung_thu || '', payload.ma_loai_thu, soTien,
-      payload.chung_tu_lien_quan || '', payload.ghi_chu || '',
-      nguoiLap, now, '', '', TRANG_THAI_HOP_LE, '',
-      loaiQuy, ngayHachToan, taiKhoan, payload.tk_doi_ung || '',
-      payload.ma_nhan_vien || '', payload.chi_nhanh || '',
-      _chuanHoaDoiSoat(payload.doi_soat)
-    ]);
+    _appendRowTheoTenCot(_sheet(SHEET_PHIEU_THU), {
+      id: 'PT_' + now.getTime(),
+      so_phieu_thu: soPhieuThu,
+      ngay_thu: new Date(payload.ngay_thu),
+      gio_thu: payload.gio_thu || Utilities.formatDate(now, Session.getScriptTimeZone(), 'HH:mm'),
+      loai_giao_dich: loaiGiaoDich,
+      nguoi_nop_tien: payload.nguoi_nop_tien,
+      ma_doi_tuong: payload.ma_doi_tuong || '',
+      noi_dung_thu: payload.noi_dung_thu || '',
+      ma_loai_thu: payload.ma_loai_thu,
+      so_tien: soTien,
+      chung_tu_lien_quan: payload.chung_tu_lien_quan || '',
+      ghi_chu: payload.ghi_chu || '',
+      nguoi_lap: nguoiLap,
+      thoi_gian_lap: now,
+      nguoi_sua_cuoi: '',
+      thoi_gian_sua_cuoi: '',
+      trang_thai: TRANG_THAI_HOP_LE,
+      ly_do_huy: '',
+      loai_quy: loaiQuy,
+      ngay_hach_toan: ngayHachToan,
+      tai_khoan: taiKhoan,
+      tk_doi_ung: payload.tk_doi_ung || '',
+      ma_nhan_vien: payload.ma_nhan_vien || '',
+      chi_nhanh: payload.chi_nhanh || '',
+      doi_soat: _chuanHoaDoiSoat(payload.doi_soat)
+    });
 
     _writeAuditLog(nguoiLap, 'Phiếu Thu', 'Thêm', soPhieuThu, '',
       'Số tiền: ' + soTien.toLocaleString('vi-VN') + ' đ | Nội dung: ' + (payload.noi_dung_thu || ''));
@@ -275,17 +291,33 @@ function addPhieuChi(payload, currentUser) {
     const now = new Date();
     const nguoiLap = currentUser.full_name || 'N/A';
 
-    _appendRowVN(_sheet(SHEET_PHIEU_CHI), [
-      'PC_' + now.getTime(), soPhieuChi, new Date(payload.ngay_chi),
-      payload.gio_chi || Utilities.formatDate(now, Session.getScriptTimeZone(), 'HH:mm'),
-      loaiGiaoDich, payload.nguoi_nhan_tien, payload.ma_doi_tuong || '',
-      payload.noi_dung_chi || '', payload.ma_loai_chi, soTien,
-      payload.chung_tu_lien_quan || '', payload.ghi_chu || '',
-      nguoiLap, now, '', '', TRANG_THAI_HOP_LE, '',
-      loaiQuy, ngayHachToan, taiKhoan, payload.tk_doi_ung || '',
-      payload.ma_nhan_vien || '', payload.chi_nhanh || '',
-      _chuanHoaDoiSoat(payload.doi_soat)
-    ]);
+    _appendRowTheoTenCot(_sheet(SHEET_PHIEU_CHI), {
+      id: 'PC_' + now.getTime(),
+      so_phieu_chi: soPhieuChi,
+      ngay_chi: new Date(payload.ngay_chi),
+      gio_chi: payload.gio_chi || Utilities.formatDate(now, Session.getScriptTimeZone(), 'HH:mm'),
+      loai_giao_dich: loaiGiaoDich,
+      nguoi_nhan_tien: payload.nguoi_nhan_tien,
+      ma_doi_tuong: payload.ma_doi_tuong || '',
+      noi_dung_chi: payload.noi_dung_chi || '',
+      ma_loai_chi: payload.ma_loai_chi,
+      so_tien: soTien,
+      chung_tu_lien_quan: payload.chung_tu_lien_quan || '',
+      ghi_chu: payload.ghi_chu || '',
+      nguoi_lap: nguoiLap,
+      thoi_gian_lap: now,
+      nguoi_sua_cuoi: '',
+      thoi_gian_sua_cuoi: '',
+      trang_thai: TRANG_THAI_HOP_LE,
+      ly_do_huy: '',
+      loai_quy: loaiQuy,
+      ngay_hach_toan: ngayHachToan,
+      tai_khoan: taiKhoan,
+      tk_doi_ung: payload.tk_doi_ung || '',
+      ma_nhan_vien: payload.ma_nhan_vien || '',
+      chi_nhanh: payload.chi_nhanh || '',
+      doi_soat: _chuanHoaDoiSoat(payload.doi_soat)
+    });
 
     _writeAuditLog(nguoiLap, 'Phiếu Chi', 'Thêm', soPhieuChi, '',
       'Số tiền: ' + soTien.toLocaleString('vi-VN') + ' đ | Nội dung: ' + (payload.noi_dung_chi || ''));
