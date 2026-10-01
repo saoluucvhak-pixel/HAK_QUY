@@ -326,6 +326,57 @@
     else batDau();
   })();
 
+  /*************************************************
+   * CHẾ ĐỘ SÁNG / TỐI (giống HDMB_HAK): Tự động (theo máy) -> Sáng -> Tối.
+   * Lưu ở localStorage 'hak_giao_dien' (cùng khoá với HDMB_HAK nên 2 hệ
+   * thống mở trên cùng trình duyệt dùng chung lựa chọn). Khi in luôn tạm
+   * chuyển về Sáng để phiếu/báo cáo in ra nền trắng chữ đen.
+   *************************************************/
+  const HAK_KHOA_GIAO_DIEN = 'hak_giao_dien';
+  const HAK_TEN_GIAO_DIEN = { tu_dong: 'Tự động (theo máy)', sang: 'Sáng', toi: 'Tối' };
+  let hakCheDoTam = null;
+
+  function hakCheDoGiaoDien() {
+    let c = hakCheDoTam || 'tu_dong';
+    if (!hakCheDoTam) { try { c = localStorage.getItem(HAK_KHOA_GIAO_DIEN) || 'tu_dong'; } catch (e) { /* bị chặn */ } }
+    return HAK_TEN_GIAO_DIEN[c] ? c : 'tu_dong';
+  }
+
+  function hakApGiaoDien() {
+    const c = hakCheDoGiaoDien();
+    const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    const toi = c === 'toi' || (c === 'tu_dong' && !!(mq && mq.matches));
+    document.documentElement.setAttribute('data-giao-dien', toi ? 'toi' : 'sang');
+    const nut = document.getElementById('hakChipGiaoDien');
+    if (nut) {
+      const ten = 'Giao diện: ' + HAK_TEN_GIAO_DIEN[c] + ' — bấm để đổi';
+      nut.title = ten;
+      nut.setAttribute('aria-label', ten);
+      nut.textContent = c === 'sang' ? '☀️' : c === 'toi' ? '🌙' : '🌓';
+    }
+  }
+
+  function hakDoiGiaoDien() {
+    const thuTu = ['tu_dong', 'sang', 'toi'];
+    const moi = thuTu[(thuTu.indexOf(hakCheDoGiaoDien()) + 1) % thuTu.length];
+    hakCheDoTam = moi;
+    try { localStorage.setItem(HAK_KHOA_GIAO_DIEN, moi); } catch (e) { /* chỉ áp dụng trong phiên */ }
+    hakApGiaoDien();
+    return moi;
+  }
+
+  (function () {
+    const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    if (mq) {
+      const doi = function () { if (hakCheDoGiaoDien() === 'tu_dong') hakApGiaoDien(); };
+      if (mq.addEventListener) mq.addEventListener('change', doi); else if (mq.addListener) mq.addListener(doi);
+    }
+    window.addEventListener('beforeprint', function () { document.documentElement.setAttribute('data-giao-dien', 'sang'); });
+    window.addEventListener('afterprint', hakApGiaoDien);
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hakApGiaoDien);
+    else hakApGiaoDien();
+  })();
+
   const ROLE_MENUS = {
     ADMIN: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'congno', 'doituong', 'danhmuc', 'baocao', 'tracuu', 'quantri', 'huongdan'],
     THU_QUY: ['dashboard', 'thu', 'chi', 'soquy', 'soquycongdoan', 'socom', 'baocao', 'tracuu', 'huongdan'],

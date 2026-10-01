@@ -20,6 +20,10 @@
     --hak-text: #1f2937;
     --hak-muted: #6b7280;
     --hak-nen-phu: #f9fafb;
+    --hak-input-bg: #ffffff;
+    --hak-nhan: #374151;
+    --hak-placeholder: #9ca3af;
+    --hak-disabled-bg: #f3f4f6;
     --hak-danger: #dc2626;
     --hak-thu: #15803d;
     --hak-chi: #b91c1c;
@@ -80,16 +84,16 @@
   .page-title { font-size: 24px; font-weight: 700; letter-spacing: -.01em; margin-bottom: 6px; color: var(--hak-text); }
   .page-subtitle { font-size: 14px; color: var(--hak-muted); }
   .page-subtitle:empty { display: none; }
-  .nut-menu-dd { display: none; border: 1px solid var(--hak-vien); background: #fff; border-radius: 8px; width: 38px; height: 38px; font-size: 18px; cursor: pointer; flex-shrink: 0; }
+  .nut-menu-dd { display: none; border: 1px solid var(--hak-vien); background: var(--hak-card); border-radius: 8px; width: 38px; height: 38px; font-size: 18px; cursor: pointer; color: var(--hak-text); flex-shrink: 0; }
   #mainContent { padding: 0; }
 
   /* Chip người dùng (góc dưới trái, giống HDMB_HAK) */
   #hakNguoiDungChip {
     position: fixed; left: 12px; bottom: 12px; z-index: 50; background: var(--hak-sidebar-bg); color: #e5e7eb;
     border-radius: 20px; padding: 6px 12px; font-size: 12px; display: flex; align-items: center; gap: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,.2); max-width: 226px; border: 1px solid rgba(255,255,255,.08);
+    box-shadow: 0 4px 12px rgba(0,0,0,.2); max-width: 230px; border: 1px solid rgba(255,255,255,.08);
   }
-  #hakNguoiDungChip .em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px; }
+  #hakNguoiDungChip .em { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 92px; min-width: 0; }
   #hakNguoiDungChip .vt { background: var(--hak-primary); color: #fff; border-radius: 10px; padding: 1px 8px; font-size: 11px; white-space: nowrap; }
   #hakNguoiDungChip button { background: transparent; color: #fca5a5; border: 0; cursor: pointer; font-size: 12px; padding: 0; white-space: nowrap; }
 
@@ -123,13 +127,13 @@
   /* Ô nhập trong các trang (bộ lọc, form danh mục...) — bo 9px, cao 40px */
   #mainContent input:not([type=checkbox]):not([type=radio]):not([type=file]):not(.vn-date-picker):not(.pf-input),
   #mainContent select:not(.pf-input), #mainContent textarea:not(.pf-input) {
-    border: 1px solid var(--hak-vien); border-radius: 9px; min-height: 40px; font-size: 14px; background-color: #fff;
+    border: 1px solid var(--hak-vien); border-radius: 9px; min-height: 40px; font-size: 14px; background-color: var(--hak-input-bg); color: var(--hak-text);
   }
   #mainContent textarea { min-height: 0; }
   #mainContent input:focus, #mainContent select:focus, #mainContent textarea:focus {
     border-color: var(--hak-primary); box-shadow: 0 0 0 3px rgba(37,99,235,.15); outline: none;
   }
-  #mainContent label { font-size: 12.5px; font-weight: 600; color: #374151; }
+  #mainContent label { font-size: 12.5px; font-weight: 600; color: var(--hak-nhan); }
 
   /* Nút: bo 10px, đậm — map các lớp Tailwind đang dùng về bảng màu HDMB_HAK */
   #mainContent button { border-radius: 10px !important; font-weight: 600; }
@@ -165,11 +169,11 @@
   /* ---------- Ô nhập liệu: chữ ĐẬM, RÕ (tránh bị mờ do kế thừa màu xám
      từ khung chứa) — áp dụng cho mọi form trong hệ thống ---------- */
   input, select, textarea {
-    color: #111827 !important;
-    background-color: #fff;
+    color: var(--hak-text) !important;
+    background-color: var(--hak-input-bg);
   }
-  input::placeholder, textarea::placeholder { color: #9ca3af !important; font-weight: 400; }
-  input:disabled, select:disabled, textarea:disabled { background: #f3f4f6; color: #4b5563 !important; }
+  input::placeholder, textarea::placeholder { color: var(--hak-placeholder) !important; font-weight: 400; }
+  input:disabled, select:disabled, textarea:disabled { background: var(--hak-disabled-bg); color: var(--hak-muted) !important; }
 
   /* ---------- Căn lề chuẩn: số phải, chữ trái, ngày giữa ---------- */
   .al-num  { text-align: right !important; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -187,7 +191,7 @@
     border: 0; background: transparent; cursor: pointer; font-size: 15px;
     padding: 2px 6px; line-height: 1; border-radius: 6px;
   }
-  .vn-date-btn:hover { background: #f3f4f6; }
+  .vn-date-btn:hover { background: var(--hak-nen-phu); }
   .vn-date-picker {
     position: absolute; right: 0; bottom: 0; width: 1px; height: 1px;
     opacity: 0; pointer-events: none; border: 0; padding: 0;
@@ -210,19 +214,19 @@
   .pf-grid { display: grid; grid-template-columns: 1fr; gap: 14px 16px; }
   @media (min-width: 768px) { .pf-grid { grid-template-columns: 1fr 1fr; } .pf-span2 { grid-column: span 2; } }
   @media (min-width: 1024px) { .pf-grid.pf-grid3 { grid-template-columns: 1fr 1fr 1fr; } }
-  #mainContent .pf-label, .pf-label { display: block; font-size: 12.5px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+  #mainContent .pf-label, .pf-label { display: block; font-size: 12.5px; font-weight: 600; color: var(--hak-nhan); margin-bottom: 6px; }
   .pf-label .req { color: var(--hak-danger); margin-left: 2px; }
   #mainContent .pf-input, .pf-input {
     width: 100%; min-height: 40px; border: 1px solid var(--hak-vien); border-radius: 9px; padding: 9px 12px;
-    font-size: 14px; font-weight: 500; color: var(--hak-text); background: #fff;
+    font-size: 14px; font-weight: 500; color: var(--hak-text); background: var(--hak-input-bg);
     transition: border-color .15s, box-shadow .15s;
   }
   textarea.pf-input { resize: vertical; }
-  .pf-input:hover { border-color: #9ca3af; }
+  .pf-input:hover { border-color: var(--hak-placeholder); }
   .pf-money-wrap { position: relative; }
   #mainContent .pf-money, .pf-money { min-height: 50px; font-size: 24px; font-weight: 700; text-align: right; padding-right: 40px; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
   .pf-money-unit { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); font-weight: 700; color: var(--hak-muted); }
-  .pf-bang-chu { font-size: 12.5px; color: #374151; font-style: italic; margin-top: 6px; min-height: 18px; }
+  .pf-bang-chu { font-size: 12.5px; color: var(--hak-nhan); font-style: italic; margin-top: 6px; min-height: 18px; }
   .pf-hint { font-size: 12.5px; line-height: 1.5; color: var(--hak-muted); margin-top: 5px; }
   .pf-sec details > summary { cursor: pointer; list-style: none; }
   .pf-sec details > summary::-webkit-details-marker { display: none; }
@@ -235,12 +239,88 @@
   .pf-actions .nut { display: flex; gap: 8px; }
   /* Nút giống .btn của HDMB_HAK */
   #mainContent .pf-btn, .pf-btn { display: inline-flex; align-items: center; gap: 7px; padding: 10px 16px; border-radius: 10px !important; font-size: 14px; font-weight: 600; line-height: 1.2; cursor: pointer; border: 1px solid transparent; transition: background-color .15s; }
-  .pf-btn-sub { background: #fff; color: var(--hak-text); border-color: var(--hak-vien) !important; }
+  .pf-btn-sub { background: var(--hak-card); color: var(--hak-text); border-color: var(--hak-vien) !important; }
   .pf-btn-sub:hover { background: var(--hak-nen-phu); }
-  .pf-btn-gold { background: #fff; color: var(--hak-text); border-color: var(--hak-vien) !important; }
+  .pf-btn-gold { background: var(--hak-card); color: var(--hak-text); border-color: var(--hak-vien) !important; }
   .pf-btn-main { background: var(--hak-primary); color: #fff; }
   .pf-btn-main:hover { background: var(--hak-primary-hover); }
   .pf-btn-main:disabled { opacity: .6; cursor: wait; }
+
+
+  /* =====================================================================
+     CHẾ ĐỘ SÁNG / TỐI (giống HDMB_HAK): <html data-giao-dien="sang|toi">,
+     đổi bằng nút 🌓 ở chip người dùng (Tự động -> Sáng -> Tối). Chế độ
+     sáng giữ nguyên; chế độ tối chỉ định nghĩa lại biến màu + ghi đè các
+     lớp màu Tailwind đang dùng trong các màn hình.
+     ===================================================================== */
+  html[data-giao-dien="toi"] {
+    color-scheme: dark;
+    --hak-bg: #0f172a;
+    --hak-card: #1e293b;
+    --hak-border: #334155;
+    --hak-vien: #475569;
+    --hak-text: #e5e7eb;
+    --hak-muted: #94a3b8;
+    --hak-nen-phu: #273449;
+    --hak-input-bg: #0f172a;
+    --hak-nhan: #cbd5e1;
+    --hak-placeholder: #64748b;
+    --hak-disabled-bg: #1e293b;
+    --hak-sidebar-bg: #111827;
+  }
+  html[data-giao-dien="toi"] body { background: var(--hak-bg); color: var(--hak-text); }
+  html[data-giao-dien="toi"] .app-sidebar { border-right: 1px solid #1f2937; }
+  html[data-giao-dien="toi"] #hakNguoiDungChip { background: #1f2937; }
+  html[data-giao-dien="toi"] #mainContent table thead th { background: #111827 !important; }
+  html[data-giao-dien="toi"] #mainContent table tbody td { border-bottom-color: #334155; }
+  html[data-giao-dien="toi"] :where(th, td, hr) { border-color: #334155; }
+  html[data-giao-dien="toi"] .vn-date-picker { color-scheme: dark; }
+  html[data-giao-dien="toi"] .bg-gray-800 { background-color: #334155 !important; }
+  html[data-giao-dien="toi"] .hover\:bg-gray-900:hover { background-color: #475569 !important; }
+
+  /* Lớp màu Tailwind — nền */
+  html[data-giao-dien="toi"] .bg-white { background-color: var(--hak-card) !important; }
+  html[data-giao-dien="toi"] .bg-gray-50, html[data-giao-dien="toi"] .hover\:bg-gray-50:hover { background-color: var(--hak-nen-phu) !important; }
+  html[data-giao-dien="toi"] .bg-gray-100 { background-color: #273449 !important; }
+  html[data-giao-dien="toi"] .bg-gray-200 { background-color: #334155 !important; }
+  html[data-giao-dien="toi"] .bg-red-50, html[data-giao-dien="toi"] .bg-red-100 { background-color: #4c1d1d !important; }
+  html[data-giao-dien="toi"] .bg-green-50, html[data-giao-dien="toi"] .bg-green-100, html[data-giao-dien="toi"] .hover\:bg-green-100:hover,
+  html[data-giao-dien="toi"] .bg-emerald-100, html[data-giao-dien="toi"] .hover\:bg-emerald-50:hover { background-color: #14532d !important; }
+  html[data-giao-dien="toi"] .bg-blue-50 { background-color: #1e3a5f !important; }
+  html[data-giao-dien="toi"] .bg-amber-50, html[data-giao-dien="toi"] .bg-yellow-100, html[data-giao-dien="toi"] .bg-orange-100 { background-color: #452a07 !important; }
+
+  /* Lớp màu Tailwind — chữ */
+  html[data-giao-dien="toi"] .text-gray-800, html[data-giao-dien="toi"] .text-gray-700 { color: var(--hak-text) !important; }
+  html[data-giao-dien="toi"] .text-gray-600, html[data-giao-dien="toi"] .hover\:text-gray-600:hover { color: #cbd5e1 !important; }
+  html[data-giao-dien="toi"] .text-gray-500 { color: #94a3b8 !important; }
+  html[data-giao-dien="toi"] .text-gray-400 { color: #7c8aa0 !important; }
+  html[data-giao-dien="toi"] .text-red-700, html[data-giao-dien="toi"] .text-red-600 { color: #f87171 !important; }
+  html[data-giao-dien="toi"] .text-green-700, html[data-giao-dien="toi"] .text-green-600, html[data-giao-dien="toi"] .text-green-800,
+  html[data-giao-dien="toi"] .text-emerald-700, html[data-giao-dien="toi"] .text-emerald-600 { color: #4ade80 !important; }
+  html[data-giao-dien="toi"] .text-blue-700, html[data-giao-dien="toi"] .text-blue-600, html[data-giao-dien="toi"] .text-indigo-600 { color: #93c5fd !important; }
+  html[data-giao-dien="toi"] .text-amber-600, html[data-giao-dien="toi"] .text-amber-700, html[data-giao-dien="toi"] .text-amber-800,
+  html[data-giao-dien="toi"] .text-yellow-700, html[data-giao-dien="toi"] .text-orange-600, html[data-giao-dien="toi"] .text-orange-700 { color: #fbbf24 !important; }
+  html[data-giao-dien="toi"] .text-purple-700 { color: #c4b5fd !important; }
+
+  /* Lớp màu Tailwind — viền */
+  html[data-giao-dien="toi"] .border, html[data-giao-dien="toi"] .border-b, html[data-giao-dien="toi"] .border-t { border-color: var(--hak-border) !important; }
+  html[data-giao-dien="toi"] .border-red-200 { border-color: #7f1d1d !important; }
+  html[data-giao-dien="toi"] .border-green-200, html[data-giao-dien="toi"] .border-green-300, html[data-giao-dien="toi"] .border-emerald-300 { border-color: #166534 !important; }
+  html[data-giao-dien="toi"] .border-amber-400 { border-color: #92400e !important; }
+
+  /* Nhãn tình trạng & form phiếu */
+  html[data-giao-dien="toi"] .hak-tt-cho { background: #452a07; color: #fbbf24; }
+  html[data-giao-dien="toi"] .hak-tt-xong { background: #14532d; color: #4ade80; }
+  html[data-giao-dien="toi"] .hak-tt-huy { background: #4c1d1d; color: #f87171; }
+  html[data-giao-dien="toi"] .pf-loai.thu { background: #14532d; color: #4ade80; }
+  html[data-giao-dien="toi"] .pf-loai.chi { background: #4c1d1d; color: #f87171; }
+  html[data-giao-dien="toi"] input[data-vn-date].vn-date-loi { background: #4c1d1d; }
+
+  /* Màn hình đăng nhập */
+  html[data-giao-dien="toi"] #loginBox { box-shadow: 0 10px 30px rgba(0,0,0,.4); }
+
+  /* Nút đổi giao diện trong chip người dùng */
+  #hakChipGiaoDien { background: transparent; border: 0; cursor: pointer; font-size: 14px; padding: 0; color: #e5e7eb; line-height: 1; }
 
   /* ---------- Khi In (Ctrl+P) / Xuất PDF từ trình duyệt ---------- */
   /* Class "no-print" đặt trên nút bấm/bộ lọc để ẩn khi in, chỉ giữ lại bảng báo cáo */

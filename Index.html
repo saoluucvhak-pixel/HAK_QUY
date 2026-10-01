@@ -4,6 +4,15 @@
   <base target="_top">
   <meta charset="UTF-8">
   <title>Quản lý Thu - Chi - Tồn Quỹ Tiền Mặt</title>
+  <script>
+    // Áp chế độ sáng/tối NGAY khi tải trang (trước khi vẽ) để không bị nháy trắng.
+    (function () {
+      var c = 'tu_dong';
+      try { c = localStorage.getItem('hak_giao_dien') || 'tu_dong'; } catch (e) {}
+      var toi = c === 'toi' || (c === 'tu_dong' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-giao-dien', toi ? 'toi' : 'sang');
+    })();
+  </script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap">
   <script src="https://cdn.tailwindcss.com"></script>
@@ -129,9 +138,9 @@
 
     <!-- Chip người dùng góc dưới trái — giống HDMB_HAK -->
     <div id="hakNguoiDungChip">
-      <span>👤</span>
       <span class="em" id="userFullName">--</span>
       <span class="vt" id="userRole">--</span>
+      <button type="button" id="hakChipGiaoDien" onclick="hakDoiGiaoDien()" aria-label="Đổi giao diện sáng/tối" title="Đổi giao diện sáng/tối">🌓</button>
       <button type="button" onclick="doLogout()">Đăng xuất</button>
     </div>
   </div>
